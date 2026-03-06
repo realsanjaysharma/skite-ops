@@ -1,0 +1,9 @@
+/storage/uploads/
+/storage/logs/
+/backups/
+/.env
+/vendor/
+node_modules/
+*.sql
+*.zip
+*.log
