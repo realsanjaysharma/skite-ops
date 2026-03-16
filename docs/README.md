@@ -126,7 +126,7 @@ These are NOT part of v1 implementation.
 
 # Schema Documentation
 
-docs/schema/
+docs/06_schema/
 
 Files:
 
@@ -143,6 +143,39 @@ Schema changes require:
 • Migration file  
 • Decisions Log update  
 • Documentation update
+
+---
+
+# Architecture Diagrams
+
+The system architecture and implementation roadmap are documented in:
+
+docs/architecture/skite_ops_architecture_roadmap.pdf
+
+This document contains:
+
+• Backend Architecture Diagram  
+• Project Structure Diagram  
+• Development Roadmap (Implementation Order)
+
+This file provides a visual reference for how the backend layers interact and the recommended development sequence.
+
+Backend architecture follows a layered model:
+
+Controller  
+→ Service  
+→ Repository  
+→ Database
+
+Controllers handle HTTP requests.
+
+Services contain business logic and governance rules.
+
+Repositories contain SQL queries and database access.
+
+All database access must go through repositories.
+
+The architecture diagram reflects the layered backend structure used throughout the system implementation.
 
 ---
 
