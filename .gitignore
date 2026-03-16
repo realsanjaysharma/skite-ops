@@ -7,6 +7,8 @@
 /.env
 /vendor/
 node_modules/
+# ignore SQL dumps but keep architecture schema
 *.sql
+!docs/06_schema/schema_v1_full.sql
 *.zip
 *.log
