@@ -47,11 +47,11 @@ class UserService
 
         $user = $this->userRepository->getUserById($userId);
 
-        if (!$user) {
+        if ($user === null) {
             throw new RuntimeException('User not found or has been deleted.');
         }
 
-        return $user;
+        return $this->formatUserResponse($user);
     }
 
     /**
@@ -63,11 +63,11 @@ class UserService
 
         $user = $this->userRepository->getUserByEmail($normalizedEmail);
 
-        if (!$user) {
+        if ($user === null) {
             throw new RuntimeException('User not found or has been deleted.');
         }
 
-        return $user;
+        return $this->formatUserResponse($user);
     }
 
     /**
@@ -75,7 +75,7 @@ class UserService
      */
     public function getAllActiveUsers()
     {
-        return $this->userRepository->getAllActiveUsers();
+        return $this->formatUserListResponse($this->userRepository->getAllActiveUsers());
     }
 
     /**
@@ -85,7 +85,7 @@ class UserService
     {
         $this->validateRoleId($roleId);
 
-        return $this->userRepository->getUsersByRole($roleId);
+        return $this->formatUserListResponse($this->userRepository->getUsersByRole($roleId));
     }
 
     /**
@@ -96,10 +96,10 @@ class UserService
         $validatedData = $this->validateCreateUserData($data);
 
         try {
-            $existingUser = $this->userRepository->getUserByEmailIncludingDeleted($validatedData['email']);
+            $existingUser = $this->userRepository->getUserByEmail($validatedData['email']);
 
-            if ($existingUser) {
-                throw new InvalidArgumentException('Email already exists for an active user.');
+            if ($existingUser !== null) {
+                throw new InvalidArgumentException('Email already exists');
             }
 
             $userId = $this->userRepository->createUser([
@@ -112,7 +112,15 @@ class UserService
             return $this->getUserById($userId);
         } catch (PDOException $exception) {
             if ($exception->getCode() === '23000') {
-                throw new InvalidArgumentException('Email already exists', 0, $exception);
+                $message = $exception->getMessage();
+
+                if (strpos($message, 'users.email') !== false || strpos($message, 'Duplicate entry') !== false) {
+                    throw new InvalidArgumentException('Email already exists', 0, $exception);
+                }
+
+                if (strpos($message, 'role_id') !== false || strpos($message, 'foreign key constraint fails') !== false) {
+                    throw new InvalidArgumentException('Invalid role_id (role does not exist)', 0, $exception);
+                }
             }
 
             throw $exception;
@@ -129,14 +137,14 @@ class UserService
 
         $existingUser = $this->userRepository->getUserById($userId);
 
-        if (!$existingUser) {
+        if ($existingUser === null) {
             throw new RuntimeException('User not found or has been deleted.');
         }
 
-        $userWithSameEmail = $this->userRepository->getUserByEmailIncludingDeleted($validatedData['email']);
+        $userWithSameEmail = $this->userRepository->getUserByEmail($validatedData['email']);
 
-        if ($userWithSameEmail && (int) $userWithSameEmail['id'] !== (int) $userId) {
-            throw new InvalidArgumentException('Email already exists for another active user.');
+        if ($userWithSameEmail !== null && (int) $userWithSameEmail['id'] !== (int) $userId) {
+            throw new InvalidArgumentException('Email already exists');
         }
 
         $updated = $this->userRepository->updateUser($userId, [
@@ -166,13 +174,13 @@ class UserService
 
         $user = $this->userRepository->getUserById($userId);
 
-        if (!$user) {
+        if ($user === null) {
             throw new RuntimeException('User not found or has already been deleted.');
         }
 
         $deletedByUser = $this->userRepository->getUserById($deletedBy);
 
-        if (!$deletedByUser) {
+        if ($deletedByUser === null) {
             throw new RuntimeException('Deleted-by user not found or has been deleted.');
         }
 
@@ -304,5 +312,36 @@ class UserService
         }
 
         return (int) $userId;
+    }
+
+    /**
+     * Return only safe user fields for API responses.
+     */
+    private function formatUserResponse($user)
+    {
+        return [
+            'id' => $user['id'] ?? null,
+            'role_id' => $user['role_id'] ?? null,
+            'full_name' => $user['full_name'] ?? null,
+            'email' => $user['email'] ?? null,
+            'is_active' => $user['is_active'] ?? null,
+            'is_deleted' => $user['is_deleted'] ?? null,
+            'created_at' => $user['created_at'] ?? null,
+            'updated_at' => $user['updated_at'] ?? null
+        ];
+    }
+
+    /**
+     * Return only safe user fields for API list responses.
+     */
+    private function formatUserListResponse($users)
+    {
+        $formattedUsers = [];
+
+        foreach ($users as $user) {
+            $formattedUsers[] = $this->formatUserResponse($user);
+        }
+
+        return $formattedUsers;
     }
 }

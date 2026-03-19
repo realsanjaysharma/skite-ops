@@ -60,7 +60,9 @@ class BaseRepository
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
 
-        return $stmt->fetch();
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        return $result !== false ? $result : null;
     }
 
     /**
@@ -77,7 +79,7 @@ class BaseRepository
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
 
-        return $stmt->fetchAll();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     /**

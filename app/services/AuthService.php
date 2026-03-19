@@ -63,12 +63,32 @@ class AuthService
             throw new RuntimeException('Invalid email or password');
         }
 
+        if ((int) $user['is_deleted'] === 1) {
+            throw new RuntimeException('Invalid email or password');
+        }
+
+        if ((int) $user['is_active'] === 0) {
+            throw new RuntimeException('Invalid email or password');
+        }
+
         if (!password_verify($password, $user['password_hash'])) {
             throw new RuntimeException('Invalid email or password');
         }
 
-        unset($user['password_hash']);
+        return $this->formatAuthUserResponse($user);
+    }
 
-        return $user;
+    /**
+     * Return only safe authenticated user fields.
+     */
+    private function formatAuthUserResponse($user)
+    {
+        return [
+            'id' => $user['id'] ?? null,
+            'role_id' => $user['role_id'] ?? null,
+            'full_name' => $user['full_name'] ?? null,
+            'email' => $user['email'] ?? null,
+            'is_active' => $user['is_active'] ?? null
+        ];
     }
 }
