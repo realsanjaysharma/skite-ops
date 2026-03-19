@@ -19,7 +19,12 @@ header('Content-Type: application/json');
 
 $route = $_GET['route'] ?? '';
 $routes = [
-    'auth/login' => ['AuthController', 'login']
+    'auth/login' => ['AuthController', 'login'],
+    'user/create' => ['UserController', 'createUser'],
+    'user/update' => ['UserController', 'updateUser'],
+    'user/get' => ['UserController', 'getUserById'],
+    'user/list' => ['UserController', 'getAllUsers'],
+    'user/delete' => ['UserController', 'softDeleteUser']
 ];
 
 if ($route === '') {
