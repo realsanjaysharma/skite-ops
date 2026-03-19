@@ -1,0 +1,21 @@
+$kind: http-request
+name: 'Login - wrong HTTP method'
+method: GET
+url: '{{baseUrl}}?route=auth/login'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status code is 405", function () {
+          pm.response.to.have.status(405);
+      });
+
+      pm.test("Response has success false", function () {
+          const json = pm.response.json();
+          pm.expect(json.success).to.be.false;
+      });
+
+      pm.test("Error message mentions method not allowed", function () {
+          const json = pm.response.json();
+          pm.expect(json.error.toLowerCase()).to.include('method');
+      });

@@ -1,0 +1,41 @@
+$kind: http-request
+name: 'Create user - invalid email format'
+method: POST
+url: '{{baseUrl}}/index.php?route=users/create'
+order: 5000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "full_name": "Bad Email User",
+      "email": "not-valid-email",
+      "password": "securepass123",
+      "role_id": 2
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status code is 400", function () {
+          pm.response.to.have.status(400);
+      });
+
+      pm.test("Response has error status", function () {
+          const json = pm.response.json();
+          pm.expect(json.status).to.eql("error");
+      });
+
+      pm.test("Response contains email validation message", function () {
+          const json = pm.response.json();
+          pm.expect(json).to.have.property("message");
+          pm.expect(json.message.toLowerCase()).to.satisfy(function(msg) {
+              return msg.includes("email") || msg.includes("invalid") || msg.includes("format");
+          });
+      });
+
+      pm.test("Response time is less than 2000ms", function () {
+          pm.expect(pm.response.responseTime).to.be.below(2000);
+      });

@@ -1,0 +1,42 @@
+$kind: http-request
+name: 'Update user - valid'
+method: PUT
+url: '{{baseUrl}}/index.php?route=users/update&id={{createdUserId}}'
+order: 10000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "full_name": "Updated Test User",
+      "role_id": 2
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status code is 200", function () {
+          pm.response.to.have.status(200);
+      });
+
+      pm.test("Response has success status", function () {
+          const json = pm.response.json();
+          pm.expect(json.status).to.eql("success");
+      });
+
+      pm.test("Response contains updated user object", function () {
+          const json = pm.response.json();
+          pm.expect(json).to.have.property("user");
+          pm.expect(json.user).to.be.an("object");
+      });
+
+      pm.test("Updated user reflects new full_name", function () {
+          const user = pm.response.json().user;
+          pm.expect(user.full_name).to.eql("Updated Test User");
+      });
+
+      pm.test("Response time is less than 2000ms", function () {
+          pm.expect(pm.response.responseTime).to.be.below(2000);
+      });

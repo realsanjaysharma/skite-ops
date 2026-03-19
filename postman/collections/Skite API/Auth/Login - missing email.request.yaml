@@ -1,0 +1,32 @@
+$kind: http-request
+name: 'Login - missing email'
+method: POST
+url: '{{baseUrl}}?route=auth/login'
+order: 2000
+body:
+  type: formdata
+  content:
+    - key: password
+      type: text
+      value: password123
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Status code is 400', function () {
+          pm.response.to.have.status(400);
+      });
+
+      pm.test('Response has success false', function () {
+          const json = pm.response.json();
+          pm.expect(json.success).to.be.false;
+      });
+
+      pm.test('Response contains error about email', function () {
+          const json = pm.response.json();
+          pm.expect(json.error.toLowerCase()).to.include('email');
+      });
+
+      pm.test('Response time is less than 2000ms', function () {
+          pm.expect(pm.response.responseTime).to.be.below(2000);
+      });

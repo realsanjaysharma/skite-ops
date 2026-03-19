@@ -1,0 +1,6 @@
+name: Skite - Local
+values:
+  - key: baseUrl
+    value: 'http://localhost/skite'
+    enabled: true
+    type: default

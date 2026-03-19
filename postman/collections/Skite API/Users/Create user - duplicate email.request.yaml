@@ -1,0 +1,41 @@
+$kind: http-request
+name: 'Create user - duplicate email'
+method: POST
+url: '{{baseUrl}}/index.php?route=users/create'
+order: 2000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "full_name": "Duplicate User",
+      "email": "testuser@example.com",
+      "password": "securepass123",
+      "role_id": 2
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status code is 409 or 400", function () {
+          pm.expect(pm.response.code).to.be.oneOf([400, 409]);
+      });
+
+      pm.test("Response has error status", function () {
+          const json = pm.response.json();
+          pm.expect(json.status).to.eql("error");
+      });
+
+      pm.test("Response contains duplicate/exists message", function () {
+          const json = pm.response.json();
+          pm.expect(json).to.have.property("message");
+          pm.expect(json.message.toLowerCase()).to.satisfy(function(msg) {
+              return msg.includes("duplicate") || msg.includes("exists") || msg.includes("already") || msg.includes("email");
+          });
+      });
+
+      pm.test("Response time is less than 2000ms", function () {
+          pm.expect(pm.response.responseTime).to.be.below(2000);
+      });

@@ -1,0 +1,9 @@
+$kind: collection
+name: Skite API
+variables:
+  - key: baseUrl
+    value: 'http://localhost/skite/index.php'
+  - key: createdUserId
+    value: ''
+  - key: adminUserId
+    value: '1'

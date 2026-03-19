@@ -1,0 +1,21 @@
+$kind: http-request
+name: 'Invalid route'
+method: GET
+url: '{{baseUrl}}?route=nonexistent/endpoint'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status code is 400", function () {
+          pm.response.to.have.status(400);
+      });
+
+      pm.test("Response has success false", function () {
+          const json = pm.response.json();
+          pm.expect(json.success).to.be.false;
+      });
+
+      pm.test("Error message mentions route not found", function () {
+          const json = pm.response.json();
+          pm.expect(json.error.toLowerCase()).to.include('route');
+      });
