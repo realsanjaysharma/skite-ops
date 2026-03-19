@@ -244,3 +244,17 @@ STATUS
 
 Architecture Fully Frozen – v1 Stable.
 All governance rules consolidated.
+### Email Uniqueness Rule
+
+Decision:
+Email uniqueness is enforced globally, including soft-deleted users.
+
+Rationale:
+- Prevent identity ambiguity
+- Maintain audit consistency
+- Ensure reliable tracking of historical ownership
+
+Impact:
+- Users cannot re-register using the same email after deletion
+- Email remains permanently reserved once used
+- System prioritizes governance over convenience

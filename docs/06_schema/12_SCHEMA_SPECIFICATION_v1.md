@@ -56,6 +56,20 @@ to a user.
 
 Hard delete was rejected due to audit loss risk.
 
+### Email Uniqueness Policy
+
+Email is globally unique across the system.
+
+- A user's email remains reserved even after soft deletion.
+- Soft-deleted users (is_deleted = 1) continue to block reuse of the same email.
+- This ensures identity consistency and prevents historical ambiguity.
+
+Rationale:
+This system is governance-driven and audit-focused. Allowing email reuse would create ambiguity in logs, reports, and ownership tracking.
+
+Therefore:
+Email reuse after deletion is NOT allowed.
+
 ------------------------------------------------------------------------
 
 # 3. system_meta
