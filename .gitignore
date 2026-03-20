@@ -12,4 +12,8 @@ node_modules/
 !docs/06_schema/schema_v1_full.sql
 *.zip
 *.log
+postman/
 .postman/
+postman/
+scripts/
+*.js

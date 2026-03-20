@@ -1,5 +1,17 @@
 <?php
 
+// ==========================================
+// GLOBAL SESSION SECURITY CONFIG
+// Must be set BEFORE session_start()
+// ==========================================
+session_set_cookie_params([
+    'lifetime' => 0,
+    'path'     => '/',
+    'secure'   => false, // set true only when HTTPS
+    'httponly' => true,
+    'samesite' => 'Strict'
+]);
+
 /**
  * index.php
  *
@@ -17,17 +29,18 @@
 
 header('Content-Type: application/json');
 
-$route = $_GET['route'] ?? '';
-$routes = [
-    'auth/login' => ['AuthController', 'login'],
-    'user/create' => ['UserController', 'createUser'],
-    'user/update' => ['UserController', 'updateUser'],
-    'user/get' => ['UserController', 'getUserById'],
-    'user/list' => ['UserController', 'getAllUsers'],
-    'user/delete' => ['UserController', 'softDeleteUser']
+$rbac = [
+    'user/create' => [1],
+    'user/update' => [1],
+    'user/delete' => [1],
+    'user/list'   => [1, 2],
+    'user/get'    => [1, 2, 3],
+    'auth/logout' => [1, 2, 3]
 ];
 
-if ($route === '') {
+$route = $_GET['route'] ?? null;
+
+if ($route === null || $route === '') {
     http_response_code(400);
     echo json_encode([
         'success' => false,
@@ -47,15 +60,65 @@ if (count($parts) !== 2 || $parts[0] === '' || $parts[1] === '') {
     return;
 }
 
-if (isset($routes[$route])) {
-    $controllerName = $routes[$route][0];
-    $methodName = $routes[$route][1];
+require_once __DIR__ . '/app/middleware/AuthMiddleware.php';
 
-    require_once __DIR__ . '/app/controllers/' . $controllerName . '.php';
+if (isset($rbac[$route])) {
+    AuthMiddleware::check();
 
-    $controller = new $controllerName();
-    $controller->$methodName();
-    return;
+    $roleId = $_SESSION['role_id'] ?? null;
+
+    if (!$roleId || !in_array($roleId, $rbac[$route])) {
+        http_response_code(403);
+        echo json_encode([
+            'success' => false,
+            'error' => 'Forbidden'
+        ]);
+        exit;
+    }
+}
+
+switch ($route) {
+    case 'auth/login':
+        require_once __DIR__ . '/app/controllers/AuthController.php';
+        $controller = new AuthController();
+        $controller->login();
+        return;
+
+    case 'auth/logout':
+        require_once __DIR__ . '/app/controllers/AuthController.php';
+        $controller = new AuthController();
+        $controller->logout();
+        return;
+
+    case 'user/create':
+        require_once __DIR__ . '/app/controllers/UserController.php';
+        $controller = new UserController();
+        $controller->createUser();
+        return;
+
+    case 'user/update':
+        require_once __DIR__ . '/app/controllers/UserController.php';
+        $controller = new UserController();
+        $controller->updateUser();
+        return;
+
+    case 'user/get':
+        require_once __DIR__ . '/app/controllers/UserController.php';
+        $controller = new UserController();
+        $controller->getUserById();
+        return;
+
+    case 'user/list':
+        require_once __DIR__ . '/app/controllers/UserController.php';
+        $controller = new UserController();
+        $controller->getAllUsers();
+        return;
+
+    case 'user/delete':
+        require_once __DIR__ . '/app/controllers/UserController.php';
+        $controller = new UserController();
+        $controller->softDeleteUser();
+        return;
 }
 
 http_response_code(400);

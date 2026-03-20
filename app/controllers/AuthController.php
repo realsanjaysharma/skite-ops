@@ -37,6 +37,10 @@ class AuthController
         header('Content-Type: application/json');
         $response = [];
 
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             http_response_code(405);
             $response = [
@@ -53,6 +57,10 @@ class AuthController
             $password = $data['password'] ?? null;
 
             $user = $this->authService->login($email, $password);
+            session_regenerate_id(true);
+            $_SESSION['user_id'] = $user['id'];
+            $_SESSION['role_id'] = $user['role_id'];
+            $_SESSION['logged_in'] = true;
             http_response_code(200);
 
             $response = [
@@ -68,6 +76,32 @@ class AuthController
         }
 
         echo json_encode($response);
+    }
+
+    public function logout()
+    {
+        header('Content-Type: application/json');
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            http_response_code(405);
+            echo json_encode([
+                'success' => false,
+                'error' => 'Method not allowed'
+            ]);
+            return;
+        }
+
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+
+        session_unset();
+        session_destroy();
+
+        http_response_code(200);
+        echo json_encode([
+            'success' => true
+        ]);
     }
 
     /**
