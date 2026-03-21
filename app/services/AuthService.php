@@ -20,6 +20,9 @@ require_once __DIR__ . '/../repositories/UserRepository.php';
 
 class AuthService
 {
+    private const MAX_FAILED_ATTEMPTS = 5;
+    private const LOCK_TIME_MINUTES = 15;
+
     /**
      * @var UserRepository
      */
@@ -63,6 +66,22 @@ class AuthService
             throw new RuntimeException('Invalid email or password');
         }
 
+        if (
+            $user['failed_attempt_count'] >= self::MAX_FAILED_ATTEMPTS &&
+            $user['last_failed_attempt_at'] !== null
+        ) {
+            $lastAttemptTime = strtotime($user['last_failed_attempt_at']);
+            $lockExpiryTime = $lastAttemptTime + (self::LOCK_TIME_MINUTES * 60);
+
+            if (time() < $lockExpiryTime) {
+                throw new RuntimeException('Invalid email or password');
+            }
+
+            $this->resetFailedAttempts((int) $user['id']);
+            $user['failed_attempt_count'] = 0;
+            $user['last_failed_attempt_at'] = null;
+        }
+
         if ((int) $user['is_deleted'] === 1) {
             throw new RuntimeException('Invalid email or password');
         }
@@ -72,10 +91,22 @@ class AuthService
         }
 
         if (!password_verify($password, $user['password_hash'])) {
+            $this->incrementFailedAttempts((int) $user['id']);
             throw new RuntimeException('Invalid email or password');
         }
 
+        $this->resetFailedAttempts((int) $user['id']);
         return $this->formatAuthUserResponse($user);
+    }
+
+    private function incrementFailedAttempts(int $userId): void
+    {
+        $this->userRepository->updateFailedAttempts($userId);
+    }
+
+    private function resetFailedAttempts(int $userId): void
+    {
+        $this->userRepository->resetFailedAttempts($userId);
     }
 
     /**

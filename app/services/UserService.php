@@ -18,6 +18,7 @@
  */
 
 require_once __DIR__ . '/../repositories/UserRepository.php';
+require_once __DIR__ . '/AuditService.php';
 require_once __DIR__ . '/../../config/database.php';
 
 class UserService
@@ -28,6 +29,11 @@ class UserService
     private $userRepository;
 
     /**
+     * @var AuditService
+     */
+    private AuditService $auditService;
+
+    /**
      * @var PDO
      */
     private $db;
@@ -35,6 +41,7 @@ class UserService
     public function __construct()
     {
         $this->userRepository = new UserRepository();
+        $this->auditService = new AuditService();
         $this->db = Database::getConnection();
     }
 
@@ -91,9 +98,10 @@ class UserService
     /**
      * Create user with validation and DB-level uniqueness enforcement.
      */
-    public function createUser($data)
+    public function createUser(array $data, int $actorUserId)
     {
         $validatedData = $this->validateCreateUserData($data);
+        $this->validateUserId($actorUserId);
 
         try {
             $existingUser = $this->userRepository->getUserByEmail($validatedData['email']);
@@ -108,6 +116,18 @@ class UserService
                 'password_hash' => password_hash($validatedData['password'], PASSWORD_DEFAULT),
                 'role_id' => $validatedData['role_id']
             ]);
+
+            $sanitizedData = $validatedData;
+            unset($sanitizedData['password']);
+
+            $this->auditService->logAction(
+                $actorUserId,
+                'USER_CREATED',
+                'USER',
+                (int) $userId,
+                null,
+                $sanitizedData
+            );
 
             return $this->getUserById($userId);
         } catch (PDOException $exception) {
@@ -130,14 +150,16 @@ class UserService
     /**
      * Update user with validation and global email uniqueness enforcement.
      */
-    public function updateUser($userId, $data)
+    public function updateUser(array $data, int $actorUserId)
     {
+        $userId = $data['user_id'] ?? null;
         $this->validateUserId($userId);
+        $this->validateUserId($actorUserId);
         $validatedData = $this->validateUpdateUserData($data);
 
-        $existingUser = $this->userRepository->getUserById($userId);
+        $oldUser = $this->userRepository->getUserById($userId);
 
-        if ($existingUser === null) {
+        if ($oldUser === null) {
             throw new RuntimeException('User not found or has been deleted.');
         }
 
@@ -157,13 +179,27 @@ class UserService
             throw new RuntimeException('Failed to update user.');
         }
 
+        $safeOldUser = $oldUser;
+
+        // IMPORTANT: Never log sensitive fields like password_hash in audit logs.
+        unset($safeOldUser['password_hash']);
+
+        $this->auditService->logAction(
+            $actorUserId,
+            'USER_UPDATED',
+            'USER',
+            $userId,
+            $safeOldUser,
+            $validatedData
+        );
+
         return $this->getUserById($userId);
     }
 
     /**
      * Soft delete user with validation and audit tracking.
      */
-    public function softDeleteUser($userId, $deletedBy)
+    public function softDeleteUser(int $userId, int $deletedBy)
     {
         $this->validateUserId($userId);
         $this->validateUserId($deletedBy);
@@ -189,6 +225,15 @@ class UserService
         if (!$deleted) {
             throw new RuntimeException('Failed to soft delete user.');
         }
+
+        $this->auditService->logAction(
+            $deletedBy,
+            'USER_DELETED',
+            'USER',
+            $userId,
+            null,
+            ['is_deleted' => 1]
+        );
 
         return true;
     }

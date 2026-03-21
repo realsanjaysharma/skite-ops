@@ -29,15 +29,6 @@ session_set_cookie_params([
 
 header('Content-Type: application/json');
 
-$rbac = [
-    'user/create' => [1],
-    'user/update' => [1],
-    'user/delete' => [1],
-    'user/list'   => [1, 2],
-    'user/get'    => [1, 2, 3],
-    'auth/logout' => [1, 2, 3]
-];
-
 $route = $_GET['route'] ?? null;
 
 if ($route === null || $route === '') {
@@ -62,19 +53,9 @@ if (count($parts) !== 2 || $parts[0] === '' || $parts[1] === '') {
 
 require_once __DIR__ . '/app/middleware/AuthMiddleware.php';
 
-if (isset($rbac[$route])) {
-    AuthMiddleware::check();
-
-    $roleId = $_SESSION['role_id'] ?? null;
-
-    if (!$roleId || !in_array($roleId, $rbac[$route])) {
-        http_response_code(403);
-        echo json_encode([
-            'success' => false,
-            'error' => 'Forbidden'
-        ]);
-        exit;
-    }
+if ($route !== 'auth/login') {
+    $authMiddleware = new AuthMiddleware();
+    $authMiddleware->authorize($route);
 }
 
 switch ($route) {

@@ -2,15 +2,29 @@
 
 class AuthMiddleware
 {
-    public static function check()
+    /**
+     * Centralized route permission map.
+     * Route keys match index.php route strings exactly.
+     */
+    private array $routePermissions = [
+        'user/create' => [1],
+        'user/update' => [1],
+        'user/delete' => [1],
+        'user/list'   => [1],
+        'user/get'    => [1],
+    ];
+
+    public function authorize(string $route): void
     {
-        // Session must be started before checking authentication
-        // This ensures consistent session handling across all protected routes
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
         }
 
-        if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
+        $userId = $_SESSION['user_id'] ?? null;
+        $roleId = $_SESSION['role_id'] ?? null;
+
+        // Requests without an authenticated session must never reach controllers.
+        if (!$userId) {
             http_response_code(401);
             echo json_encode([
                 'success' => false,
@@ -18,26 +32,15 @@ class AuthMiddleware
             ]);
             exit;
         }
-    }
 
-    public static function checkRole(array $allowedRoles)
-    {
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
+        // Routes missing from the permission map are treated as unrestricted.
+        if (!isset($this->routePermissions[$route])) {
+            return;
         }
 
-        // Authentication check
-        if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
-            http_response_code(401);
-            echo json_encode([
-                'success' => false,
-                'error' => 'Unauthorized'
-            ]);
-            exit;
-        }
+        $allowedRoles = $this->routePermissions[$route];
 
-        // Role check
-        if (!isset($_SESSION['role_id']) || !in_array($_SESSION['role_id'], $allowedRoles)) {
+        if (!in_array($roleId, $allowedRoles)) {
             http_response_code(403);
             echo json_encode([
                 'success' => false,

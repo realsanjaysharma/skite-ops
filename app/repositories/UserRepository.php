@@ -97,6 +97,28 @@ class UserRepository extends BaseRepository
         );
     }
 
+    public function updateFailedAttempts(int $userId): void
+    {
+        $this->execute(
+            "UPDATE users
+             SET failed_attempt_count = failed_attempt_count + 1,
+                 last_failed_attempt_at = NOW()
+             WHERE id = ?",
+            [$userId]
+        );
+    }
+
+    public function resetFailedAttempts(int $userId): void
+    {
+        $this->execute(
+            "UPDATE users
+             SET failed_attempt_count = 0,
+                 last_failed_attempt_at = NULL
+             WHERE id = ?",
+            [$userId]
+        );
+    }
+
     /**
      * Create new user
      *

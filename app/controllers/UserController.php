@@ -47,15 +47,33 @@ class UserController
             return;
         }
 
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+
+        $actorUserId = $_SESSION['user_id'] ?? null;
+
+        if (!$actorUserId) {
+            http_response_code(401);
+            echo json_encode([
+                'success' => false,
+                'error' => 'Unauthorized'
+            ]);
+            return;
+        }
+
         try {
             $data = $this->getRequestData();
 
-            $user = $this->userService->createUser([
-                'full_name' => $data['full_name'] ?? null,
-                'email' => $data['email'] ?? null,
-                'password' => $data['password'] ?? null,
-                'role_id' => $data['role_id'] ?? null
-            ]);
+            $user = $this->userService->createUser(
+                [
+                    'full_name' => $data['full_name'] ?? null,
+                    'email' => $data['email'] ?? null,
+                    'password' => $data['password'] ?? null,
+                    'role_id' => $data['role_id'] ?? null
+                ],
+                (int) $actorUserId
+            );
 
             http_response_code(200);
             $response = [
@@ -91,16 +109,32 @@ class UserController
             return;
         }
 
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+
+        $actorUserId = $_SESSION['user_id'] ?? null;
+
+        if (!$actorUserId) {
+            http_response_code(401);
+            echo json_encode([
+                'success' => false,
+                'error' => 'Unauthorized'
+            ]);
+            return;
+        }
+
         try {
             $data = $this->getRequestData();
 
             $user = $this->userService->updateUser(
-                $data['user_id'] ?? null,
                 [
+                    'user_id' => $data['user_id'] ?? null,
                     'full_name' => $data['full_name'] ?? null,
                     'email' => $data['email'] ?? null,
                     'role_id' => $data['role_id'] ?? null
-                ]
+                ],
+                (int) $actorUserId
             );
 
             http_response_code(200);
@@ -211,12 +245,27 @@ class UserController
             return;
         }
 
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+
+        $deletedBy = $_SESSION['user_id'] ?? null;
+
+        if (!$deletedBy) {
+            http_response_code(401);
+            echo json_encode([
+                'success' => false,
+                'error' => 'Unauthorized'
+            ]);
+            return;
+        }
+
         try {
             $data = $this->getRequestData();
 
             $deleted = $this->userService->softDeleteUser(
                 $data['user_id'] ?? null,
-                $data['deleted_by'] ?? null
+                $deletedBy
             );
 
             http_response_code(200);
