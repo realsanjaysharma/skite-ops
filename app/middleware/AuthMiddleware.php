@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/../helpers/Csrf.php';
+
 class AuthMiddleware
 {
     /**
@@ -31,6 +33,22 @@ class AuthMiddleware
                 'error' => 'Unauthorized'
             ]);
             exit;
+        }
+
+        if (in_array($_SERVER['REQUEST_METHOD'], ['POST', 'PUT', 'DELETE'])) {
+            if ($route !== 'auth/login' && $route !== 'auth/logout') {
+                $headers = array_change_key_case(getallheaders(), CASE_LOWER);
+                $token = $headers['x-csrf-token'] ?? null;
+
+                if (!Csrf::validateToken($token)) {
+                    http_response_code(403);
+                    echo json_encode([
+                        'success' => false,
+                        'error' => 'Invalid CSRF token'
+                    ]);
+                    exit;
+                }
+            }
         }
 
         // Routes missing from the permission map are treated as unrestricted.

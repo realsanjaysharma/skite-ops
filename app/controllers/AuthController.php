@@ -16,6 +16,7 @@
  */
 
 require_once __DIR__ . '/../services/AuthService.php';
+require_once __DIR__ . '/../helpers/Csrf.php';
 require_once __DIR__ . '/../helpers/Response.php';
 
 class AuthController
@@ -50,7 +51,12 @@ class AuthController
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['role_id'] = $user['role_id'];
             $_SESSION['logged_in'] = true;
-            Response::success($user);
+            $csrfToken = Csrf::generateToken();
+
+            Response::success([
+                ...$user,
+                'csrf_token' => $csrfToken
+            ]);
         } catch (Throwable $exception) {
             Response::error($exception->getMessage(), 400);
         }
