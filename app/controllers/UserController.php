@@ -16,6 +16,7 @@
  */
 
 require_once __DIR__ . '/../services/UserService.php';
+require_once __DIR__ . '/../helpers/Response.php';
 
 class UserController
 {
@@ -34,31 +35,15 @@ class UserController
      */
     public function createUser()
     {
-        header('Content-Type: application/json');
-        $response = [];
-
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            http_response_code(405);
-            $response = [
-                'success' => false,
-                'error' => 'Invalid request method'
-            ];
-            echo json_encode($response);
+            Response::error('Method not allowed', 405);
             return;
-        }
-
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
         }
 
         $actorUserId = $_SESSION['user_id'] ?? null;
 
         if (!$actorUserId) {
-            http_response_code(401);
-            echo json_encode([
-                'success' => false,
-                'error' => 'Unauthorized'
-            ]);
+            Response::error('Unauthorized', 401);
             return;
         }
 
@@ -75,20 +60,10 @@ class UserController
                 (int) $actorUserId
             );
 
-            http_response_code(200);
-            $response = [
-                'success' => true,
-                'data' => $user
-            ];
+            Response::success($user);
         } catch (Throwable $exception) {
-            http_response_code(400);
-            $response = [
-                'success' => false,
-                'error' => $exception->getMessage()
-            ];
+            Response::error($exception->getMessage(), 400);
         }
-
-        echo json_encode($response);
     }
 
     /**
@@ -96,31 +71,15 @@ class UserController
      */
     public function updateUser()
     {
-        header('Content-Type: application/json');
-        $response = [];
-
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            http_response_code(405);
-            $response = [
-                'success' => false,
-                'error' => 'Invalid request method'
-            ];
-            echo json_encode($response);
+            Response::error('Method not allowed', 405);
             return;
-        }
-
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
         }
 
         $actorUserId = $_SESSION['user_id'] ?? null;
 
         if (!$actorUserId) {
-            http_response_code(401);
-            echo json_encode([
-                'success' => false,
-                'error' => 'Unauthorized'
-            ]);
+            Response::error('Unauthorized', 401);
             return;
         }
 
@@ -137,20 +96,10 @@ class UserController
                 (int) $actorUserId
             );
 
-            http_response_code(200);
-            $response = [
-                'success' => true,
-                'data' => $user
-            ];
+            Response::success($user);
         } catch (Throwable $exception) {
-            http_response_code(400);
-            $response = [
-                'success' => false,
-                'error' => $exception->getMessage()
-            ];
+            Response::error($exception->getMessage(), 400);
         }
-
-        echo json_encode($response);
     }
 
     /**
@@ -158,36 +107,18 @@ class UserController
      */
     public function getUserById()
     {
-        header('Content-Type: application/json');
-        $response = [];
-
         if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-            http_response_code(405);
-            $response = [
-                'success' => false,
-                'error' => 'Invalid request method'
-            ];
-            echo json_encode($response);
+            Response::error('Method not allowed', 405);
             return;
         }
 
         try {
             $user = $this->userService->getUserById($_GET['user_id'] ?? null);
 
-            http_response_code(200);
-            $response = [
-                'success' => true,
-                'data' => $user
-            ];
+            Response::success($user);
         } catch (Throwable $exception) {
-            http_response_code(400);
-            $response = [
-                'success' => false,
-                'error' => $exception->getMessage()
-            ];
+            Response::error($exception->getMessage(), 400);
         }
-
-        echo json_encode($response);
     }
 
     /**
@@ -195,36 +126,18 @@ class UserController
      */
     public function getAllUsers()
     {
-        header('Content-Type: application/json');
-        $response = [];
-
         if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-            http_response_code(405);
-            $response = [
-                'success' => false,
-                'error' => 'Invalid request method'
-            ];
-            echo json_encode($response);
+            Response::error('Method not allowed', 405);
             return;
         }
 
         try {
             $users = $this->userService->getAllActiveUsers();
 
-            http_response_code(200);
-            $response = [
-                'success' => true,
-                'data' => $users
-            ];
+            Response::success($users);
         } catch (Throwable $exception) {
-            http_response_code(400);
-            $response = [
-                'success' => false,
-                'error' => $exception->getMessage()
-            ];
+            Response::error($exception->getMessage(), 400);
         }
-
-        echo json_encode($response);
     }
 
     /**
@@ -232,31 +145,15 @@ class UserController
      */
     public function softDeleteUser()
     {
-        header('Content-Type: application/json');
-        $response = [];
-
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            http_response_code(405);
-            $response = [
-                'success' => false,
-                'error' => 'Invalid request method'
-            ];
-            echo json_encode($response);
+            Response::error('Method not allowed', 405);
             return;
-        }
-
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
         }
 
         $deletedBy = $_SESSION['user_id'] ?? null;
 
         if (!$deletedBy) {
-            http_response_code(401);
-            echo json_encode([
-                'success' => false,
-                'error' => 'Unauthorized'
-            ]);
+            Response::error('Unauthorized', 401);
             return;
         }
 
@@ -268,20 +165,10 @@ class UserController
                 $deletedBy
             );
 
-            http_response_code(200);
-            $response = [
-                'success' => true,
-                'data' => $deleted
-            ];
+            Response::success($deleted);
         } catch (Throwable $exception) {
-            http_response_code(400);
-            $response = [
-                'success' => false,
-                'error' => $exception->getMessage()
-            ];
+            Response::error($exception->getMessage(), 400);
         }
-
-        echo json_encode($response);
     }
 
     /**

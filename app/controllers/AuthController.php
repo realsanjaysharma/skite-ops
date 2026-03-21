@@ -16,6 +16,7 @@
  */
 
 require_once __DIR__ . '/../services/AuthService.php';
+require_once __DIR__ . '/../helpers/Response.php';
 
 class AuthController
 {
@@ -34,20 +35,8 @@ class AuthController
      */
     public function login()
     {
-        header('Content-Type: application/json');
-        $response = [];
-
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
-        }
-
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            http_response_code(405);
-            $response = [
-                'success' => false,
-                'error' => 'Method not allowed'
-            ];
-            echo json_encode($response);
+            Response::error('Method not allowed', 405);
             return;
         }
 
@@ -61,47 +50,37 @@ class AuthController
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['role_id'] = $user['role_id'];
             $_SESSION['logged_in'] = true;
-            http_response_code(200);
-
-            $response = [
-                'success' => true,
-                'data' => $user
-            ];
+            Response::success($user);
         } catch (Throwable $exception) {
-            http_response_code(400);
-            $response = [
-                'success' => false,
-                'error' => $exception->getMessage()
-            ];
+            Response::error($exception->getMessage(), 400);
         }
-
-        echo json_encode($response);
     }
 
     public function logout()
     {
-        header('Content-Type: application/json');
-
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            http_response_code(405);
-            echo json_encode([
-                'success' => false,
-                'error' => 'Method not allowed'
-            ]);
+            Response::error('Method not allowed', 405);
             return;
         }
 
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
+        $_SESSION = [];
+        session_destroy();
+        session_write_close();
+
+        if (ini_get('session.use_cookies')) {
+            $params = session_get_cookie_params();
+
+            setcookie(session_name(), '', [
+                'expires' => time() - 42000,
+                'path' => $params['path'],
+                'domain' => $params['domain'],
+                'secure' => $params['secure'],
+                'httponly' => $params['httponly'],
+                'samesite' => 'Strict'
+            ]);
         }
 
-        session_unset();
-        session_destroy();
-
-        http_response_code(200);
-        echo json_encode([
-            'success' => true
-        ]);
+        Response::success(null);
     }
 
     /**
