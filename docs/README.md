@@ -131,8 +131,8 @@ docs/06_schema/
 Files:
 
 schema_v1_full.sql  
-11_SCHEMA_BASELINE_V1.md  
-12_SCHEMA_SPECIFICATION.md  
+11_SCHEMA_BASELINE_v1_FINAL_WITH_DDL.md  
+12_SCHEMA_SPECIFICATION_v1.md  
 
 The schema is frozen at version v1.
 
@@ -167,11 +167,17 @@ Controller
 → Repository  
 → Database
 
-Controllers handle HTTP requests.
+Controllers handle HTTP input/output only and must not contain business logic.
 
-Services contain business logic and governance rules.
+Controllers handle request validation (format, required fields).
 
-Repositories contain SQL queries and database access.
+Services handle business validation and domain rules.
+
+All business rules and system behavior must be implemented in the Service layer.
+
+Repositories are responsible only for database access and must not contain business logic.
+
+Authorization (RBAC) must be enforced at the middleware layer before reaching controllers. Services must not perform role-based access checks.
 
 All database access must go through repositories.
 

@@ -47,7 +47,7 @@ No automation may mutate operational data silently.
 Strict separation required between:
 
 1.  Database Schema
-2.  Business Logic (Controllers)
+2.  Business Logic (Service Layer)
 3.  UI Rendering
 4.  Permission Enforcement
 5.  Alert Calculation
@@ -85,18 +85,14 @@ Rules:
 
 ------------------------------------------------------------------------
 
-## 5. CONTROLLER DISCIPLINE
+## 5. BACKEND LAYER DISCIPLINE
 
-All critical logic must live in controller layer.
-
-Examples:
-
--   Watering cutoff (8 PM)
--   Month-lock enforcement
--   Override validation
--   Attendance suppression (ON_LEAVE)
--   Archive restrictions
--   Parent immutability checks
+Controllers handle HTTP input/output only and must not contain business logic.
+Controllers handle request validation (format, required fields).
+Services handle business validation and domain rules.
+All business rules and system behavior must be implemented in the Service layer.
+Repositories are responsible only for database access and must not contain business logic.
+Authorization (RBAC) must be enforced at the middleware layer before reaching controllers. Services must not perform role-based access checks.
 
 Controllers must:
 
@@ -155,15 +151,15 @@ Month-lock enforcement applies to:
 
 -   Attendance
 -   Labour logs
+-   Watering entries
 -   Daily work entry
 
-After month end:
+Rule:
 
--   Records become read-only
--   No edits allowed
--   No override allowed
-
-Watering override allowed only within same calendar month.
+"Past-month records are locked by default.
+Only Ops role can perform override on locked records.
+All overrides must require a reason and must be recorded in audit_logs.
+Overrides are action-specific and do not unlock the entire month or dataset."
 
 ------------------------------------------------------------------------
 

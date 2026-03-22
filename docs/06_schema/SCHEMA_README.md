@@ -20,7 +20,7 @@ If documentation conflicts with SQL structure, **the SQL schema takes precedence
 
 ---
 
-## 11_SCHEMA_BASELINE_V1.md
+## 11_SCHEMA_BASELINE_v1_FINAL_WITH_DDL.md
 
 High-level overview of the schema.
 
@@ -35,7 +35,7 @@ This document explains **what exists in the schema**, not column-level detail.
 
 ---
 
-## 12_SCHEMA_SPECIFICATION.md
+## 12_SCHEMA_SPECIFICATION_v1.md
 
 Detailed explanation of every table.
 

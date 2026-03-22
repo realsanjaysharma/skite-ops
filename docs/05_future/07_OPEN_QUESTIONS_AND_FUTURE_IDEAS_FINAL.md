@@ -14,7 +14,7 @@ Architecture reconsiderations - Brainstorm experiments
 It contains only postponed but valid evolution paths.
 
 Current Architecture Status: Frozen\
-Current Phase: Schema Implementation\
+Current Phase: Backend Implementation Phase\
 Redesign Allowed: No
 
 ------------------------------------------------------------------------

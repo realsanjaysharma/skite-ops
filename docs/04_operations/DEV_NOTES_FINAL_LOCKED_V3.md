@@ -50,11 +50,19 @@ wrong.
   4\. LAYER RESPONSIBILITY RULE (MANDATORY)
   -------------------------------------------
 
-Controllers: - Handle HTTP request/response only. - Perform role
-validation. - Call service layer. - Never contain SQL queries.
+Controllers: - Handle HTTP request/response only. - Handle request
+validation (format, required fields). - Call service layer. - Must not
+contain business logic. - Never contain SQL queries.
 
-Services: - Contain ALL business logic. - Contain ALL database
-queries. - Enforce Decisions Log rules.
+Services: - Contain ALL business logic. - Enforce Decisions Log rules.
+- Handle business validation and domain rules. - Must not contain raw
+SQL queries. - Must not perform role-based access checks.
+
+Repositories: - Contain ALL database queries. - Perform data access
+only. - Must not contain business logic.
+
+Authorization (RBAC) must be enforced at the middleware layer before
+reaching controllers.
 
 Views: - Display only. - No business logic. - No direct DB access.
 
@@ -204,8 +212,10 @@ explicitly.
 
 Month-based records:
 
-Editable only within same calendar month. Ops override required beyond
-that.
+"Past-month records are locked by default.
+Only Ops role can perform override on locked records.
+All overrides must require a reason and must be recorded in audit_logs.
+Overrides are action-specific and do not unlock the entire month or dataset."
 
   ---------------------------
   18\. DEBUGGING DISCIPLINE
@@ -241,5 +251,5 @@ Any schema or structural change requires update of:
 
 STATUS
 
-Development discipline fully hardened. Ready for schema implementation
-phase.
+Development discipline fully hardened. Ready for Backend Implementation
+Phase.

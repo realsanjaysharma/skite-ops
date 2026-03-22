@@ -201,13 +201,12 @@ Restrictions:
 
 ## 5. MONTH-LOCK RULE
 
-For Attendance, Labour, Daily Work Entry:
+For Attendance, Labour, Watering, and Daily Work Entry:
 
-Editable only within same calendar month.
-
-Ops override allowed within month only.
-
-After month end: - Records become read-only permanently.
+"Past-month records are locked by default.
+Only Ops role can perform override on locked records.
+All overrides must require a reason and must be recorded in audit_logs.
+Overrides are action-specific and do not unlock the entire month or dataset."
 
 ------------------------------------------------------------------------
 

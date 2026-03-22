@@ -142,12 +142,21 @@ This system is built as:
 -   Governance-first
 -   Audit-first
 -   Mobile-first for field users
--   Controller-enforced security
+-   Service-enforced business rules
 -   Schema-driven integrity
 -   Manual archive (no automatic data hiding)
 -   Explicit lifecycle transitions only
 
 No automation will alter operational data silently.
+
+Backend architecture rule:
+
+Controllers handle HTTP input/output only and must not contain business logic.
+Controllers handle request validation (format, required fields).
+Services handle business validation and domain rules.
+All business rules and system behavior must be implemented in the Service layer.
+Repositories are responsible only for database access and must not contain business logic.
+Authorization (RBAC) must be enforced at the middleware layer before reaching controllers. Services must not perform role-based access checks.
 
 ------------------------------------------------------------------------
 
@@ -197,7 +206,7 @@ Designed for:
 -   PHP + MySQL environment
 -   Shared hosting compatibility
 -   Git-based version control
--   Controller-level permission enforcement
+-   Centralized middleware/controller HTTP permission handling
 
 No dependency on background cron jobs for core logic.
 

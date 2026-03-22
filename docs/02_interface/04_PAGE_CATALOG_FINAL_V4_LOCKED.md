@@ -211,7 +211,7 @@ Access: Head Supervisor
 
 Features:
 - Mark Present / Absent
-- Month-lock enforced
+- Past-month records are locked by default. Only Ops role can perform override on locked records. All overrides must require a reason and must be recorded in audit_logs. Overrides are action-specific and do not unlock the entire month or dataset.
 - Morning reminder alert if not marked
 - Displays full supervisor list under Head Supervisor authority.
 - Attendance must be recorded for each supervisor daily.
@@ -227,7 +227,7 @@ Features:
 - Select Belt
 - Select Date
 - Enter Labour Count
-- Month-lock enforced
+- Past-month records are locked by default. Only Ops role can perform override on locked records. All overrides must require a reason and must be recorded in audit_logs. Overrides are action-specific and do not unlock the entire month or dataset.
 - Missing entry alert
 
 ============================================================
@@ -299,7 +299,7 @@ Access: Ops
 
 Features:
 - Mark Present / Absent / Half-Day
-- Month-lock enforced
+- Past-month records are locked by default. Only Ops role can perform override on locked records. All overrides must require a reason and must be recorded in audit_logs. Overrides are action-specific and do not unlock the entire month or dataset.
 - ON_LEAVE suppresses alerts
 
 ------------------------------------------------------------
@@ -311,7 +311,7 @@ Features:
 - Multiple entries per worker
 - Link to Task (optional)
 - 6 PM alert if no entry
-- Month-lock enforced
+- Past-month records are locked by default. Only Ops role can perform override on locked records. All overrides must require a reason and must be recorded in audit_logs. Overrides are action-specific and do not unlock the entire month or dataset.
 Rule:
 - Daily work entry allowed only if worker attendance is marked for that date.
 - If attendance not marked, system blocks work entry and shows alert.

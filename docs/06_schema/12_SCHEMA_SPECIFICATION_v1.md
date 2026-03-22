@@ -340,7 +340,11 @@ Multiple entries per day allowed. Linked optionally to task.
 
 ## Governance Interaction
 
-Month-lock enforced. Attendance dependency enforced.
+Past-month records are locked by default.
+Only Ops role can perform override on locked records.
+All overrides must require a reason and must be recorded in audit_logs.
+Overrides are action-specific and do not unlock the entire month or dataset.
+Attendance dependency enforced.
 
 ------------------------------------------------------------------------
 
@@ -349,8 +353,13 @@ Month-lock enforced. Attendance dependency enforced.
 -   No stored compliance flags.
 -   No cascade deletes on governance entities.
 -   ENUM vocabularies frozen under Schema v1.
--   Month-lock enforced at service layer.
--   Business logic lives in service layer.
+-   Past-month records are locked by default. Only Ops role can perform override on locked records. All overrides must require a reason and must be recorded in audit_logs. Overrides are action-specific and do not unlock the entire month or dataset. Month-lock is enforced at service layer.
+-   Controllers handle HTTP input/output only and must not contain business logic.
+-   Controllers handle request validation (format, required fields).
+-   Services handle business validation and domain rules.
+-   All business rules and system behavior must be implemented in the Service layer.
+-   Repositories are responsible only for database access and must not contain business logic.
+-   Authorization (RBAC) must be enforced at the middleware layer before reaching controllers. Services must not perform role-based access checks.
 -   Database enforces structural truth only.
 
 ------------------------------------------------------------------------

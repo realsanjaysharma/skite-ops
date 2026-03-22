@@ -158,8 +158,10 @@ override_by (nullable) - override_reason (nullable)
 Supervisor / Head: - May mark current server date only - Cutoff = 20:00
 server time - Cannot backdate - Cannot future-date
 
-Ops: - May backdate within same calendar month only - Must provide
-override_reason - Must log audit entry
+Past-month records are locked by default.
+Only Ops role can perform override on locked records.
+All overrides must require a reason and must be recorded in audit_logs.
+Overrides are action-specific and do not unlock the entire month or dataset.
 
 ------------------------------------------------------------------------
 
@@ -208,8 +210,10 @@ UNIQUE (supervisor_id, date)
 
 -   Marked by Head Supervisor
 -   Morning alert if missing
--   Editable within same calendar month
--   Ops override allowed
+-   Past-month records are locked by default.
+-   Only Ops role can perform override on locked records.
+-   All overrides must require a reason and must be recorded in audit_logs.
+-   Overrides are action-specific and do not unlock the entire month or dataset.
 -   Does NOT block watering or uploads
 -   If missing, alert visible on Master & Ops Dashboard
 
@@ -221,7 +225,10 @@ UNIQUE (worker_id, date)
 
 -   Marked by Ops
 -   Morning alert if missing
--   Editable within month
+-   Past-month records are locked by default.
+-   Only Ops role can perform override on locked records.
+-   All overrides must require a reason and must be recorded in audit_logs.
+-   Overrides are action-specific and do not unlock the entire month or dataset.
 -   If worker_status = ON_LEAVE:
     -   Attendance alert suppressed
     -   6 PM work-entry alert suppressed
@@ -235,7 +242,10 @@ UNIQUE (belt_id, date)
 Fields: - belt_id - date - labour_count
 
 Rules: - Only valid when maintenance_mode = MAINTAINED - Morning alert
-if missing - Editable within same calendar month - Aggregation based on
+if missing - Past-month records are locked by default. Only Ops role can
+perform override on locked records. All overrides must require a reason
+and must be recorded in audit_logs. Overrides are action-specific and do
+not unlock the entire month or dataset. - Aggregation based on
 supervisor assigned on that specific date - Does NOT affect health
 engine
 
@@ -303,7 +313,10 @@ Fields: - worker_id - date - task_id (nullable) - activity_type -
 work_plan - work_update - remarks
 
 Rules: - Multiple entries allowed per worker per day - 6 PM alert if no
-entry - Editable within same calendar month - Work entry allowed only if worker attendance exists for that date 
+entry - Past-month records are locked by default. Only Ops role can
+perform override on locked records. All overrides must require a reason
+and must be recorded in audit_logs. Overrides are action-specific and do
+not unlock the entire month or dataset. - Work entry allowed only if worker attendance exists for that date 
 - Does NOT auto-update task
 progress
 

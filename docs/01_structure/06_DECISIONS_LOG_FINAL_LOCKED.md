@@ -84,7 +84,10 @@ Automatically aggregated to supervisor via belt assignment.
 
 Decision 013 – Attendance Model (Green Belt)
 Head Supervisor records attendance.
-Month-lock enforced.
+"Past-month records are locked by default.
+Only Ops role can perform override on locked records.
+All overrides must require a reason and must be recorded in audit_logs.
+Overrides are action-specific and do not unlock the entire month or dataset."
 Attendance missing triggers alert.
 
 Decision 014 – Attendance Non-Blocking Rule
@@ -155,7 +158,10 @@ Archive never deletes records.
 
 Decision 024 – Worker Attendance Model
 Ops records worker attendance.
-Month-lock enforced.
+"Past-month records are locked by default.
+Only Ops role can perform override on locked records.
+All overrides must require a reason and must be recorded in audit_logs.
+Overrides are action-specific and do not unlock the entire month or dataset."
 ON_LEAVE suppresses alerts.
 
 Decision 025 – Worker Daily Entry Dependency
@@ -206,9 +212,11 @@ SECTION 7: ALERT & LOCK MODEL
 ============================================================
 
 Decision 032 – Month Lock Rule
-Attendance, labour, watering backdate, worker entries:
-Editable only within current calendar month.
-Past months locked.
+Attendance, labour, watering entries, and worker entries follow this rule:
+"Past-month records are locked by default.
+Only Ops role can perform override on locked records.
+All overrides must require a reason and must be recorded in audit_logs.
+Overrides are action-specific and do not unlock the entire month or dataset."
 
 Decision 033 – Notification Panel Model
 Alerts grouped by category.

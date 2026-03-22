@@ -46,14 +46,12 @@ database structure.
 
 ## LEVEL 1 --- STRUCTURAL EXECUTION AUTHORITY (CORE TRUTH)
 
-Files: - 11_SCHEMA_PREPARATION_FINAL_LOCKED_V2.md -
-05_DATA_AND_FLOW_NOTES_FINAL.md - 06_DECISIONS_LOG_FINAL_LOCKED.md
+Files: - 11_SCHEMA_BASELINE_v1_FINAL_WITH_DDL.md - 12_SCHEMA_SPECIFICATION_v1.md - schema_v1_full.sql - 05_DATA_AND_FLOW_NOTES_FINAL.md - 06_DECISIONS_LOG_FINAL_LOCKED.md
 
 Purpose: - Define database entities - Define relationships - Define
-lifecycle logic - Lock structural decisions
+lifecycle logic - Define executable schema authority - Lock structural decisions
 
-Authority Order Within Level 1: Schema Preparation \> Data & Flow \>
-Decisions Log
+Authority Order Within Level 1: Executable SQL Schema \> Schema Baseline \> Schema Specification \> Data & Flow \> Decisions Log
 
 ### SCHEMA SUPREMACY RULE
 
@@ -69,7 +67,7 @@ Schema is the operational constitution.
 
 ## LEVEL 2 --- STRUCTURAL INTERFACE LAYER
 
-Files: - 04_PAGE_CATALOG_FINAL.md - 02_ROLES_AND_ACCESS_FINAL.md -
+Files: - 04_PAGE_CATALOG_FINAL_V4_LOCKED.md - 02_ROLES_AND_ACCESS_FINAL.md -
 03_DESIGN_PRINCIPLES_FINAL.md
 
 Purpose: - Define UI organization - Define role boundaries - Define
@@ -156,7 +154,7 @@ Without explicit phase update.
 
 # SECTION 4 --- IMPLEMENTATION SYNCHRONIZATION RULE
 
-After schema implementation:
+After backend implementation:
 
 -   Database must match Level 1 documents.
 -   If deviation occurs: → Update documentation immediately. → Commit
@@ -175,10 +173,10 @@ Mandatory reading order:
 1.  CURRENT_PHASE.md
 2.  NON_NEGOTIABLES_V3.md
 3.  00_PROJECT_FILE_MAP_FINAL_V2.md
-4.  11_SCHEMA_PREPARATION_FINAL_LOCKED_V2.md
+4.  schema_v1_full.sql
 5.  05_DATA_AND_FLOW_NOTES_FINAL.md
 6.  06_DECISIONS_LOG_FINAL_LOCKED.md
-7.  04_PAGE_CATALOG_FINAL.md
+7.  04_PAGE_CATALOG_FINAL_V4_LOCKED.md
 8.  02_ROLES_AND_ACCESS_FINAL.md
 
 Only after that: Context and philosophy files.
@@ -188,7 +186,7 @@ Only after that: Context and philosophy files.
 # SECTION 6 --- ARCHITECTURAL FREEZE DECLARATION
 
 Architecture Status: Frozen\
-Active Phase: Schema Implementation\
+Active Phase: Backend Implementation Phase\
 Redesign Allowed: No
 
 All development must align with:
