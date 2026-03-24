@@ -94,7 +94,7 @@ SERVER TIME ONLY. Database date comparison. No frontend-only validation.
 
 Supervisors: - Can mark watering only for CURRENT_DATE.
 
-Ops: - Can backdate within SAME MONTH only. - Must log override_reason.
+Ops: - Can perform override on locked records. - Must log override_reason.
 
   ----------------------------------
   8\. CONSTANTS CONFIGURATION RULE

@@ -106,9 +106,7 @@ class UserService
         try {
             $this->assertRoleExists($validatedData['role_id']);
 
-            $existingUser = $this->userRepository->getUserByEmail($validatedData['email']);
-
-            if ($existingUser !== null) {
+            if ($this->userRepository->emailExists($validatedData['email'])) {
                 throw new InvalidArgumentException('Email already exists');
             }
 
@@ -174,6 +172,13 @@ class UserService
                 $userWithSameEmail !== null &&
                 (int) $userWithSameEmail['id'] !== (int) $userId
             ) {
+                throw new InvalidArgumentException('Email already exists');
+            }
+
+            $currentUser = $this->userRepository->getUserById($userId);
+            $emailChanged = $currentUser !== null && ($validatedData['email'] !== ($currentUser['email'] ?? null));
+
+            if ($emailChanged && $this->userRepository->emailExists($validatedData['email'])) {
                 throw new InvalidArgumentException('Email already exists');
             }
 

@@ -172,8 +172,8 @@ class AuthService
 
     public function resetPassword(int $userId, string $newPassword): void
     {
-        if (strlen($newPassword) < 6) {
-            throw new InvalidArgumentException('Password must be at least 6 characters');
+        if (strlen($newPassword) < 8) {
+            throw new InvalidArgumentException('Password must be at least 8 characters');
         }
 
         $this->userRepository->updatePassword(

@@ -60,6 +60,24 @@ class UserRepository extends BaseRepository
     }
 
     /**
+     * Checks if email exists in users table.
+     * NOTE:
+     * - Includes soft-deleted users (permanent uniqueness rule)
+     * - Used as a pre-check only (DB constraint is final authority)
+     */
+    public function emailExists(string $email): bool
+    {
+        $user = $this->fetchOne(
+            "SELECT id FROM users
+             WHERE email = ?
+             LIMIT 1",
+            [$email]
+        );
+
+        return $user !== null;
+    }
+
+    /**
      * Check whether a role exists in the roles table.
      */
     public function roleExists(int $roleId): bool

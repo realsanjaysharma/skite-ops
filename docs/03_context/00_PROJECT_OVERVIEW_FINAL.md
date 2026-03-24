@@ -99,7 +99,6 @@ Task archiving (manual only) - Monthly worker productivity reporting
 ### 4.3 Monitoring Vertical
 
 Manages: - Site-based monitoring uploads - Monitoring attendance -
-Monitoring frequency compliance - Free/available media discovery -
 Planning visibility support
 
 Monitoring and Fabrication share worker model but remain logically

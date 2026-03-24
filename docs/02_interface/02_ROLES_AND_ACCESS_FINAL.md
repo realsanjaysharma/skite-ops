@@ -47,7 +47,7 @@ uploads - All reports
 Permissions:
 
 Green Belt: - Create/Edit belts - Change watering frequency - Override
-watering (same month only) - Approve/Reject uploads - Set issue
+watering on locked records (audit logged, reason required) - Approve/Reject uploads - Set issue
 priority - Close issues - Link issue to task - Override attendance -
 Override labour count - Start/Close maintenance cycle - Hide/Unhide belt
 
