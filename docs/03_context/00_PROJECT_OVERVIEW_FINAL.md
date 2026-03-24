@@ -22,7 +22,7 @@ SCHEMA FREEZE DECLARATION (v1)
 ------------------------------------------------------------------------
 
 Schema Version: v1 (Finalized)
-Total Tables: 17
+Total Tables: 18
 Maintenance Cycle: Single-active enforced at service layer
 Supervisor Assignment: Historical model via belt_supervisor_assignments
 Compliance Model: Dynamic (no stored alert flags)

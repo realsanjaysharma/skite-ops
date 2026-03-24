@@ -36,7 +36,7 @@ wrong.
   3\. PROJECT STRUCTURE (Shared Hosting Compatible)
   ---------------------------------------------------
 
-/public index.php login.php logout.php
+/ index.php
 
 /app /controllers /services /helpers /middleware
 

@@ -11,8 +11,8 @@ Authentication Method: - PHP session-based authentication.
 
 Session Security Rules: - session_regenerate_id(true) on successful
 login. - Full session destruction on logout. - User ID and role stored
-in server-side session only. - Role validation enforced at controller
-level. - Session timeout: 30 minutes inactivity.
+in server-side session only. - Role validation enforced at middleware
+level before controller execution. - Session timeout: 30 minutes inactivity.
 Session Termination Rules:
 - On logout:
     - session_unset()
@@ -39,6 +39,11 @@ Login Attempt Tracking:
 - All lock/unlock events logged in audit log.
 Login Protection: - Maximum 5 failed login attempts. - Account locked
 for 15 minutes after threshold. - Failed attempts logged in audit log.
+
+Forced Password Reset:
+- Users flagged for forced password reset may log in successfully.
+- All protected routes are blocked until password reset is completed.
+- Only logout and reset-password routes remain accessible during this state.
 
   ---------------------
   3\. CSRF PROTECTION

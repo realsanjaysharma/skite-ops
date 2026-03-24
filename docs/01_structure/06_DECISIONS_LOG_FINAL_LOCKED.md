@@ -241,10 +241,14 @@ UNIQUE constraint intentionally rejected.
 Rationale: Allow multiple historical closed cycles.
 
 Decision 036 – Schema v1 Freeze Declaration
-Total 17 tables finalized.
+Total 18 tables finalized.
 All ENUM vocabularies locked.
 No structural redesign permitted without migration.
 Schema Supremacy Rule activated.
+
+Decision 037 – Sites Entity Introduction
+Minimal sites master introduced via migration 002_add_sites_table.sql.
+Relationships and monitoring frequency remain intentionally deferred.
 
 ============================================================
 STATUS

@@ -29,7 +29,7 @@ Characteristics:
 -   No arbitrary micro-permission toggles
 -   No user-specific custom hacks
 -   Vertical-scoped visibility
--   Controller-level enforcement required
+-   Middleware-level enforcement before controller execution required
 
 ------------------------------------------------------------------------
 

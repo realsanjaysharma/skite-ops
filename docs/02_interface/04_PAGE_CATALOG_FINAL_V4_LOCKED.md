@@ -338,16 +338,6 @@ Features:
 - Upload Photo
 - Optional Comment
 
-------------------------------------------------------------
-
-4.7 Monitoring Frequency Management Page
-Access: Ops
-
-Features:
-- Define frequency per site
-- Editable anytime
-
-============================================================
 5. REPORTS SECTION
 ============================================================
 
@@ -396,6 +386,14 @@ Features:
 - View Watering Backdates
 - View Status Changes
 - View Cycle Auto-Closures
+
+7.3 Forced Password Reset
+Access: Authenticated user with force_password_reset flag
+
+Features:
+- Set new password
+- Clears force_password_reset after successful reset
+- Clears force_password_reset and restores access to all authorized routes
 
 ============================================================
 8. GLOBAL COMPONENT
