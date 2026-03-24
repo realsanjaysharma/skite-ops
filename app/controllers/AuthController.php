@@ -46,15 +46,20 @@ class AuthController
             $email = $data['email'] ?? null;
             $password = $data['password'] ?? null;
 
-            $user = $this->authService->login($email, $password);
+            $authResult = $this->authService->login($email, $password);
+            $requiresPasswordReset = (bool) ($authResult['requires_password_reset'] ?? false);
+            $user = $authResult['user'] ?? [];
+
             session_regenerate_id(true);
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['role_id'] = $user['role_id'];
             $_SESSION['logged_in'] = true;
+            $_SESSION['force_password_reset'] = $requiresPasswordReset;
             $csrfToken = Csrf::generateToken();
 
             Response::success([
-                ...$user,
+                'user' => $user,
+                'requires_password_reset' => $requiresPasswordReset,
                 'csrf_token' => $csrfToken
             ]);
         } catch (Throwable $exception) {

@@ -17,6 +17,7 @@
  */
 
 require_once __DIR__ . '/../repositories/UserRepository.php';
+require_once __DIR__ . '/AuditService.php';
 
 class AuthService
 {
@@ -28,9 +29,15 @@ class AuthService
      */
     private $userRepository;
 
+    /**
+     * @var AuditService
+     */
+    private AuditService $auditService;
+
     public function __construct()
     {
         $this->userRepository = new UserRepository();
+        $this->auditService = new AuditService();
     }
 
     /**
@@ -63,6 +70,18 @@ class AuthService
         $user = $this->userRepository->getUserByEmail($normalizedEmail);
 
         if (!$user) {
+            $this->safeAuditLog(
+                0,
+                'LOGIN_FAILED',
+                'USER',
+                0,
+                null,
+                [
+                    'email' => $normalizedEmail,
+                    'reason' => 'user_not_found'
+                ]
+            );
+
             throw new RuntimeException('Invalid email or password');
         }
 
@@ -74,6 +93,17 @@ class AuthService
             $lockExpiryTime = $lastAttemptTime + (self::LOCK_TIME_MINUTES * 60);
 
             if (time() < $lockExpiryTime) {
+                $this->safeAuditLog(
+                    (int) $user['id'],
+                    'LOGIN_BLOCKED_LOCKED',
+                    'USER',
+                    (int) $user['id'],
+                    null,
+                    [
+                        'remaining_lock_seconds' => $lockExpiryTime - time()
+                    ]
+                );
+
                 throw new RuntimeException('Invalid email or password');
             }
 
@@ -92,11 +122,52 @@ class AuthService
 
         if (!password_verify($password, $user['password_hash'])) {
             $this->incrementFailedAttempts((int) $user['id']);
+
+            $failedAttemptCount = (int) $user['failed_attempt_count'] + 1;
+
+            $this->safeAuditLog(
+                (int) $user['id'],
+                'LOGIN_FAILED',
+                'USER',
+                (int) $user['id'],
+                null,
+                [
+                    'failed_attempt_count' => $failedAttemptCount
+                ]
+            );
+
+            if ($failedAttemptCount >= self::MAX_FAILED_ATTEMPTS) {
+                $this->safeAuditLog(
+                    (int) $user['id'],
+                    'ACCOUNT_LOCKED',
+                    'USER',
+                    (int) $user['id'],
+                    null,
+                    [
+                        'lock_time_minutes' => self::LOCK_TIME_MINUTES
+                    ]
+                );
+            }
+
             throw new RuntimeException('Invalid email or password');
         }
 
         $this->resetFailedAttempts((int) $user['id']);
-        return $this->formatAuthUserResponse($user);
+        $this->safeAuditLog(
+            (int) $user['id'],
+            'LOGIN_SUCCESS',
+            'USER',
+            (int) $user['id'],
+            null,
+            null
+        );
+
+        $safeUser = $this->formatAuthUserResponse($user);
+
+        return [
+            'user' => $safeUser,
+            'requires_password_reset' => ((int) $user['force_password_reset'] === 1)
+        ];
     }
 
     private function incrementFailedAttempts(int $userId): void
@@ -107,6 +178,31 @@ class AuthService
     private function resetFailedAttempts(int $userId): void
     {
         $this->userRepository->resetFailedAttempts($userId);
+    }
+
+    /**
+     * Audit failures must never block authentication flow.
+     */
+    private function safeAuditLog(
+        int $userId,
+        string $action,
+        string $entityType,
+        int $entityId,
+        ?array $oldValues = null,
+        ?array $newValues = null
+    ): void {
+        try {
+            $this->auditService->logAction(
+                $userId,
+                $action,
+                $entityType,
+                $entityId,
+                $oldValues,
+                $newValues
+            );
+        } catch (Throwable $exception) {
+            // Intentionally swallow audit failures so auth behavior remains unchanged.
+        }
     }
 
     /**

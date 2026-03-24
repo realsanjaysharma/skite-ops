@@ -104,9 +104,11 @@ class UserService
         $this->validateUserId($actorUserId);
 
         try {
-            $existingUser = $this->userRepository->getUserByEmail($validatedData['email']);
+            $this->assertRoleExists($validatedData['role_id']);
 
-            if ($existingUser !== null) {
+            $existingUser = $this->userRepository->getUserByEmailIncludingDeleted($validatedData['email']);
+
+            if ($existingUser !== null && (int) ($existingUser['is_deleted'] ?? 0) === 0) {
                 throw new InvalidArgumentException('Email already exists');
             }
 
@@ -157,43 +159,57 @@ class UserService
         $this->validateUserId($actorUserId);
         $validatedData = $this->validateUpdateUserData($data);
 
-        $oldUser = $this->userRepository->getUserById($userId);
+        try {
+            $oldUser = $this->userRepository->getUserById($userId);
 
-        if ($oldUser === null) {
-            throw new RuntimeException('User not found or has been deleted.');
+            if ($oldUser === null) {
+                throw new RuntimeException('User not found or has been deleted.');
+            }
+
+            $this->assertRoleExists($validatedData['role_id']);
+
+            $userWithSameEmail = $this->userRepository->getUserByEmailIncludingDeleted($validatedData['email']);
+
+            if (
+                $userWithSameEmail !== null &&
+                (int) $userWithSameEmail['id'] !== (int) $userId &&
+                (int) ($userWithSameEmail['is_deleted'] ?? 0) === 0
+            ) {
+                throw new InvalidArgumentException('Email already exists');
+            }
+
+            $updated = $this->userRepository->updateUser($userId, [
+                'full_name' => $validatedData['full_name'],
+                'email' => $validatedData['email'],
+                'role_id' => $validatedData['role_id']
+            ]);
+
+            if (!$updated) {
+                throw new RuntimeException('Failed to update user.');
+            }
+
+            $safeOldUser = $oldUser;
+
+            // IMPORTANT: Never log sensitive fields like password_hash in audit logs.
+            unset($safeOldUser['password_hash']);
+
+            $this->auditService->logAction(
+                $actorUserId,
+                'USER_UPDATED',
+                'USER',
+                $userId,
+                $safeOldUser,
+                $validatedData
+            );
+
+            return $this->getUserById($userId);
+        } catch (PDOException $exception) {
+            if ($exception->getCode() === '23000') {
+                throw new InvalidArgumentException('Email already exists');
+            }
+
+            throw $exception;
         }
-
-        $userWithSameEmail = $this->userRepository->getUserByEmail($validatedData['email']);
-
-        if ($userWithSameEmail !== null && (int) $userWithSameEmail['id'] !== (int) $userId) {
-            throw new InvalidArgumentException('Email already exists');
-        }
-
-        $updated = $this->userRepository->updateUser($userId, [
-            'full_name' => $validatedData['full_name'],
-            'email' => $validatedData['email'],
-            'role_id' => $validatedData['role_id']
-        ]);
-
-        if (!$updated) {
-            throw new RuntimeException('Failed to update user.');
-        }
-
-        $safeOldUser = $oldUser;
-
-        // IMPORTANT: Never log sensitive fields like password_hash in audit logs.
-        unset($safeOldUser['password_hash']);
-
-        $this->auditService->logAction(
-            $actorUserId,
-            'USER_UPDATED',
-            'USER',
-            $userId,
-            $safeOldUser,
-            $validatedData
-        );
-
-        return $this->getUserById($userId);
     }
 
     /**
@@ -345,6 +361,16 @@ class UserService
         }
 
         return (int) $roleId;
+    }
+
+    /**
+     * role_id must reference an existing role before persistence.
+     */
+    private function assertRoleExists(int $roleId): void
+    {
+        if (!$this->userRepository->roleExists($roleId)) {
+            throw new InvalidArgumentException('Invalid role_id');
+        }
     }
 
     /**

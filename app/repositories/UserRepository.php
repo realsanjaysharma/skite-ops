@@ -67,9 +67,24 @@ class UserRepository extends BaseRepository
         return $this->fetchOne(
             "SELECT * FROM users
              WHERE email = ?
-                LIMIT 1",
+             LIMIT 1",
             [$email]
         );
+    }
+
+    /**
+     * Check whether a role exists in the roles table.
+     */
+    public function roleExists(int $roleId): bool
+    {
+        $role = $this->fetchOne(
+            "SELECT id FROM roles
+             WHERE id = ?
+             LIMIT 1",
+            [$roleId]
+        );
+
+        return $role !== null;
     }
 
     /**

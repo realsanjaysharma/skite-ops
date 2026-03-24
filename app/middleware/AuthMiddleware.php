@@ -16,6 +16,14 @@ class AuthMiddleware
         'user/get'    => [1],
     ];
 
+    /**
+     * Routes allowed while force password reset is pending.
+     */
+    private array $forceResetAllowedRoutes = [
+        'auth/logout',
+        'auth/reset-password',
+    ];
+
     public function authorize(string $route): void
     {
         if (session_status() === PHP_SESSION_NONE) {
@@ -33,6 +41,19 @@ class AuthMiddleware
                 'error' => 'Unauthorized'
             ]);
             exit;
+        }
+
+        $forceReset = $_SESSION['force_password_reset'] ?? false;
+
+        if ($forceReset) {
+            if (!in_array($route, $this->forceResetAllowedRoutes)) {
+                http_response_code(403);
+                echo json_encode([
+                    'success' => false,
+                    'error' => 'Password reset required'
+                ]);
+                exit;
+            }
         }
 
         if (in_array($_SERVER['REQUEST_METHOD'], ['POST', 'PUT', 'DELETE'])) {
