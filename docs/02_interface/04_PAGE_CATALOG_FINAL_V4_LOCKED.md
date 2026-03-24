@@ -296,7 +296,7 @@ Fields:
 
 ------------------------------------------------------------
 
-4.3 Worker Management Page
+4.4 Worker Management Page
 Access: Ops
 
 Fields:
@@ -306,7 +306,7 @@ Fields:
 
 ------------------------------------------------------------
 
-4.4 Worker Attendance Page
+4.5 Worker Attendance Page
 Access: Ops
 
 Features:
@@ -316,7 +316,7 @@ Features:
 
 ------------------------------------------------------------
 
-4.5 Worker Daily Entry Page
+4.6 Worker Daily Entry Page
 Access: Ops
 
 Features:
@@ -330,7 +330,7 @@ Rule:
 
 ------------------------------------------------------------
 
-4.6 Monitoring Upload Page
+4.7 Monitoring Upload Page
 Access: Monitoring Team
 
 Features:

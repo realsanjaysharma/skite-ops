@@ -6,7 +6,7 @@ Redesign Allowed: No\
 Migration Required For Structural Change: Yes\
 Compliance Model: Dynamic (No stored alert flags)
 
-Freeze Date: \[Insert Date\]
+Freeze Date: 2026-03-24
 
 ------------------------------------------------------------------------
 

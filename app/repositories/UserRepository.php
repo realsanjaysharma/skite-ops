@@ -60,19 +60,6 @@ class UserRepository extends BaseRepository
     }
 
     /**
-     * Get user by email including soft-deleted records
-     */
-    public function getUserByEmailIncludingDeleted($email)
-    {
-        return $this->fetchOne(
-            "SELECT * FROM users
-             WHERE email = ?
-             LIMIT 1",
-            [$email]
-        );
-    }
-
-    /**
      * Check whether a role exists in the roles table.
      */
     public function roleExists(int $roleId): bool

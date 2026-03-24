@@ -44,7 +44,7 @@ wrong.
 
 /storage /uploads /archive /logs
 
-/migrations 001_initial_schema.sql 002_add_attendance.sql
+/migrations 001_initial_schema.sql 002_add_sites_table.sql
 
   -------------------------------------------
   4\. LAYER RESPONSIBILITY RULE (MANDATORY)
