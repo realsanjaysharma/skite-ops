@@ -76,6 +76,12 @@ switch ($route) {
         $controller->logout();
         return;
 
+    case 'auth/reset-password':
+        require_once __DIR__ . '/app/controllers/AuthController.php';
+        $controller = new AuthController();
+        $controller->resetPassword();
+        return;
+
     case 'user/create':
         require_once __DIR__ . '/app/controllers/UserController.php';
         $controller = new UserController();

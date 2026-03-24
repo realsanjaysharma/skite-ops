@@ -94,6 +94,37 @@ class AuthController
         Response::success(null);
     }
 
+    public function resetPassword()
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            Response::error('Method not allowed', 405);
+            return;
+        }
+
+        try {
+            $data = $this->getRequestData();
+            $newPassword = $data['password'] ?? null;
+
+            if (!$newPassword) {
+                throw new InvalidArgumentException('Password is required');
+            }
+
+            $userId = $_SESSION['user_id'] ?? null;
+
+            if (!$userId) {
+                Response::error('Unauthorized', 401);
+                return;
+            }
+
+            $this->authService->resetPassword((int) $userId, $newPassword);
+            $_SESSION['force_password_reset'] = false;
+
+            Response::success(null);
+        } catch (Throwable $e) {
+            Response::error($e->getMessage(), 400);
+        }
+    }
+
     /**
      * Get request data from JSON or standard form submission.
      */

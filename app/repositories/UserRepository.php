@@ -134,6 +134,26 @@ class UserRepository extends BaseRepository
         );
     }
 
+    public function updatePassword(int $userId, string $passwordHash): void
+    {
+        $this->execute(
+            "UPDATE users
+             SET password_hash = ?, updated_at = NOW()
+             WHERE id = ?",
+            [$passwordHash, $userId]
+        );
+    }
+
+    public function clearForcePasswordReset(int $userId): void
+    {
+        $this->execute(
+            "UPDATE users
+             SET force_password_reset = 0
+             WHERE id = ?",
+            [$userId]
+        );
+    }
+
     /**
      * Create new user
      *

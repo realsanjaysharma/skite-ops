@@ -170,6 +170,30 @@ class AuthService
         ];
     }
 
+    public function resetPassword(int $userId, string $newPassword): void
+    {
+        if (strlen($newPassword) < 6) {
+            throw new InvalidArgumentException('Password must be at least 6 characters');
+        }
+
+        $this->userRepository->updatePassword(
+            $userId,
+            password_hash($newPassword, PASSWORD_DEFAULT)
+        );
+
+        $this->userRepository->resetFailedAttempts($userId);
+        $this->userRepository->clearForcePasswordReset($userId);
+
+        $this->safeAuditLog(
+            $userId,
+            'PASSWORD_RESET',
+            'USER',
+            $userId,
+            null,
+            null
+        );
+    }
+
     private function incrementFailedAttempts(int $userId): void
     {
         $this->userRepository->updateFailedAttempts($userId);
