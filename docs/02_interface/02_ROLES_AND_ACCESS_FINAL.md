@@ -59,8 +59,17 @@ month
 System: - Manage users - Assign roles - Configure vertical access - View
 all alerts - Export all reports - Access audit logs
 
+Sites: - Full CRUD
+
 Cannot: - Bypass audit logging - Delete approved uploads - Modify
 immutable parent associations
+
+------------------------------------------------------------------------
+
+Sites:
+
+-   Ops -> full CRUD
+-   Supervisor -> view only
 
 ------------------------------------------------------------------------
 
@@ -88,6 +97,7 @@ Scope: - Assigned belts only
 
 Permissions: - Upload work or issue - Mark watering (current date
 only) - Delete own upload within 5 minutes - View own upload history
+- View sites
 
 Cannot: - Approve uploads - Close issues - Set issue priority - Override
 watering - View other belts - Access reports - Access advertisement

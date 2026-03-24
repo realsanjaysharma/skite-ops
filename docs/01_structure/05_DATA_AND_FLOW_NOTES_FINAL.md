@@ -259,6 +259,13 @@ REJECTED) - created_by - created_at - soft_deleted BOOLEAN
 Default:
 - authority_visibility = HIDDEN on creation.
 
+Uploads can be associated with:
+
+-   Green Belt
+-   Site
+-   Task
+-   Issue
+
 Eligibility:
 - Only WORK uploads may transition to APPROVED.
 - ISSUE uploads cannot be APPROVED.

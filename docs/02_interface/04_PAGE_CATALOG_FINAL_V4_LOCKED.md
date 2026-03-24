@@ -268,7 +268,19 @@ Features:
 
 ------------------------------------------------------------
 
-4.2 Task Detail Page
+4.2 Monitoring Site Management
+Access:
+- Ops
+- Supervisor (view only)
+
+Features:
+- Create site
+- Edit site
+- Activate / deactivate site
+
+------------------------------------------------------------
+
+4.3 Task Detail Page
 Access:
 - Ops
 - Assigned Lead

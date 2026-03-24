@@ -102,7 +102,30 @@ Supports override accountability and compliance review.
 
 ------------------------------------------------------------------------
 
-# 5. green_belts
+# 5. sites
+
+## Purpose
+
+Stores monitoring site master records.
+
+## Fields
+
+-   id
+-   name
+-   location
+-   is_active
+-   created_at
+-   updated_at
+
+## Design Rationale
+
+Sites are introduced as a minimal entity so monitoring assets can be
+represented explicitly without defining broader relationships in this
+step.
+
+------------------------------------------------------------------------
+
+# 6. green_belts
 
 ## Purpose
 
@@ -124,7 +147,7 @@ compliance filtering.
 
 ------------------------------------------------------------------------
 
-# 6. belt_supervisor_assignments
+# 7. belt_supervisor_assignments
 
 ## Purpose
 
@@ -146,7 +169,7 @@ Labour and watering responsibility derived dynamically per date.
 
 ------------------------------------------------------------------------
 
-# 7. belt_authority_assignments
+# 8. belt_authority_assignments
 
 ## Purpose
 
@@ -159,7 +182,7 @@ preserve flexibility.
 
 ------------------------------------------------------------------------
 
-# 8. maintenance_cycles
+# 9. maintenance_cycles
 
 ## Purpose
 
@@ -185,7 +208,7 @@ Determines compliance evaluation window.
 
 ------------------------------------------------------------------------
 
-# 9. watering_logs
+# 10. watering_logs
 
 ## Purpose
 
@@ -206,7 +229,7 @@ Logs represent truth. Compliance derived dynamically.
 
 ------------------------------------------------------------------------
 
-# 10. supervisor_attendance
+# 11. supervisor_attendance
 
 ## Purpose
 
@@ -222,7 +245,7 @@ Attendance and watering are independent governance signals.
 
 ------------------------------------------------------------------------
 
-# 11. labour_entries
+# 12. labour_entries
 
 ## Purpose
 
@@ -238,7 +261,7 @@ Ensures deterministic reporting. Override requires reason.
 
 ------------------------------------------------------------------------
 
-# 12. tasks
+# 13. tasks
 
 ## Purpose
 
