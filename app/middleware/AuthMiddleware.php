@@ -12,6 +12,9 @@ class AuthMiddleware
         'user/create' => [1],
         'user/update' => [1],
         'user/delete' => [1],
+        'user/activate' => [1],
+        'user/deactivate' => [1],
+        'user/restore' => [1],
         'user/list'   => [1],
         'user/get'    => [1],
     ];

@@ -35,12 +35,33 @@ require_once __DIR__ . '/BaseRepository.php';
 class UserRepository extends BaseRepository
 {
     /**
+     * Get user by primary ID including deleted rows.
+     */
+    public function getUserByIdIncludingDeleted($userId)
+    {
+        return $this->fetchOne(
+            "SELECT * FROM users
+             WHERE id = ?",
+            [$userId]
+        );
+    }
+
+    /**
      * Get user by primary ID
      */
     public function getUserById($userId)
     {
         return $this->fetchOne(
             "SELECT * FROM users 
+             WHERE id = ? AND is_deleted = 0",
+            [$userId]
+        );
+    }
+
+    public function getActiveUserById(int $userId)
+    {
+        return $this->fetchOne(
+            "SELECT * FROM users
              WHERE id = ? AND is_deleted = 0",
             [$userId]
         );
@@ -159,6 +180,41 @@ class UserRepository extends BaseRepository
         );
     }
 
+    public function activateUser(int $userId): bool
+    {
+        return $this->execute(
+            "UPDATE users
+             SET is_active = 1, updated_at = NOW()
+             WHERE id = ? AND is_deleted = 0",
+            [$userId]
+        );
+    }
+
+    public function deactivateUser(int $userId): bool
+    {
+        return $this->execute(
+            "UPDATE users
+             SET is_active = 0, updated_at = NOW()
+             WHERE id = ? AND is_deleted = 0",
+            [$userId]
+        );
+    }
+
+    public function restoreUser(int $userId): bool
+    {
+        return $this->execute(
+            "UPDATE users
+             SET is_deleted = 0,
+                 deleted_at = NULL,
+                 deleted_by = NULL,
+                 is_active = 1,
+                 force_password_reset = 1,
+                 updated_at = NOW()
+             WHERE id = ? AND is_deleted = 1",
+            [$userId]
+        );
+    }
+
     /**
      * Create new user
      *
@@ -211,7 +267,7 @@ class UserRepository extends BaseRepository
     {
         return $this->execute(
             "UPDATE users 
-             SET is_deleted = 1, deleted_at = NOW(), deleted_by = ?
+             SET is_deleted = 1, is_active = 0, deleted_at = NOW(), deleted_by = ?, updated_at = NOW()
              WHERE id = ?",
             [$deletedBy, $userId]
         );

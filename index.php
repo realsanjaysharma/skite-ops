@@ -111,6 +111,24 @@ switch ($route) {
         $controller = new UserController();
         $controller->softDeleteUser();
         return;
+
+    case 'user/activate':
+        require_once __DIR__ . '/app/controllers/UserController.php';
+        $controller = new UserController();
+        $controller->activateUser();
+        return;
+
+    case 'user/deactivate':
+        require_once __DIR__ . '/app/controllers/UserController.php';
+        $controller = new UserController();
+        $controller->deactivateUser();
+        return;
+
+    case 'user/restore':
+        require_once __DIR__ . '/app/controllers/UserController.php';
+        $controller = new UserController();
+        $controller->restoreUser();
+        return;
 }
 
 http_response_code(400);

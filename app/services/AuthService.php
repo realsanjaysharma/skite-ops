@@ -18,6 +18,7 @@
 
 require_once __DIR__ . '/../repositories/UserRepository.php';
 require_once __DIR__ . '/AuditService.php';
+require_once __DIR__ . '/../../config/database.php';
 
 class AuthService
 {
@@ -34,10 +35,16 @@ class AuthService
      */
     private AuditService $auditService;
 
+    /**
+     * @var PDO
+     */
+    private $db;
+
     public function __construct()
     {
         $this->userRepository = new UserRepository();
         $this->auditService = new AuditService();
+        $this->db = Database::getConnection();
     }
 
     /**
@@ -176,22 +183,44 @@ class AuthService
             throw new InvalidArgumentException('Password must be at least 8 characters');
         }
 
-        $this->userRepository->updatePassword(
-            $userId,
-            password_hash($newPassword, PASSWORD_DEFAULT)
-        );
+        $user = $this->userRepository->getActiveUserById($userId);
 
-        $this->userRepository->resetFailedAttempts($userId);
-        $this->userRepository->clearForcePasswordReset($userId);
+        if ($user === null) {
+            throw new RuntimeException('User not found');
+        }
 
-        $this->safeAuditLog(
-            $userId,
-            'PASSWORD_RESET',
-            'USER',
-            $userId,
-            null,
-            null
-        );
+        if ((int) $user['force_password_reset'] !== 1) {
+            throw new RuntimeException('Password reset not allowed');
+        }
+
+        $this->db->beginTransaction();
+
+        try {
+            $this->userRepository->updatePassword(
+                $userId,
+                password_hash($newPassword, PASSWORD_DEFAULT)
+            );
+
+            $this->userRepository->resetFailedAttempts($userId);
+            $this->userRepository->clearForcePasswordReset($userId);
+
+            $this->auditService->logAction(
+                $userId,
+                'PASSWORD_RESET',
+                'USER',
+                $userId,
+                null,
+                null
+            );
+
+            $this->db->commit();
+        } catch (Throwable $exception) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+
+            throw $exception;
+        }
     }
 
     private function incrementFailedAttempts(int $userId): void

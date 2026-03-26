@@ -171,6 +171,93 @@ class UserController
         }
     }
 
+    public function activateUser()
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            Response::error('Method not allowed', 405);
+            return;
+        }
+
+        $actorUserId = $_SESSION['user_id'] ?? null;
+
+        if (!$actorUserId) {
+            Response::error('Unauthorized', 401);
+            return;
+        }
+
+        try {
+            $data = $this->getRequestData();
+
+            if (!isset($data['user_id']) || !is_numeric($data['user_id'])) {
+                throw new InvalidArgumentException('Invalid user_id');
+            }
+
+            $userId = (int) $data['user_id'];
+            $this->userService->activateUser($userId, (int) $actorUserId);
+            Response::success(null);
+        } catch (Throwable $exception) {
+            Response::error($exception->getMessage(), 400);
+        }
+    }
+
+    public function deactivateUser()
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            Response::error('Method not allowed', 405);
+            return;
+        }
+
+        $actorUserId = $_SESSION['user_id'] ?? null;
+
+        if (!$actorUserId) {
+            Response::error('Unauthorized', 401);
+            return;
+        }
+
+        try {
+            $data = $this->getRequestData();
+
+            if (!isset($data['user_id']) || !is_numeric($data['user_id'])) {
+                throw new InvalidArgumentException('Invalid user_id');
+            }
+
+            $userId = (int) $data['user_id'];
+            $this->userService->deactivateUser($userId, (int) $actorUserId);
+            Response::success(null);
+        } catch (Throwable $exception) {
+            Response::error($exception->getMessage(), 400);
+        }
+    }
+
+    public function restoreUser()
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            Response::error('Method not allowed', 405);
+            return;
+        }
+
+        $actorUserId = $_SESSION['user_id'] ?? null;
+
+        if (!$actorUserId) {
+            Response::error('Unauthorized', 401);
+            return;
+        }
+
+        try {
+            $data = $this->getRequestData();
+
+            if (!isset($data['user_id']) || !is_numeric($data['user_id'])) {
+                throw new InvalidArgumentException('Invalid user_id');
+            }
+
+            $userId = (int) $data['user_id'];
+            $this->userService->restoreUser($userId, (int) $actorUserId);
+            Response::success(null);
+        } catch (Throwable $exception) {
+            Response::error($exception->getMessage(), 400);
+        }
+    }
+
     /**
      * Get request data from JSON or standard form submission.
      */

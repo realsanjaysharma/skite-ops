@@ -110,6 +110,8 @@ class UserService
                 throw new InvalidArgumentException('Email already exists');
             }
 
+            $this->db->beginTransaction();
+
             $userId = $this->userRepository->createUser([
                 'full_name' => $validatedData['full_name'],
                 'email' => $validatedData['email'],
@@ -129,8 +131,14 @@ class UserService
                 $sanitizedData
             );
 
+            $this->db->commit();
+
             return $this->getUserById($userId);
         } catch (PDOException $exception) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+
             if ($exception->getCode() === '23000') {
                 $message = $exception->getMessage();
 
@@ -141,6 +149,12 @@ class UserService
                 if (strpos($message, 'role_id') !== false || strpos($message, 'foreign key constraint fails') !== false) {
                     throw new InvalidArgumentException('Invalid role_id (role does not exist)', 0, $exception);
                 }
+            }
+
+            throw $exception;
+        } catch (Throwable $exception) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
             }
 
             throw $exception;
@@ -166,21 +180,16 @@ class UserService
 
             $this->assertRoleExists($validatedData['role_id']);
 
-            $userWithSameEmail = $this->userRepository->getUserByEmail($validatedData['email']);
+            $existingUser = $this->userRepository->getUserByEmail($validatedData['email']);
 
             if (
-                $userWithSameEmail !== null &&
-                (int) $userWithSameEmail['id'] !== (int) $userId
+                $existingUser !== null &&
+                (int) $existingUser['id'] !== (int) $userId
             ) {
                 throw new InvalidArgumentException('Email already exists');
             }
 
-            $currentUser = $this->userRepository->getUserById($userId);
-            $emailChanged = $currentUser !== null && ($validatedData['email'] !== ($currentUser['email'] ?? null));
-
-            if ($emailChanged && $this->userRepository->emailExists($validatedData['email'])) {
-                throw new InvalidArgumentException('Email already exists');
-            }
+            $this->db->beginTransaction();
 
             $updated = $this->userRepository->updateUser($userId, [
                 'full_name' => $validatedData['full_name'],
@@ -206,10 +215,22 @@ class UserService
                 $validatedData
             );
 
+            $this->db->commit();
+
             return $this->getUserById($userId);
         } catch (PDOException $exception) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+
             if ($exception->getCode() === '23000') {
                 throw new InvalidArgumentException('Email already exists');
+            }
+
+            throw $exception;
+        } catch (Throwable $exception) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
             }
 
             throw $exception;
@@ -234,28 +255,209 @@ class UserService
             throw new RuntimeException('User not found or has already been deleted.');
         }
 
-        $deletedByUser = $this->userRepository->getUserById($deletedBy);
+        $actor = $this->userRepository->getUserById($deletedBy);
 
-        if ($deletedByUser === null) {
-            throw new RuntimeException('Deleted-by user not found or has been deleted.');
+        if ($actor === null || (int) $actor['is_active'] === 0) {
+            throw new RuntimeException('Invalid actor');
         }
 
-        $deleted = $this->userRepository->softDeleteUser($userId, $deletedBy);
+        $this->db->beginTransaction();
 
-        if (!$deleted) {
-            throw new RuntimeException('Failed to soft delete user.');
+        try {
+            $deleted = $this->userRepository->softDeleteUser($userId, $deletedBy);
+
+            if (!$deleted) {
+                throw new RuntimeException('Failed to soft delete user.');
+            }
+
+            $this->auditService->logAction(
+                $deletedBy,
+                'USER_DELETED',
+                'USER',
+                $userId,
+                null,
+                ['is_deleted' => 1, 'is_active' => 0]
+            );
+
+            $this->db->commit();
+
+            return true;
+        } catch (Throwable $exception) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+
+            throw $exception;
+        }
+    }
+
+    public function activateUser(int $userId, int $actorId): void
+    {
+        $this->validateUserId($userId);
+        $this->validateUserId($actorId);
+
+        if ((int) $userId === (int) $actorId) {
+            throw new InvalidArgumentException('User cannot modify themselves');
         }
 
-        $this->auditService->logAction(
-            $deletedBy,
-            'USER_DELETED',
-            'USER',
-            $userId,
-            null,
-            ['is_deleted' => 1]
-        );
+        $user = $this->userRepository->getUserByIdIncludingDeleted($userId);
 
-        return true;
+        if ($user === null) {
+            throw new RuntimeException('User not found.');
+        }
+
+        $actor = $this->userRepository->getUserById($actorId);
+
+        if ($actor === null || (int) $actor['is_active'] === 0) {
+            throw new RuntimeException('Invalid actor');
+        }
+
+        if ((int) $user['is_deleted'] === 1) {
+            throw new RuntimeException('Deleted users cannot be activated.');
+        }
+
+        if ((int) $user['is_active'] === 1) {
+            throw new RuntimeException('User already active');
+        }
+
+        $this->db->beginTransaction();
+
+        try {
+            if (!$this->userRepository->activateUser($userId)) {
+                throw new RuntimeException('Failed to activate user.');
+            }
+
+            $this->auditService->logAction(
+                $actorId,
+                'USER_ACTIVATED',
+                'USER',
+                $userId,
+                ['is_active' => (int) $user['is_active']],
+                ['is_active' => 1]
+            );
+
+            $this->db->commit();
+        } catch (Throwable $exception) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+
+            throw $exception;
+        }
+    }
+
+    public function deactivateUser(int $userId, int $actorId): void
+    {
+        $this->validateUserId($userId);
+        $this->validateUserId($actorId);
+
+        if ((int) $userId === (int) $actorId) {
+            throw new InvalidArgumentException('User cannot modify themselves');
+        }
+
+        $user = $this->userRepository->getUserByIdIncludingDeleted($userId);
+
+        if ($user === null) {
+            throw new RuntimeException('User not found.');
+        }
+
+        $actor = $this->userRepository->getUserById($actorId);
+
+        if ($actor === null || (int) $actor['is_active'] === 0) {
+            throw new RuntimeException('Invalid actor');
+        }
+
+        if ((int) $user['is_deleted'] === 1) {
+            throw new RuntimeException('Deleted users cannot be deactivated.');
+        }
+
+        if ((int) $user['is_active'] === 0) {
+            throw new RuntimeException('User already inactive');
+        }
+
+        $this->db->beginTransaction();
+
+        try {
+            if (!$this->userRepository->deactivateUser($userId)) {
+                throw new RuntimeException('Failed to deactivate user.');
+            }
+
+            $this->auditService->logAction(
+                $actorId,
+                'USER_DEACTIVATED',
+                'USER',
+                $userId,
+                ['is_active' => (int) $user['is_active']],
+                ['is_active' => 0]
+            );
+
+            $this->db->commit();
+        } catch (Throwable $exception) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+
+            throw $exception;
+        }
+    }
+
+    public function restoreUser(int $userId, int $actorId): void
+    {
+        $this->validateUserId($userId);
+        $this->validateUserId($actorId);
+
+        if ((int) $userId === (int) $actorId) {
+            throw new InvalidArgumentException('User cannot modify themselves');
+        }
+
+        $user = $this->userRepository->getUserByIdIncludingDeleted($userId);
+
+        if ($user === null) {
+            throw new RuntimeException('User not found.');
+        }
+
+        $actor = $this->userRepository->getUserById($actorId);
+
+        if ($actor === null || (int) $actor['is_active'] === 0) {
+            throw new RuntimeException('Invalid actor');
+        }
+
+        if ((int) $user['is_deleted'] !== 1) {
+            throw new RuntimeException('Only deleted users can be restored.');
+        }
+
+        $this->db->beginTransaction();
+
+        try {
+            if (!$this->userRepository->restoreUser($userId)) {
+                throw new RuntimeException('Failed to restore user.');
+            }
+
+            $this->auditService->logAction(
+                $actorId,
+                'USER_RESTORED',
+                'USER',
+                $userId,
+                [
+                    'is_deleted' => (int) $user['is_deleted'],
+                    'is_active' => (int) $user['is_active'],
+                    'force_password_reset' => (int) ($user['force_password_reset'] ?? 0)
+                ],
+                [
+                    'is_deleted' => 0,
+                    'is_active' => 1,
+                    'force_password_reset' => 1
+                ]
+            );
+
+            $this->db->commit();
+        } catch (Throwable $exception) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+
+            throw $exception;
+        }
     }
 
     /**
