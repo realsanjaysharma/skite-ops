@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/config/constants.php';
+
 // ==========================================
 // GLOBAL SESSION SECURITY CONFIG
 // Must be set BEFORE session_start()

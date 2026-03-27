@@ -113,6 +113,8 @@ Rules:
 
 -   Migration number must increment sequentially.
 -   schema_version in system_meta must match latest migration number.
+-   system_meta must contain bootstrap row id = 1 before schema_version can be trusted.
+-   schema_migrations and system_meta bootstrap state must be verified on fresh or recovered environments.
 -   No manual structural DB changes in production.
 -   All migrations documented in 06_DECISIONS_LOG.md.
 -   Migration files never deleted --- only new migrations added.
@@ -188,6 +190,8 @@ Before marking release stable:
 -   No PHP warnings/errors
 -   Backup cron still active
 -   schema_version matches migration count
+-   system_meta row id = 1 exists
+-   schema_migrations is initialized
 
   ----------------------------------
   12\. EMERGENCY ROLLBACK STRATEGY

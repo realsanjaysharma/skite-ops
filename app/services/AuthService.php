@@ -22,9 +22,6 @@ require_once __DIR__ . '/../../config/database.php';
 
 class AuthService
 {
-    private const MAX_FAILED_ATTEMPTS = 5;
-    private const LOCK_TIME_MINUTES = 15;
-
     /**
      * @var UserRepository
      */
@@ -93,11 +90,11 @@ class AuthService
         }
 
         if (
-            $user['failed_attempt_count'] >= self::MAX_FAILED_ATTEMPTS &&
+            $user['failed_attempt_count'] >= MAX_FAILED_LOGIN_ATTEMPTS &&
             $user['last_failed_attempt_at'] !== null
         ) {
             $lastAttemptTime = strtotime($user['last_failed_attempt_at']);
-            $lockExpiryTime = $lastAttemptTime + (self::LOCK_TIME_MINUTES * 60);
+            $lockExpiryTime = $lastAttemptTime + (LOGIN_LOCK_DURATION_MINUTES * 60);
 
             if (time() < $lockExpiryTime) {
                 $this->safeAuditLog(
@@ -143,7 +140,7 @@ class AuthService
                 ]
             );
 
-            if ($failedAttemptCount >= self::MAX_FAILED_ATTEMPTS) {
+            if ($failedAttemptCount >= MAX_FAILED_LOGIN_ATTEMPTS) {
                 $this->safeAuditLog(
                     (int) $user['id'],
                     'ACCOUNT_LOCKED',
@@ -151,7 +148,7 @@ class AuthService
                     (int) $user['id'],
                     null,
                     [
-                        'lock_time_minutes' => self::LOCK_TIME_MINUTES
+                        'lock_time_minutes' => LOGIN_LOCK_DURATION_MINUTES
                     ]
                 );
             }
