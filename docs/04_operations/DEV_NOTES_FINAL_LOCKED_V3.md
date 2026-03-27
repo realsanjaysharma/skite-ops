@@ -199,6 +199,14 @@ Before using new field in code:
 2.  Confirm schema_version updated.
 3.  Confirm staging tested.
 
+  ---------------------------------
+  16\. HTTP METHOD ALIGNMENT NOTE
+  ---------------------------------
+
+Current controllers may use POST for operations that should map to
+PUT/DELETE. This will be aligned in a later refactor phase to comply
+with Decision 039.
+
   ------------------------------------
   16\. BUSINESS LOGIC ALIGNMENT RULE
   ------------------------------------

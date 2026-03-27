@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../helpers/Csrf.php';
+require_once __DIR__ . '/../helpers/Response.php';
 
 class AuthMiddleware
 {
@@ -38,11 +39,7 @@ class AuthMiddleware
 
         // Requests without an authenticated session must never reach controllers.
         if (!$userId) {
-            http_response_code(401);
-            echo json_encode([
-                'success' => false,
-                'error' => 'Unauthorized'
-            ]);
+            Response::error('Unauthorized', 401);
             exit;
         }
 
@@ -50,11 +47,7 @@ class AuthMiddleware
 
         if ($forceReset) {
             if (!in_array($route, $this->forceResetAllowedRoutes)) {
-                http_response_code(403);
-                echo json_encode([
-                    'success' => false,
-                    'error' => 'Password reset required'
-                ]);
+                Response::error('Password reset required', 403);
                 exit;
             }
         }
@@ -65,11 +58,7 @@ class AuthMiddleware
                 $token = $headers['x-csrf-token'] ?? null;
 
                 if (!Csrf::validateToken($token)) {
-                    http_response_code(403);
-                    echo json_encode([
-                        'success' => false,
-                        'error' => 'Invalid CSRF token'
-                    ]);
+                    Response::error('Invalid CSRF token', 403);
                     exit;
                 }
             }
@@ -83,11 +72,7 @@ class AuthMiddleware
         $allowedRoles = $this->routePermissions[$route];
 
         if (!in_array($roleId, $allowedRoles)) {
-            http_response_code(403);
-            echo json_encode([
-                'success' => false,
-                'error' => 'Forbidden'
-            ]);
+            Response::error('Forbidden', 403);
             exit;
         }
     }

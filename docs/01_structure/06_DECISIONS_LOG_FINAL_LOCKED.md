@@ -251,6 +251,40 @@ Decision 037 – Sites Entity Introduction
 Minimal sites master introduced via migration 002_add_sites_table.sql.
 Relationships and monitoring frequency remain intentionally deferred.
 
+Decision 038 – API Response Contract
+All API responses must follow a strict JSON structure:
+
+Success:
+{ "success": true, "data": <payload> }
+
+Error:
+{ "success": false, "error": "<message>" }
+
+No alternative response formats are allowed.
+
+Decision 039 – HTTP Method Discipline
+All routes must follow strict HTTP method semantics:
+
+- GET → Read operations only
+- POST → Create operations, authentication, and lifecycle actions
+- PUT → Update operations
+- DELETE → Delete operations
+
+No deviation from this mapping is allowed.
+
+Decision 040 – Route Parameter Standardization
+All entity routes must use a standardized identifier parameter:
+
+- Use `id` for all entity identifiers
+- Do not use variations like user_id, belt_id, etc. in route definitions
+
+Internal data structures may use specific field names, but route interfaces must remain consistent.
+
+Decision 041 – Login Audit Constraint
+No audit log must be created when login fails due to a non-existent email.
+
+Audit logging is allowed only when a valid user record exists.
+
 ============================================================
 STATUS
 ============================================================
