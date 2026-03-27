@@ -44,6 +44,15 @@ If behavior is not defined here, it does not exist.
 
 8.  No silent data mutation anywhere in system.
 
+9.  User Operational State Rule
+
+    A user is operationally usable only when:
+
+    -   is_deleted = 0
+    -   is_active = 1
+
+    Non-deleted users may still be inactive and must not be treated as usable.
+
 ------------------------------------------------------------------------
 
 2.  GREEN BELT DOMAIN
@@ -264,11 +273,11 @@ Uploads can be associated with:
 -   Green Belt
 -   Site
 -   Task
--   Issue
 
 Eligibility:
-- Only WORK uploads may transition to APPROVED.
+- Only BELT parent WORK uploads may transition to APPROVED.
 - ISSUE uploads cannot be APPROVED.
+- SITE and TASK uploads remain internal in v1.
 - REJECTED state requires internal rejection note.
 
 Rules: - Parent association immutable - Supervisor may delete within 5
@@ -284,7 +293,8 @@ uploads permanent - Issue uploads permanent unless soft-deleted in
 States: - OPEN - IN_PROGRESS - CLOSED
 
 Rules: - Only Ops can close - Optional 1:1 link to Task - Task
-completion auto-closes issue - No backward transitions
+completion does NOT auto-close issue - UI may derive "Resolution
+Attempted" when linked task is completed - No backward transitions
 
 ------------------------------------------------------------------------
 

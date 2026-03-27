@@ -51,7 +51,7 @@ Worker Daily Entry Rule:
 
 View-only scope includes:
 - Site master data (basic details)
-- Only APPROVED uploads (if authority-visible)
+- Role-visible monitoring uploads (read-only)
 - Dashboard summaries
 
 View-only does NOT include:
@@ -157,8 +157,10 @@ User Restore Behavior:
 
 ### Password Policy:
 - force_password_reset = TRUE on:
-  - User creation
   - Manual reset by Ops
+  - User restore
+
+- force_password_reset = FALSE on user creation
 
 ### Session Handling:
 - Deactivation does NOT force logout immediately (v1)
@@ -209,7 +211,18 @@ Expected activity - Actual activity
 
 ---
 
-# 9. OVERRIDE LOGGING RULE
+# 9. IMPERFECT EVIDENCE HANDLING (V1)
+
+- No upload does NOT guarantee no work performed.
+- No watering log does NOT guarantee watering was not done.
+- System alerts are advisory signals, not absolute truth.
+- Ops may override or ignore alerts based on ground reality.
+- Overrides and ignored alerts must be explainable and may be audited.
+- Compliance should be treated as best-effort inference, not strict enforcement.
+
+---
+
+# 10. OVERRIDE LOGGING RULE
 
 All override actions must include:
 - override_by

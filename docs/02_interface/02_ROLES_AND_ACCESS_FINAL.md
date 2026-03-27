@@ -118,7 +118,7 @@ attendance tracking - No dashboard access - No approval rights
 
 3.5 Monitoring Team Member
 
-Scope: - Assigned monitoring sites
+Scope: - Site-based monitoring activity in v1 (no fixed assigned-site mapping)
 
 Permissions: - Upload monitoring photos - Add optional comment - View
 site location
@@ -153,7 +153,7 @@ source/priority
 
 Scope: - Advertisement vertical only
 
-Permissions: - View approved monitoring uploads - View free/available
+Permissions: - View monitoring uploads - View free/available
 media - Raise task request (no direct task creation) - Export
 advertisement reports
 

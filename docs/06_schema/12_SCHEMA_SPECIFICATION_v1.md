@@ -312,6 +312,11 @@ Evidence storage for work and issue validation.
 
 Supports BELT, SITE, TASK, ISSUE (single parent only).
 
+V1 service-layer rule is narrower:
+- parent_type = ISSUE must be rejected.
+- Only BELT parent WORK uploads are eligible for authority approval.
+- SITE and TASK uploads remain internal.
+
 ## Why Polymorphic?
 
 Prevents duplication of upload tables. Maintains structural simplicity.

@@ -114,13 +114,13 @@ class UserRepository extends BaseRepository
     }
 
     /**
-     * Get all active users (not deleted + active)
+     * Get all non-deleted users, regardless of active state.
      */
-    public function getAllActiveUsers()
+    public function getAllUsers()
     {
         return $this->fetchAll(
             "SELECT * FROM users 
-             WHERE is_deleted = 0 AND is_active = 1"
+             WHERE is_deleted = 0"
         );
     }
 

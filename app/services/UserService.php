@@ -78,11 +78,15 @@ class UserService
     }
 
     /**
-     * Get all active users that are not soft deleted.
+     * Get all non-deleted users, including inactive accounts.
+     *
+     * NOTE:
+     * This list is for lifecycle visibility and admin control, not "usable users" only.
+     * Consumers must check is_active before allowing authentication or operational actions.
      */
-    public function getAllActiveUsers()
+    public function getAllUsers()
     {
-        return $this->formatUserListResponse($this->userRepository->getAllActiveUsers());
+        return $this->formatUserListResponse($this->userRepository->getAllUsers());
     }
 
     /**
@@ -93,6 +97,17 @@ class UserService
         $this->validateRoleId($roleId);
 
         return $this->formatUserListResponse($this->userRepository->getUsersByRole($roleId));
+    }
+
+    /**
+     * Determine whether a user is operationally usable.
+     * Visible users may still be inactive, so callers must not assume list membership
+     * means the user can authenticate or perform actions.
+     */
+    public function isUserActive(array $user): bool
+    {
+        return (int) ($user['is_deleted'] ?? 0) === 0
+            && (int) ($user['is_active'] ?? 0) === 1;
     }
 
     /**
@@ -257,7 +272,7 @@ class UserService
 
         $actor = $this->userRepository->getUserById($deletedBy);
 
-        if ($actor === null || (int) $actor['is_active'] === 0) {
+        if ($actor === null || !$this->isUserActive($actor)) {
             throw new RuntimeException('Invalid actor');
         }
 
@@ -308,7 +323,7 @@ class UserService
 
         $actor = $this->userRepository->getUserById($actorId);
 
-        if ($actor === null || (int) $actor['is_active'] === 0) {
+        if ($actor === null || !$this->isUserActive($actor)) {
             throw new RuntimeException('Invalid actor');
         }
 
@@ -316,7 +331,7 @@ class UserService
             throw new RuntimeException('Deleted users cannot be activated.');
         }
 
-        if ((int) $user['is_active'] === 1) {
+        if ($this->isUserActive($user)) {
             throw new RuntimeException('User already active');
         }
 
@@ -363,7 +378,7 @@ class UserService
 
         $actor = $this->userRepository->getUserById($actorId);
 
-        if ($actor === null || (int) $actor['is_active'] === 0) {
+        if ($actor === null || !$this->isUserActive($actor)) {
             throw new RuntimeException('Invalid actor');
         }
 
@@ -371,7 +386,7 @@ class UserService
             throw new RuntimeException('Deleted users cannot be deactivated.');
         }
 
-        if ((int) $user['is_active'] === 0) {
+        if (!$this->isUserActive($user)) {
             throw new RuntimeException('User already inactive');
         }
 
@@ -418,7 +433,7 @@ class UserService
 
         $actor = $this->userRepository->getUserById($actorId);
 
-        if ($actor === null || (int) $actor['is_active'] === 0) {
+        if ($actor === null || !$this->isUserActive($actor)) {
             throw new RuntimeException('Invalid actor');
         }
 
@@ -593,6 +608,8 @@ class UserService
 
     /**
      * Return only safe user fields for API responses.
+     * Status fields are intentionally included so clients can distinguish
+     * visible-but-inactive users from deleted or operationally usable users.
      */
     private function formatUserResponse($user)
     {

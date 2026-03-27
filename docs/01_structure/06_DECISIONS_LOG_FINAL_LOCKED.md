@@ -138,7 +138,8 @@ States:
 - Closed
 Only Ops can close.
 Optional one-to-one task link.
-Task completion may auto-close linked issue.
+Task completion does NOT auto-close linked issue.
+UI may derive "Resolution Attempted" when a linked task is completed.
 
 ============================================================
 SECTION 4: FABRICATION & WORKER GOVERNANCE

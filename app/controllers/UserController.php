@@ -122,7 +122,7 @@ class UserController
     }
 
     /**
-     * Handle get all active users request.
+     * Handle get all non-deleted users request.
      */
     public function getAllUsers()
     {
@@ -132,7 +132,7 @@ class UserController
         }
 
         try {
-            $users = $this->userService->getAllActiveUsers();
+            $users = $this->userService->getAllUsers();
 
             Response::success($users);
         } catch (Throwable $exception) {
