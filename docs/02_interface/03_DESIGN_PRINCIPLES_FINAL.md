@@ -91,15 +91,18 @@ Controllers handle HTTP input/output only and must not contain business logic.
 Controllers handle request validation (format, required fields).
 Services handle business validation and domain rules.
 All business rules and system behavior must be implemented in the Service layer.
+Services are the single source of truth for all business rules and system behavior.
 Repositories are responsible only for database access and must not contain business logic.
 Authorization (RBAC) must be enforced at the middleware layer before reaching controllers. Services must not perform role-based access checks.
 
 Controllers must:
 
--   Validate role before action
--   Validate month-lock before update
--   Log override actions
+-   Validate request format before action
+-   Validate required fields before calling services
 -   Return clear error responses
+
+Middleware must enforce role access before controller execution.
+Service layer must enforce month-lock and override logging rules.
 
 ------------------------------------------------------------------------
 

@@ -56,7 +56,7 @@ Complete tasks - Archive tasks (manual only) - Record worker
 attendance - Record worker daily work entry - Override attendance within
 month
 
-System: - Manage users - Assign roles - Configure vertical access - View
+System: - Manage users - Assign roles - View
 all alerts - Export all reports - Access audit logs
 
 Sites: - Full CRUD

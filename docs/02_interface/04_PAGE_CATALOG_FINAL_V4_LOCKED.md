@@ -378,8 +378,8 @@ Features:
 7.1 User Management
 - Create User
 - Assign Role
-- Assign Vertical Scope
 - Activate / Deactivate
+- Restore User
 
 7.2 Audit Log Viewer
 - View Overrides
