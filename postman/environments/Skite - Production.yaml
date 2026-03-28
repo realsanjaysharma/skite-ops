@@ -1,6 +1,0 @@
-name: Skite - Production
-values:
-  - key: baseUrl
-    value: 'https://api.skite.com'
-    enabled: true
-    type: default
