@@ -35,7 +35,8 @@ class AuditService
         string $entityType,
         int $entityId,
         ?array $oldValues = null,
-        ?array $newValues = null
+        ?array $newValues = null,
+        ?string $overrideReason = null
     ): void {
         $logged = $this->auditRepository->log(
             $userId,
@@ -43,7 +44,8 @@ class AuditService
             $entityType,
             $entityId,
             $oldValues,
-            $newValues
+            $newValues,
+            $overrideReason
         );
 
         if (!$logged) {

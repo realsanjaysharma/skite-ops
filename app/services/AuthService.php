@@ -74,18 +74,6 @@ class AuthService
         $user = $this->userRepository->getUserByEmail($normalizedEmail);
 
         if (!$user) {
-            $this->safeAuditLog(
-                0,
-                'LOGIN_FAILED',
-                'USER',
-                0,
-                null,
-                [
-                    'email' => $normalizedEmail,
-                    'reason' => 'user_not_found'
-                ]
-            );
-
             throw new RuntimeException('Invalid email or password');
         }
 

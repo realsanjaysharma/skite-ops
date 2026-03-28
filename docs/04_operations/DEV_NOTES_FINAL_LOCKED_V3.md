@@ -120,6 +120,10 @@ Capture: - override_by - override_reason - override_timestamp
 Audit middleware must log: - Critical status changes - Override usage -
 Permission violations
 
+Override Reason Enforcement:
+- override_reason is supported at schema and audit level.
+- Mandatory reason enforcement belongs in service layer when override flows are implemented.
+
   -------------------------
   10\. LOGGING DISCIPLINE
   -------------------------

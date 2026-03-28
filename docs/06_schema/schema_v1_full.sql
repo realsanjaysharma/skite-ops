@@ -64,6 +64,18 @@ CREATE TABLE audit_logs (
 ) ENGINE=InnoDB;
 
 -- ==========================================
+-- SITES
+-- ==========================================
+CREATE TABLE sites (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(150) NOT NULL,
+    location VARCHAR(255) NULL,
+    is_active TINYINT(1) DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ==========================================
 -- GREEN BELTS
 -- ==========================================
 CREATE TABLE green_belts (

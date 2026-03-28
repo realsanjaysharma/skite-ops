@@ -25,15 +25,16 @@ class AuditRepository extends BaseRepository
         string $entityType,
         int $entityId,
         ?array $oldValues,
-        ?array $newValues
+        ?array $newValues,
+        ?string $overrideReason = null
     ): bool {
         $oldValueJson = $oldValues !== null ? json_encode($oldValues) : null;
         $newValueJson = $newValues !== null ? json_encode($newValues) : null;
 
         return $this->execute(
             "INSERT INTO audit_logs
-            (actor_user_id, action_type, entity_type, entity_id, old_value, new_value, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, NOW())",
+            (actor_user_id, action_type, entity_type, entity_id, old_value, new_value, override_reason, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, NOW())",
             [
                 $userId,
                 $action,
@@ -41,6 +42,7 @@ class AuditRepository extends BaseRepository
                 $entityId,
                 $oldValueJson,
                 $newValueJson,
+                $overrideReason,
             ]
         );
     }

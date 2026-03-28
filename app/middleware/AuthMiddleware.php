@@ -2,6 +2,8 @@
 
 require_once __DIR__ . '/../helpers/Csrf.php';
 require_once __DIR__ . '/../helpers/Response.php';
+require_once __DIR__ . '/../repositories/UserRepository.php';
+require_once __DIR__ . '/../services/UserService.php';
 
 class AuthMiddleware
 {
@@ -43,10 +45,42 @@ class AuthMiddleware
             exit;
         }
 
+        $userRepository = new UserRepository();
+        $userService = new UserService();
+        $user = $userRepository->getUserByIdIncludingDeleted((int) $userId);
+
+        if (!$user || !$userService->isUserActive($user)) {
+            $_SESSION = [];
+            session_unset();
+
+            if (ini_get('session.use_cookies')) {
+                $params = session_get_cookie_params();
+                setcookie(session_name(), '', [
+                    'expires' => time() - 42000,
+                    'path' => $params['path'],
+                    'domain' => $params['domain'],
+                    'secure' => $params['secure'],
+                    'httponly' => $params['httponly'],
+                    'samesite' => 'Strict'
+                ]);
+            }
+
+            session_destroy();
+            Response::error('Unauthorized', 401);
+            exit;
+        }
+
+        $isUtilityRoute = in_array($route, $this->forceResetAllowedRoutes, true);
+
+        if (!$isUtilityRoute && !isset($this->routePermissions[$route])) {
+            Response::error('Forbidden', 403);
+            exit;
+        }
+
         $forceReset = $_SESSION['force_password_reset'] ?? false;
 
         if ($forceReset) {
-            if (!in_array($route, $this->forceResetAllowedRoutes)) {
+            if (!$isUtilityRoute) {
                 Response::error('Password reset required', 403);
                 exit;
             }
@@ -64,8 +98,10 @@ class AuthMiddleware
             }
         }
 
-        // Routes missing from the permission map are treated as unrestricted.
-        if (!isset($this->routePermissions[$route])) {
+        // Utility routes bypass RBAC intentionally:
+        // - logout must remain accessible to any authenticated user
+        // - reset-password must remain accessible during forced reset flow
+        if ($isUtilityRoute) {
             return;
         }
 

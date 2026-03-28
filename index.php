@@ -38,6 +38,11 @@ header('Content-Type: application/json');
 
 $route = $_GET['route'] ?? null;
 
+if (is_string($route)) {
+    $route = strtolower(trim($route));
+    $route = trim($route, '/');
+}
+
 if ($route === null || $route === '') {
     http_response_code(400);
     echo json_encode([
