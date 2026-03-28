@@ -21,6 +21,9 @@ Session Termination Rules:
 - Prevent session fixation or reuse after logout.
 Session Cookie Hardening (Production): - session.cookie_httponly =
 true - session.cookie_secure = true (HTTPS required) - SameSite=Strict
+Session Security (Environment Dependent): - Secure cookie flag and
+inactivity timeout enforcement are environment-dependent. - They will
+be enforced in production deployment (HTTPS-enabled environment).
 
   --------------------------------------------------
   2\. PASSWORD POLICY (Level B -- Internal System)

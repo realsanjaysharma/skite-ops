@@ -203,13 +203,21 @@ Before using new field in code:
 2.  Confirm schema_version updated.
 3.  Confirm staging tested.
 
-  ---------------------------------
-  16\. HTTP METHOD ALIGNMENT NOTE
-  ---------------------------------
+  ---------------------------------------
+  16\. HTTP CONTRACT ALIGNMENT (DEFERRED)
+  ---------------------------------------
 
-Current controllers may use POST for operations that should map to
-PUT/DELETE. This will be aligned in a later refactor phase to comply
-with Decision 039.
+Decision 039 (HTTP methods) and Decision 040 (route parameters) are not
+yet implemented.
+
+Current system uses:
+- POST for update/delete/lifecycle actions
+- entity-specific identifiers (for example: user_id)
+
+No partial adoption is allowed.
+
+Full alignment to PUT/DELETE methods and `id` parameter standardization
+will be done in a dedicated API refactor phase.
 
   ------------------------------------
   16\. BUSINESS LOGIC ALIGNMENT RULE
