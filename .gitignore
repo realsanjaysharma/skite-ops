@@ -22,3 +22,4 @@ scripts/
 /storage/sessions/
 /storage/*
 !/storage/.gitkeep
+chat_gpt_chats/
