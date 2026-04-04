@@ -8,6 +8,20 @@
 - field users get minimal actions
 - read-only access is preferred where possible
 - the same underlying data is reused with different scope by role
+- landing page after login is role-specific, not generic
+
+## Role Landing Behavior
+
+- Ops lands on the Master Operations Dashboard
+- Head Supervisor lands on the green-belt oversight view
+- Green Belt Supervisor lands on the Supervisor Upload page
+- Outsourced Maintainer lands on the Outsourced Upload page
+- Monitoring Team lands on the Monitoring Upload or monitoring work view
+- Fabrication Lead lands on My Tasks
+- Sales and Client Servicing land on their proof-and-request surfaces
+- Media Planning lands on planning and free-media views
+- Authority Representative lands on Authority View
+- Management lands on a read-only dashboard
 
 ## Roles
 
@@ -33,7 +47,7 @@
 - Scope: assigned green belts only
 - Can see: assigned belts and own upload context
 - Can do: upload work proof, upload issue proof, mark issue yes or no, add short comments, mark watering on assigned belts
-- Cannot do: see other belts, approve, close issues, set priority, access dashboards, access advertisement or monitoring domains
+- Cannot do: see other belts, approve, close issues, set priority, access dashboards, access advertisement or monitoring domains, see authority review status or rejection feedback on uploads
 
 ### Outsourced Maintainer / Agency
 
@@ -56,13 +70,14 @@
 - Login: yes
 - Scope: assigned tasks only
 - Can see: assigned task list and task detail
-- Can do: read instructions, upload completion proof, mark work done
+- Can do: read instructions, assign non-login workers to task execution, upload mandatory After Work proof, optionally upload Before Work proof, mark work done, use Call Ops shortcut from task interface
 - Cannot do: create tasks, approve tasks, reassign tasks, edit task definitions
 
 ### Fabrication / Installation Workers
 
 - Login: no
 - Access: shared read-only web link
+- Representation: internal resource entries, not system users
 - Can see: same-day task list and instructions
 - Can do: read only
 - Cannot do: upload, comment, mark done, edit
@@ -124,6 +139,17 @@
 - Fabrication workers remain non-login unless explicitly redesigned later
 - Management is visibility-only
 
+## Dynamic Roles And Permission Model
+
+The recovered transcripts lock this behavior:
+
+- Ops can create new roles when needed
+- role creation is constrained through predefined permission groups
+- new roles can be linked to vertical access and allowed modules
+- arbitrary micro-permission toggles are not allowed
+
+This implies a governed RBAC model, not open-ended permission design.
+
 ## Ownership Pattern
 
 - Ops owns governance, approvals, closures, assignments, and overrides
@@ -131,3 +157,9 @@
 - field roles own raw proof creation
 - commercial and support roles own requests
 - authority and management roles consume controlled views only
+
+## Reporting Scope Rule
+
+- per-user activity reports are allowed
+- reports must remain scoped to the relevant domain or role scope
+- cross-vertical visibility should not become uncontrolled by default

@@ -5,6 +5,8 @@
 Dashboards provide visibility and navigation.
 Real actions happen on dedicated pages.
 
+Post-login landing should be role-specific rather than generic.
+
 ## Dashboards
 
 - Master Operations Dashboard
@@ -54,6 +56,7 @@ These should summarize pressure, status, and navigation targets rather than act 
 - User Management
 - Access and Mapping Control
 - Audit Log Viewer
+- Rejected Uploads Cleanup
 - Notification and Alert Panel
 - Reports
 - System Settings
@@ -71,6 +74,7 @@ Drill-down page showing belt information, watering history, cycle history, uploa
 ### Supervisor Upload
 
 Low-friction field evidence page for maintained belts.
+It may capture soft GPS metadata silently for Ops verification and must not expose authority review results back to supervisors.
 
 ### Outsourced Upload
 
@@ -84,6 +88,7 @@ Ops governance page between raw field evidence and authority visibility.
 ### Authority View
 
 Read-only authority portal for approved green-belt proof only.
+The system controls visibility; external sharing remains outside system control.
 
 ### Site And Asset Master
 
@@ -105,10 +110,30 @@ Commercial and support intake page for action requests that must go through Ops.
 
 Ops control page for approved execution work.
 
+### Task Detail
+
+Execution detail page should support:
+
+- assigned lead context
+- worker allocation context
+- mandatory After Work proof
+- optional Before Work proof
+- Call Ops shortcut
+
+### Fabrication Lead My Tasks
+
+Role-specific task workspace where the lead sees assigned tasks and records worker allocation when required.
+
+### Rejected Uploads Cleanup
+
+Admin or Ops-only cleanup surface for rejected uploads that are old enough to be permanently purged under the retention policy.
+
 ### Reports
 
 Separate reporting surface for monthly and operational reporting, including CSV export behavior when finalized.
+Per-user reports must remain domain-scoped.
 
 ### System Settings
 
 Controlled tuning page for thresholds and system-level operational settings.
+This may also store approved operational shortcuts such as the Ops phone number used by Call Ops.

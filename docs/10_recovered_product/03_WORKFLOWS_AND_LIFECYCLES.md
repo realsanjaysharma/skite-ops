@@ -10,17 +10,25 @@ It should behave like real operations, not like a simplified software demo.
 
 1. Supervisor works on an assigned belt.
 2. Supervisor uploads proof with optional work context and optional short comment.
-3. Upload becomes immediately visible internally to Ops, Head Supervisor, and Management.
-4. Upload does not automatically become authority-visible.
-5. Ops reviews eligible proof and governs authority visibility.
-6. Approved proof becomes visible to the assigned authority representative.
+3. System may capture location metadata softly for Ops verification.
+4. Upload becomes immediately visible internally to Ops, Head Supervisor, and Management.
+5. Upload does not automatically become authority-visible.
+6. Ops reviews eligible proof and governs authority visibility.
+7. Approved proof becomes visible to the assigned authority representative.
+
+Soft GPS rule:
+
+- mismatch should flag for Ops review
+- upload must not be blocked just because GPS looks wrong
 
 ## Watering Flow
 
 1. Supervisor marks watering for assigned belts.
 2. Head Supervisor may correct or complete same-day watering across maintained belts.
 3. Ops may override under governed conditions with audit.
-4. Watering remains separate from photo proof and should not be inferred blindly from uploads.
+4. If a daily `Not Required` action exists, it should support a short reason.
+5. In recovered transcript logic, that reason is optional in v1 and mandatory later.
+6. Watering remains separate from photo proof and should not be inferred blindly from uploads.
 
 ## Maintenance Cycle Flow
 
@@ -35,12 +43,19 @@ It should behave like real operations, not like a simplified software demo.
 2. Ops reviews whether it is valid for authority visibility.
 3. Issue uploads are excluded from authority proof.
 4. Approved work proof becomes visible inside the authority portal.
-5. Authority representatives filter, download, and manually share externally.
+5. Authorized Person access is controlled through visibility, not duplicate file creation.
+6. Authority representatives filter, download, and manually share externally.
 
 ## Authority Summary Flow
 
 The system is intended to support date-wise and belt-wise authority summary output based on approved proof.
 This is a curated operational view, not a raw dump of uploads.
+
+Recovered locking note:
+
+- the final in-system model is visibility control plus portal access
+- external sharing itself happens outside the system
+- the system does not need fake "shared externally" truth if visibility control is the real governance point
 
 ## Issue Flow
 
@@ -62,10 +77,21 @@ This is a curated operational view, not a raw dump of uploads.
 
 1. Ops assigns task to the execution side.
 2. Fabrication or installation lead sees the task in My Tasks.
-3. Execution happens on ground.
-4. Lead uploads completion proof and marks work done.
-5. Task enters final Ops review.
-6. Ops verifies and closes.
+3. Lead can allocate one or more tracked workers against the task.
+4. Execution happens on ground.
+5. Lead uploads mandatory After Work proof and optional Before Work proof.
+6. Lead can use a one-tap Call Ops shortcut when needed.
+7. Lead marks work done.
+8. Task enters final Ops review.
+9. Ops verifies and closes.
+
+## Worker Allocation And Availability Flow
+
+1. Ops assigns a task to a Fabrication Lead.
+2. Lead records which workers are assigned to that task.
+3. Worker allocation feeds daily workload visibility.
+4. "Who is free today" is derived from active worker-task assignments, not guessed manually.
+5. Monthly worker activity reports are derived from the same assignment history.
 
 ## Monitoring Proof Flow
 
@@ -74,6 +100,18 @@ This is a curated operational view, not a raw dump of uploads.
 3. Proof becomes available internally for Ops, Sales, Client Servicing, and planning use.
 4. The system does not auto-send proof to clients.
 5. Commercial teams manually reuse and share the controlled proof outward.
+
+## Role Landing Flow
+
+After login, users land on their role-relevant surface instead of a generic landing page.
+
+Examples:
+
+- Ops -> Master Operations Dashboard
+- Green Belt Supervisor -> Supervisor Upload
+- Outsourced Maintainer -> Outsourced Upload
+- Fabrication Lead -> My Tasks
+- Authority Representative -> Authority View
 
 ## Free Media Discovery Flow
 
@@ -120,6 +158,20 @@ This is a curated operational view, not a raw dump of uploads.
 
 - reads across the system in a visibility-only capacity
 
+## Upload Review Feedback Boundary
+
+- supervisors remain upload-focused field users
+- they should not see authority review status
+- they should not see rejected or hidden review outcome labels
+- Ops and authority governance remain separate from supervisor-facing UX
+
+## Rejected Upload Cleanup Flow
+
+1. Rejected uploads remain hidden from authority access.
+2. Rejected uploads stay visible to Ops for review and governance.
+3. Older rejected uploads become cleanup candidates.
+4. Ops can use a dedicated cleanup page to bulk permanently delete eligible rejected uploads while retaining minimal governance-safe history where required.
+
 ## Lifecycle Rules
 
 - requests do not become tasks automatically
@@ -128,3 +180,4 @@ This is a curated operational view, not a raw dump of uploads.
 - execution completion is separate from final Ops closure
 - authority visibility is separate from raw proof existence
 - outsourced oversight is separate from maintained-belt compliance
+- per-user reporting stays domain-scoped rather than uncontrolled cross-vertical visibility

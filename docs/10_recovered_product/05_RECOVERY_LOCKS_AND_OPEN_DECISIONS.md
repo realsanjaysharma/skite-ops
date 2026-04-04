@@ -2,10 +2,62 @@
 
 ## Purpose
 
-These items were discussed in the transcripts but are not equally frozen.
-They must be explicitly locked before the repo is fully rewritten around the recovered product.
+This file holds two things:
 
-## Decision Areas To Lock
+- recovery clarifications that are now locked strongly enough to stop drift
+- the smaller set of items that still need explicit final locking
+
+No one should silently guess these items during implementation.
+
+If a workflow depends on one of these decisions, lock it in docs first and only then move it into schema or code.
+
+## Locked Recovery Clarifications
+
+### 1. Dynamic Role Creation
+
+Dynamic role creation is allowed.
+
+The lock is:
+
+- Ops may create new roles
+- vertical access and module scope remain controlled
+- permission assignment must use predefined permission groups
+- arbitrary micro-permission toggles are not allowed
+
+### 2. Role-Based Landing
+
+Users should land on their role-relevant page after login.
+Generic landing behavior is not the intended product.
+
+### 3. Authority Visibility Model
+
+The cleaner final transcript direction is:
+
+- Ops governs visibility
+- approved uploads become visible to the Authorized Person
+- external sharing happens outside the system
+
+The system does not need to treat "shared externally" as the primary truth when access visibility is the real control point.
+
+### 4. Supervisor Review Feedback Boundary
+
+Supervisors remain upload-only field users.
+
+The lock is:
+
+- they should not see authority review status
+- they should not see rejected labels
+- they should not get governance-feedback UI on normal upload pages
+
+### 5. Daily Watering `Not Required`
+
+Recovered transcript direction supports:
+
+- `Not Required` as an explicit daily action when used
+- short reason optional in v1
+- short reason mandatory later if that flow becomes stricter
+
+## Decision Areas Still Open
 
 ### 1. Monitoring Planning Depth
 
@@ -16,27 +68,7 @@ Questions:
 - Is there a real Ops monitoring plan page in v1?
 - Is planning optional guidance or hard assignment?
 
-### 2. Authority Visibility Versus External Share State
-
-The recovered model clearly supports approved authority visibility.
-It is still not fully locked whether the system should separately track external sharing state.
-
-### 3. Daily Watering `Not Required` Behavior
-
-This affects:
-
-- data model
-- UI
-- compliance logic
-- audit expectations
-
-Questions:
-
-- Is `Not Required` a daily state?
-- Is a reason mandatory?
-- How should it affect reports?
-
-### 4. Gardener And Night Guards
+### 2. Gardener And Night Guards
 
 These actors appear in the operational reality but were not finalized as system roles.
 
@@ -46,30 +78,16 @@ Options:
 - non-login tracked actors
 - full future roles
 
-### 5. Fixed Roles Versus Dynamic Role Creation
-
-The recovered product strongly suggests a fixed constitutional role set.
-This must be explicitly locked against open-ended dynamic role creation unless intentionally changed.
-
-### 6. Green Belt Master Versus Advertisement Site Master Separation
+### 3. Green Belt Master Versus Advertisement Site Master Separation
 
 Conceptually, both belong to the broader operational asset model.
 Product surfaces should still stay separated unless a later decision deliberately merges them.
 
-### 7. Monitoring Due And Frequency Formulas
+### 4. Monitoring Due And Frequency Formulas
 
 Monitoring frequency clearly matters, but the exact due and overdue formulas still need precise locking.
 
-### 8. Rejected Upload Feedback To Supervisors
-
-The governance model is clear, but feedback visibility to supervisors is not fully frozen.
-
-Questions:
-
-- should supervisors see rejection state?
-- should they only see a minimal "not approved" style result?
-
-### 9. Export And Share Precision
+### 5. Export And Share Precision
 
 The recovered product supports reporting and external sharing, but exact export behavior still needs final detail:
 
@@ -77,9 +95,3 @@ The recovered product supports reporting and external sharing, but exact export 
 - default filters
 - WhatsApp share templates
 - summary output format
-
-## Recovery Rule
-
-No one should silently guess these items during implementation.
-
-If a workflow depends on one of these decisions, lock it in docs first and only then move it into schema or code.

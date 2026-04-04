@@ -4,9 +4,9 @@
 
 This folder captures the recovered product truth from the transcript files in:
 
-- `chat gpt chats for real  intent/part 1-Operation management system for skite - chat gpt chat transcript.txt`
-- `chat gpt chats for real  intent/part 2-Operation management system for skite - chat gpt chat transcript.txt`
-- `chat gpt chats for real  intent/part 3-Operation management system for skite - chat gpt chat transcript.txt`
+- `chat_gpt_chats/part 1-Operation management system for skite - chat gpt chat transcript.txt`
+- `chat_gpt_chats/part 2-Operation management system for skite - chat gpt chat transcript.txt`
+- `chat_gpt_chats/part 3-Operation management system for skite - chat gpt chat transcript.txt`
 
 This is the canonical target product definition during the recovery phase.
 
@@ -74,6 +74,9 @@ The intended role set is:
 - Authority Representative / Authorized Person
 - Management
 
+The system also allows controlled future role creation through predefined permission groups.
+This is not free-form permission design.
+
 Real-world actors discussed but not fully finalized as system roles:
 
 - gardener
@@ -85,6 +88,8 @@ Real-world actors discussed but not fully finalized as system roles:
 The intended product is built around these core entities:
 
 - users and roles
+- permission groups
+- role-permission mappings
 - green belts
 - belt-supervisor assignments
 - belt-authority assignments
@@ -92,6 +97,8 @@ The intended product is built around these core entities:
 - watering records
 - supervisor attendance
 - labour entries
+- fabrication workers
+- task-worker assignments
 - advertisement sites and assets
 - campaigns
 - campaign-site links
@@ -124,10 +131,12 @@ The intended product behavior includes:
 - issue review and closure flow
 - request-to-task conversion flow
 - task execution and final Ops review flow
+- worker allocation and availability flow
 - monitoring proof flow
 - free media discovery flow
 - campaign-end to free-media transition flow
 - outsourced belt oversight flow
+- role-based landing flow after login
 
 ## Product Surfaces
 
@@ -165,6 +174,7 @@ The intended product includes these major surfaces:
 - User Management
 - Access and Mapping Control
 - Audit Log Viewer
+- Rejected Uploads Cleanup
 - Notification and Alert Panel
 - Reports
 - System Settings
@@ -176,8 +186,10 @@ The intended product includes these major surfaces:
 - compliance is best-effort inference, not fake certainty
 - field workflows must stay low-friction
 - authority-facing proof must be filtered and governed
+- approved authority visibility is the in-system truth; external sharing happens outside the system
 - outsourced belts must stay outside normal internal compliance logic
 - requesters cannot bypass Ops and create execution truth directly
+- dynamic roles are allowed only through predefined permission groups
 - no hidden lifecycle magic
 - no hidden approval shortcuts
 - auditability matters

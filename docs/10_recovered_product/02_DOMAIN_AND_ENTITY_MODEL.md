@@ -7,6 +7,22 @@ The intended product is built on shared operational truth.
 Different roles see different slices of the same underlying records.
 The system should derive views, alerts, and summaries from core data rather than copying truth into separate silos.
 
+## Access And Permission Domain
+
+### Roles
+
+Roles remain governed system actors.
+The product supports both the constitutional role set and controlled future role creation.
+
+### Permission Groups
+
+Permission groups are predefined access bundles such as view, upload, approve, and manage patterns.
+They prevent arbitrary permission spaghetti.
+
+### Role-Permission Mapping
+
+Role-to-permission-group linking is a real required layer because dynamic roles are allowed, but only through controlled permission groups and vertical/module access.
+
 ## Green Belt Domain
 
 ### Green Belts
@@ -59,6 +75,9 @@ Maintenance cycle is a governed operational entity that stores:
 Watering is its own governed record model.
 It should not be reduced to photo inference alone.
 
+If `Not Required` is used as a daily explicit action, it should support a short reason.
+Transcript recovery currently supports that reason being optional in v1 and mandatory later.
+
 ### Supervisor Attendance
 
 Attendance is a support and governance record, separate from uploads and watering.
@@ -66,6 +85,25 @@ Attendance is a support and governance record, separate from uploads and waterin
 ### Labour Entries
 
 Labour is tracked as count-based operational input, not full worker identity management by default.
+
+## Fabrication And Execution Resources
+
+### Fabrication Workers
+
+Fabrication workers are tracked as operational resource entries rather than full login users by default.
+This supports monthly worker activity and daily workload visibility without creating low-value login complexity.
+
+### Task-Worker Assignment
+
+`task_worker_assignment` is a required many-to-many operational entity.
+
+It exists to support:
+
+- multiple workers per task
+- lead-managed worker allocation
+- worker-wise monthly activity
+- daily workload visibility
+- "who is free today" style derived views
 
 ## Advertisement And Monitoring Domain
 
@@ -125,7 +163,24 @@ They support:
 - task completion proof
 - outsourced activity proof
 
-Uploads should retain creator, parent context, timestamps, optional comments or tags, governance visibility state, and soft-delete behavior where appropriate.
+Uploads should retain:
+
+- creator
+- parent context
+- timestamps
+- optional comments or tags
+- governance visibility state
+- soft-delete behavior where appropriate
+- purge markers where hard purge is allowed later
+- optional soft GPS verification metadata for non-blocking Ops review
+- task-proof photo labeling where required
+
+Important recovered rules:
+
+- soft GPS verification is non-blocking and only flags suspicious mismatch for Ops review
+- task completion proof uses labeled photos: After Work required, Before Work optional
+- supervisor uploads remain upload-focused and should not expose authority review outcome back to supervisors
+- approved authority visibility is governed access, not duplicate storage or in-system external send tracking
 
 ### Issues
 
@@ -148,7 +203,17 @@ Requests can be:
 ### Tasks
 
 Tasks are Ops-governed execution units created after approval.
-They support assignment, execution status, proof of completion, final Ops review, and closure.
+They support:
+
+- assignment
+- execution status
+- proof of completion
+- final Ops review
+- closure
+- assigned-by context
+- target or close-date context
+- progress tracking where operationally useful
+- remark fields where needed for execution history
 
 ### Issue-To-Task Relationship
 
@@ -165,6 +230,11 @@ The system must preserve review, approval, rejection, override, and key lifecycl
 
 Configurable thresholds and system tuning values should be stored explicitly rather than hidden in scattered constants forever.
 
+This can also hold controlled operational settings such as:
+
+- contact numbers like Ops phone shortcut
+- approved toggles that are meant to be system-driven rather than hardcoded
+
 ### Derived Outputs
 
 The following should mostly be derived from stored records:
@@ -175,6 +245,8 @@ The following should mostly be derived from stored records:
 - authority-facing filtered views
 - management summaries
 - overdue and readiness indicators
+- worker availability views
+- domain-scoped user activity reports
 
 ## Stored Versus Derived Rule
 
