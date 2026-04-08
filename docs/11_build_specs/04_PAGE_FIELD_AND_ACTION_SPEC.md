@@ -118,7 +118,7 @@ It does define:
 
 - read-only cross-domain summaries
 - dashboard cards only
-- links into read-only detail surfaces and reports
+- links into allowed read-only dashboards, summary drilldowns, and reports
 
 ### Rules
 
@@ -226,6 +226,7 @@ It does define:
 - assigned belt selector
 - one or more photos
 - upload type
+- optional work type when `upload_type = WORK`
 - optional comment
 - optional issue yes/no helper if UI keeps it separate from upload type
 
@@ -286,6 +287,7 @@ It does define:
 - assigned outsourced belt selector
 - one or more photos
 - upload type
+- optional work type when `upload_type = WORK`
 - optional comment
 
 ### Actions
@@ -480,7 +482,7 @@ It does define:
 - upload date
 - belt name
 - supervisor name
-- work type
+- work type from stored upload metadata
 - proof thumbnail
 
 ### Actions
@@ -494,6 +496,7 @@ It does define:
 - no issue uploads
 - no hidden or rejected proof
 - no internal notes
+- work-type filtering must use stored upload `work_type`, not comment parsing
 
 ## 16. Site And Asset Master
 
@@ -616,6 +619,7 @@ It does define:
 
 - site required
 - at least one photo required
+- discovery mode must create or refresh governed discovered free-media state, not just a photo row
 - GPS metadata stored when available
 
 ## 19. Monitoring Plan
@@ -684,6 +688,10 @@ It does define:
 - location_text
 - comment preview
 - upload count
+
+### Rules
+
+- discovery-mode filtering must use stored upload discovery metadata, not inferred comments
 
 ## 21. Free And Available Media Page
 
@@ -923,6 +931,7 @@ It does define:
 
 - belt to supervisor
 - belt to authority representative
+- belt to outsourced maintainer
 - role to allowed modules
 
 ### Actions

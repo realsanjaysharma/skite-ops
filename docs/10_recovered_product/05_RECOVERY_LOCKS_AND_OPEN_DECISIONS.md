@@ -63,7 +63,7 @@ Recovered transcript direction supports:
 Recovered design lock:
 
 - `worker_daily_entries` is the universal daily truth layer
-- `task_worker_assignment` exists only for fabrication
+- `task_worker_assignments` exists only for fabrication
 - fabrication worker availability uses both daily work entries and fabrication assignment context
 
 ### 7. GPS Review Rule

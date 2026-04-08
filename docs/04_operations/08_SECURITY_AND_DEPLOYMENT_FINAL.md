@@ -1,162 +1,137 @@
-# 08_SECURITY_AND_DEPLOYMENT.md
+# Skyte Ops Security And Deployment
 
-Version: Architecture Freeze v1 (Security Hardened) Status:
-Production-Grade (Shared Hosting Compatible)
+## Purpose
 
-  --------------------------
-  1\. AUTHENTICATION MODEL
-  --------------------------
+This file records the active security and deployment posture for the current Skite Ops documentation model.
+It supports the recovered canon and build-spec layer. It does not define product scope.
 
-Authentication Method: - PHP session-based authentication.
+Primary references:
 
-Session Security Rules: - session_regenerate_id(true) on successful
-login. - Full session destruction on logout. - User ID and role stored
-in server-side session only. - Role validation enforced at middleware
-level before controller execution. - Session timeout: 30 minutes inactivity.
-Session Termination Rules:
-- On logout:
-    - session_unset()
-    - session_destroy()
-    - Delete session cookie explicitly
-- Prevent session fixation or reuse after logout.
-Session Cookie Hardening (Production): - session.cookie_httponly =
-true - session.cookie_secure = true (HTTPS required) - SameSite=Strict
-Session Security (Environment Dependent): - Secure cookie flag and
-inactivity timeout enforcement are environment-dependent. - They will
-be enforced in production deployment (HTTPS-enabled environment).
+- `docs/README.md`
+- `docs/11_build_specs/03_API_AND_ROUTE_CONTRACT.md`
+- `docs/11_build_specs/06_UPLOAD_STORAGE_RETENTION_SPEC.md`
+- `docs/11_build_specs/08_SYSTEM_SETTINGS_AND_EXTERNAL_ACTIONS.md`
 
-  --------------------------------------------------
-  2\. PASSWORD POLICY (Level B -- Internal System)
-  --------------------------------------------------
+## 1. Authentication Model
 
--   Password stored using password_hash() (bcrypt).
--   Minimum length: 8 characters.
--   No email-based reset in v1.
--   Ops/Admin may manually reset password.
--   Force password change on first login after reset.
-Login Attempt Tracking:
-- failed_attempt_count stored in users table.
-- last_failed_attempt_at timestamp stored in users table.
-- Counter resets to 0 on successful login.
-- Lock duration enforced server-side.
-- All lock/unlock events logged in audit log.
-Login Protection: - Maximum 5 failed login attempts. - Account locked
-for 15 minutes after threshold. - Failed attempts logged in audit log.
+- PHP session-based authentication
+- `session_regenerate_id(true)` on successful login
+- full session destruction on logout
+- user identity and role context stored server-side only
+- RBAC enforced before controllers through middleware
+- inactivity timeout enforced through deployment-aware session policy
 
-Forced Password Reset:
-- Users flagged for forced password reset may log in successfully.
-- All protected routes are blocked until password reset is completed.
-- Only logout and reset-password routes remain accessible during this state.
+### Session Cookie Rules
 
-  ---------------------
-  3\. CSRF PROTECTION
-  ---------------------
+- `HttpOnly` enabled in production
+- `Secure` enabled when HTTPS is active
+- `SameSite=Strict` unless deployment constraints require an explicit documented exception
 
--   CSRF token generated per session.
--   Token included as hidden field in all POST forms.
--   Token validated server-side before processing request.
--   Invalid token → request rejected immediately.
--   Required for all data mutation endpoints.
+## 2. Password And Login Policy
 
----------------------
-4\. DATABASE SECURITY RULES
----------------------
+- password storage must use `password_hash()`
+- minimum password length: 8
+- no email self-service reset in v1
+- Ops can trigger manual reset
+- forced password reset can block protected routes until the reset is completed
+- login throttling and lock thresholds must be enforced server-side
 
-- All database queries must use prepared statements (PDO or MySQLi prepared).
-- No dynamic SQL concatenation with user input.
-- All user inputs validated before database interaction.
-- All output escaped at view layer to prevent XSS.
-  --------------------------------
-  5\. FILE UPLOAD SECURITY MODEL
-  --------------------------------
+Threshold values belong in deployment config or approved auth configuration, not scattered through controller code.
 
-Storage Strategy: - Uploads stored outside public_html.
+## 3. CSRF Protection
 
-Access Control: - Files served through secured PHP controller. -
-Controller validates session, role, and entity visibility.
+- CSRF token generated per session
+- token required for authenticated mutating requests
+- invalid token causes immediate rejection
+- route behavior must stay aligned with `docs/11_build_specs/03_API_AND_ROUTE_CONTRACT.md`
 
-Upload Validation: - Allowed extensions: jpg, jpeg, png, webp - Validate
-extension AND server-side MIME using finfo. - Reject double
-extensions. - Maximum file size: 5MB. - Randomized filename
-(hash-based). - Original filename never used.
+## 4. Database Security Rules
 
-Folder Permissions: - storage/uploads: 750 or 755 - Never 777.
+- use prepared statements only
+- do not concatenate user input into SQL
+- validate server-side before persistence
+- escape output at the view layer
 
-Logical Storage Structure:
+## 5. File Upload Security
 
-Uploads organized by domain:
+### Core Rules
 
-- /storage/uploads/belts/
-- /storage/uploads/sites/
-- /storage/uploads/tasks/
-- /storage/uploads/daily_work/
+- validate MIME type server-side
+- validate extension and MIME together
+- reject executable or double-extension style inputs
+- enforce hard upload-size ceilings in config
+- generate collision-safe server filenames
+- store relative path in the database, not public URL
 
-This ensures:
-- Clean segregation
-- Easier archival
-- Future storage management
+### Storage Contract
 
-  ---------------------------
-  6\. ERROR HANDLING POLICY
-  ---------------------------
+Relative upload paths must follow the canonical pattern:
 
-Local: - display_errors = ON
+```text
+uploads/<parent_type>/<YYYY>/<MM>/<generated_file_name>.<ext>
+```
 
-Production: - display_errors = OFF - log_errors = ON - Errors written to
-secured log file.
+Examples:
 
-  -----------------------------------
-  7\. WEB SERVER HARDENING (cPanel)
-  -----------------------------------
+```text
+uploads/green_belt/2026/04/gb_4812_01f3c8a2.jpg
+uploads/site/2026/04/site_9044_0c91f7ab.webp
+uploads/task/2026/04/task_2210_9a22c001.jpg
+```
 
--   Force HTTPS.
--   Disable directory listing.
--   Protect storage directory.
--   Security headers:
-    -   X-Frame-Options: SAMEORIGIN
-    -   X-Content-Type-Options: nosniff
+The physical upload root should remain deployment-configured and protected from direct unauthenticated file browsing.
 
-  --------------------------
-  8\. ENVIRONMENT STRATEGY
-  --------------------------
+## 6. Error Handling
 
--   Local / Staging / Production separation.
--   .env not committed to Git.
--   Separate DB credentials per environment.
--   Debug only enabled locally.
+### Local
 
-  -----------------------------
-  9\. GIT DEPLOYMENT STRATEGY
-  -----------------------------
+- debug display may be enabled for development only
 
--   Private GitHub repository.
--   Feature branches → merge → tag → deploy.
--   No direct production edits.
--   Deploy only tagged releases.
+### Production
 
-  --------------------------------
-  10\. SHARED HOSTING LIMITATIONS
-  --------------------------------
+- no raw PHP errors shown to users
+- error logging enabled
+- detailed internal diagnostics written to protected logs
 
--   No background workers.
--   No async queues.
--   No containerization.
--   No root-level access.
+## 7. Web Server Hardening
 
-  --------------------------------
+- force HTTPS in production
+- disable directory listing
+- protect upload and log directories
+- set security headers such as:
+  - `X-Frame-Options: SAMEORIGIN`
+  - `X-Content-Type-Options: nosniff`
 
-  11\.INPUT VALIDATION POLICY
-  --------------------------------
+## 8. Environment Strategy
 
-- All POST and GET inputs must be validated server-side.
-- Numeric fields cast explicitly.
-- Enum fields validated against allowed list.
-- Date fields validated for format and range.
-- No business logic depends on client-side validation.
+- separate local, staging, and production configuration
+- do not commit secrets
+- keep separate DB credentials per environment
+- enable debug only in local development unless explicitly justified
 
+## 9. Deployment Strategy
 
-------------------------------------------------------------------------
+- private Git-based workflow
+- no direct production edits
+- deploy only from reviewed, intentional releases
+- shared-hosting compatibility remains a hard constraint
 
-STATUS
+## 10. Shared Hosting Boundaries
 
-Security hardened for shared hosting deployment.
+- no required background workers for core correctness
+- no queue dependency for product truth
+- no root-level assumptions
+- avoid operational designs that require infrastructure the target environment does not provide
+
+## 11. Input Validation Policy
+
+- validate all GET and POST inputs server-side
+- cast numeric values explicitly
+- validate enums against the allowed vocabulary
+- validate dates for format and range
+- never rely on client-side validation for business correctness
+
+## Active Status
+
+This file remains an active operational reference.
+If it conflicts with the build-spec layer on implementation detail, the build-spec layer wins.

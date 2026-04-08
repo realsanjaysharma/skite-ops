@@ -155,10 +155,35 @@ class AuthService
         );
 
         $safeUser = $this->formatAuthUserResponse($user);
+        $landingContext = $this->buildLandingContext((int) $user['role_id']);
 
         return [
             'user' => $safeUser,
-            'requires_password_reset' => ((int) $user['force_password_reset'] === 1)
+            'requires_password_reset' => ((int) $user['force_password_reset'] === 1),
+            'landing_module_key' => $landingContext['landing_module_key'],
+            'landing_route' => $landingContext['landing_route']
+        ];
+    }
+
+    /**
+     * Return authenticated session bootstrap data for an already logged-in user.
+     */
+    public function getSessionData(int $userId): array
+    {
+        $user = $this->userRepository->getActiveUserById($userId);
+
+        if ($user === null) {
+            throw new RuntimeException('User not found');
+        }
+
+        $safeUser = $this->formatAuthUserResponse($user);
+        $landingContext = $this->buildLandingContext((int) $user['role_id']);
+
+        return [
+            'user' => $safeUser,
+            'requires_password_reset' => ((int) $user['force_password_reset'] === 1),
+            'landing_module_key' => $landingContext['landing_module_key'],
+            'landing_route' => $landingContext['landing_route']
         ];
     }
 
@@ -251,9 +276,58 @@ class AuthService
         return [
             'id' => $user['id'] ?? null,
             'role_id' => $user['role_id'] ?? null,
+            'role_key' => $user['role_key'] ?? null,
+            'role_name' => $user['role_name'] ?? null,
             'full_name' => $user['full_name'] ?? null,
             'email' => $user['email'] ?? null,
             'is_active' => $user['is_active'] ?? null
         ];
+    }
+
+    /**
+     * Resolve landing module and route from the canonical roles table.
+     */
+    private function buildLandingContext(int $roleId): array
+    {
+        $role = $this->userRepository->getRoleById($roleId);
+
+        if ($role === null) {
+            throw new RuntimeException('Role not found');
+        }
+
+        $landingModuleKey = $role['landing_module_key'] ?? null;
+
+        if (!is_string($landingModuleKey) || trim($landingModuleKey) === '') {
+            throw new RuntimeException('Landing module not configured');
+        }
+
+        return [
+            'landing_module_key' => $landingModuleKey,
+            'landing_route' => $this->mapLandingModuleToRoute($landingModuleKey)
+        ];
+    }
+
+    /**
+     * v1 landing route map from the API contract.
+     */
+    private function mapLandingModuleToRoute(string $landingModuleKey): string
+    {
+        $map = [
+            'dashboard.master_ops' => 'dashboard/master',
+            'green_belt.watering_oversight' => 'oversight/watering',
+            'green_belt.supervisor_upload' => 'upload/supervisor',
+            'green_belt.outsourced_upload' => 'upload/outsourced',
+            'monitoring.upload' => 'monitoring/upload',
+            'task.my_tasks' => 'task/my',
+            'task.progress_read' => 'taskprogress/list',
+            'green_belt.authority_view' => 'authority/view',
+            'dashboard.management' => 'dashboard/management',
+        ];
+
+        if (!isset($map[$landingModuleKey])) {
+            throw new RuntimeException('Landing route not configured');
+        }
+
+        return $map[$landingModuleKey];
     }
 }

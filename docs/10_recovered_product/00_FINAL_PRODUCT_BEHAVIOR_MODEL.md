@@ -93,6 +93,7 @@ The intended product is built around these core entities:
 - green belts
 - belt-supervisor assignments
 - belt-authority assignments
+- belt-outsourced assignments
 - maintenance cycles
 - watering records
 - supervisor attendance

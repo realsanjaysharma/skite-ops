@@ -59,6 +59,7 @@ These gates apply to every module.
 ## 2. Green Belt Core
 
 - `green_belts`, `belt_supervisor_assignments`, `belt_authority_assignments`, and `maintenance_cycles` are implemented
+- outsourced belt-assignment mapping exists for outsourced maintainer scoping
 - `belt_code` is unique and used in list/detail views
 - Green Belt Master supports create, edit, filter, and detail open behavior from the page spec
 - Green Belt Detail shows legal state, configuration, assignment history, cycle history, uploads, and issues
@@ -96,6 +97,7 @@ These gates apply to every module.
 
 - outsourced maintainers can open only the outsourced upload surface
 - outsourced maintainers can see only assigned outsourced belts
+- assigned outsourced belts are enforced through explicit outsourced assignment data, not by reusing supervisor mappings
 - outsourced uploads are kept separate from maintained-belt supervisor flows
 - outsourced uploads default to `NOT_ELIGIBLE` for authority visibility
 - outsourced flow does not expose watering, attendance, or labour controls
@@ -115,6 +117,7 @@ These gates apply to every module.
 - assigned lead can mark work done only through the execution flow
 - Ops performs final completion acceptance
 - requester roles see read-only task progress only
+- dedicated read-only task-progress routes exist and do not collide with execution-side progress-update routes
 - requester roles never see task execution controls
 - task cancellation and archive are Ops-only
 - issue-to-task linking works without auto-closing the issue
@@ -152,6 +155,8 @@ These gates apply to every module.
 
 - monitoring upload supports site selection, multi-photo upload, optional comment, and discovery mode
 - monitoring upload stores GPS when available and never blocks if GPS is missing
+- monitoring discovery mode creates or refreshes governed discovered free-media state
+- monitoring history can filter discovery-mode uploads from stored upload metadata
 - monitoring due truth is stored in `site_monitoring_due_dates`
 - Ops can assign multiple due dates to one site in a month
 - Ops can copy a site's due pattern into the next month
@@ -169,6 +174,7 @@ These gates apply to every module.
 - authority users never see hidden, rejected, or `NOT_ELIGIBLE` uploads
 - authority users never see issue uploads
 - authority filters support date, belt, supervisor, and work type
+- authority work-type filter is backed by stored upload `work_type`
 - authority download uses only the currently filtered approved context
 - WhatsApp helper can be generated only from approved filtered context
 - helper output excludes internal notes and issue chatter
@@ -197,6 +203,7 @@ These gates apply to every module.
 
 - `system_settings` exists and includes the required seeded keys
 - Ops can edit only allowed settings from the System Settings page
+- API routes exist for settings read and update plus audit-log listing
 - arbitrary key creation is not open in v1 unless deliberately enabled later
 - Ops phone number is read from the settings service, not hardcoded in pages
 - rejected-upload cleanup days and self-delete purge days resolve from the correct config/settings boundary

@@ -53,6 +53,7 @@ class AuthController
             session_regenerate_id(true);
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['role_id'] = $user['role_id'];
+            $_SESSION['role_key'] = $user['role_key'] ?? null;
             $_SESSION['logged_in'] = true;
             $_SESSION['force_password_reset'] = $requiresPasswordReset;
             $csrfToken = Csrf::generateToken();
@@ -60,7 +61,39 @@ class AuthController
             Response::success([
                 'user' => $user,
                 'requires_password_reset' => $requiresPasswordReset,
-                'csrf_token' => $csrfToken
+                'csrf_token' => $csrfToken,
+                'landing_module_key' => $authResult['landing_module_key'] ?? null,
+                'landing_route' => $authResult['landing_route'] ?? null
+            ]);
+        } catch (Throwable $exception) {
+            Response::error($exception->getMessage(), 400);
+        }
+    }
+
+    public function session()
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+            Response::error('Method not allowed', 405);
+            return;
+        }
+
+        try {
+            $userId = $_SESSION['user_id'] ?? null;
+
+            if (!$userId) {
+                Response::error('Unauthorized', 401);
+                return;
+            }
+
+            $sessionData = $this->authService->getSessionData((int) $userId);
+            $csrfToken = Csrf::generateToken();
+
+            Response::success([
+                'user' => $sessionData['user'] ?? null,
+                'requires_password_reset' => (bool) ($sessionData['requires_password_reset'] ?? false),
+                'csrf_token' => $csrfToken,
+                'landing_module_key' => $sessionData['landing_module_key'] ?? null,
+                'landing_route' => $sessionData['landing_route'] ?? null
             ]);
         } catch (Throwable $exception) {
             Response::error($exception->getMessage(), 400);

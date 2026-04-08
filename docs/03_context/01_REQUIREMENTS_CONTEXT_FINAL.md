@@ -1,301 +1,165 @@
-# 01_REQUIREMENTS_CONTEXT.md
+# Skyte Ops Requirements Context
 
-Version: Architecture Freeze v1 Status: Ground Reality Reference
-Document
+## Purpose
 
-------------------------------------------------------------------------
+This file records the real-world operating context the product must respect.
+It has been rewritten from the recovered transcript truth and should now be read as a synchronized legacy mirror, not as a separate source of product scope.
 
-## 1. PURPOSE OF THIS DOCUMENT
+Primary references:
 
-This document captures how operations actually work on the ground.
+- `docs/10_recovered_product/00_FINAL_PRODUCT_BEHAVIOR_MODEL.md`
+- `docs/10_recovered_product/03_WORKFLOWS_AND_LIFECYCLES.md`
+- `docs/11_build_specs/04_PAGE_FIELD_AND_ACTION_SPEC.md`
 
-It is intentionally practical and descriptive.
+## Business Reality
 
-It does NOT describe the ideal system. It describes real operational
-behavior, constraints, habits, and limitations.
+Skite operates green-belt maintenance and outdoor advertising at the same time.
+Monitoring, fabrication, commercial coordination, and authority-facing proof all overlap with those operations.
 
-This document prevents: - Over-engineering - Unrealistic enforcement -
-Artificial workflows - Design drift
+The system must therefore support:
 
-All system design decisions must respect this document.
+- legal and operational green-belt management
+- advertisement site and campaign management
+- monitoring proof collection and planning
+- fabrication and installation execution
+- authority-ready proof visibility
+- client and planning-facing read models
 
-------------------------------------------------------------------------
+## Green Belt Ground Reality
 
-## 2. COMPANY OPERATIONS STRUCTURE
+### Team Shape
 
-The company operates in Outdoor Advertising and Green Belt Maintenance
-simultaneously.
+- Green Belt Supervisors perform field work and upload proof
+- one Head Supervisor oversees same-day watering, attendance, labour, and cycle handling
+- outsourced maintainers handle some belts outside internal compliance logic
+- daily labour is tracked as counts, not as login users
+- gardener and night guards are tracked as separate daily counts, not login roles
 
-Operations Head manages both verticals.
+### Belt Work Pattern
 
-Verticals:
+Typical green-belt work includes:
 
-1.  Green Belt Maintenance
-2.  Advertisement Operations
-3.  Monitoring (cross-supporting advertisement)
+- watering
+- cleaning
+- trimming and routine upkeep
+- seasonal or need-based maintenance
+- issue and damage response
 
-These verticals overlap in workforce and coordination but remain
-logically distinct.
+Watering is separate from photo proof and should not be inferred only from uploads.
 
-------------------------------------------------------------------------
+### Evidence Pattern
 
-## 3. GREEN BELT GROUND REALITY
-
-### 3.1 Team Structure
-
--   6 Green Belt Supervisors
--   1 Head Supervisor
--   1 Gardener
--   20--40 daily labourers (not individually tracked)
--   2 night guards
-
-Labourers are not system users. Supervisors are responsible for
-execution and proof.
-
-------------------------------------------------------------------------
-
-### 3.2 Belt Assignment Behavior
-
--   Supervisors are assigned fixed belts (\~95% stable).
--   Temporary reassignment happens only:
-    -   During absence
-    -   For urgent work
--   Supervisors rotate belts in circular pattern: belt1 → belt2 → belt3
-    → belt4 → belt1
-
-Cycle return period typically 10--15 days.
-
-------------------------------------------------------------------------
-
-### 3.3 Types of Green Belt Work
-
-Green belt work falls into three categories:
-
-1.  Routine / Cycle-Based:
-    -   Watering (daily / alternate)
-    -   Cleaning (2--3 times per month)
-    -   Grass cutting (2 times per month)
-2.  Need-Based:
-    -   Seasonal plantation
-    -   Pot installation
-    -   Tree trimming
-    -   Stand adjustments
-3.  Damage / Incident-Based:
-    -   Theft
-    -   Accidental damage
-    -   Fence breakage
-    -   Authority complaint
-
-More than 90% of work fits into these categories.
-
-------------------------------------------------------------------------
-
-### 3.4 Supervisor Work Pattern
-
-Supervisors usually:
-
--   Work one belt fully before moving to next.
--   Do not switch belts mid-day for non-watering tasks.
--   Water multiple belts in same day if required.
--   Sometimes only perform watering and no other visible maintenance.
-
-Watering may be the only activity done on certain days.
-
-------------------------------------------------------------------------
-
-### 3.5 Upload Behavior
+Field evidence is noisy and imperfect.
+Supervisors need low-friction uploads with minimal required inputs.
+They must not be forced into heavy tagging or approval-aware workflows.
 
 Supervisors:
 
--   Upload 80--100 photos per belt per visit (average).
--   Upload during or after work completion.
--   Do not tag work categories intentionally.
--   Do not plan work in system.
--   Do not create tasks.
--   Do not approve anything.
+- can upload work proof or issue proof
+- can mark same-day watering on assigned belts
+- can see their own recent uploads
+- cannot see authority review outcome or rejection badges
 
-Uploads serve two purposes: - Internal proof - Authority reporting
+## Head Supervisor Reality
 
-Supervisors may upload only watering photos if no other work required.
+Head Supervisor is operationally important but still below Ops.
 
-------------------------------------------------------------------------
+The role exists to:
 
-### 3.6 What Defines "Properly Maintained"
+- mark supervisor attendance
+- oversee same-day watering across maintained belts
+- enter labour counts
+- start and close maintenance cycles
+- move green-belt issues from `OPEN` to `IN_PROGRESS`
 
-In practical terms, a belt is properly maintained if:
+The role does not approve uploads, close issues, or govern advertisement modules.
 
--   No visible garbage
--   Grass trimmed appropriately
--   Plants healthy
--   No visible damage
--   No active issues
+## Outsourced Belt Reality
 
-Neglect signs:
-
--   Visible garbage
--   Overgrown grass
--   Dry plants (watering missed)
--   Authority complaints
-
-------------------------------------------------------------------------
-
-## 4. HEAD SUPERVISOR REALITY
-
-Head Supervisor:
-
--   Oversees supervisors.
--   Marks attendance.
--   May step in operationally when needed.
--   May upload photos.
--   May start and close maintenance cycles.
-
-Head Supervisor does NOT:
-
--   Approve uploads for authority.
--   Close issues finally.
--   Override system locks without Ops.
-
-------------------------------------------------------------------------
-
-## 5. OUTSOURCED BELTS REALITY
-
-Some green belts:
-
--   Are legally under company permission.
--   But maintenance outsourced to third party.
+Outsourced belts remain legally relevant but operationally separate from internal compliance.
 
 For outsourced belts:
 
--   No watering compliance enforced.
--   No labour tracking.
--   No attendance expectation.
--   Uploads allowed.
--   Issues allowed.
--   Oversight only.
+- uploads and issue reporting exist
+- oversight exists
+- watering compliance does not
+- internal attendance and labour logic do not
 
-------------------------------------------------------------------------
+## Advertisement And Task Reality
 
-## 6. ADVERTISEMENT OPERATIONS REALITY
+Advertisement execution work is task-driven.
+Tasks may come from requests, issues, monitoring findings, client needs, or Ops decisions.
 
-### 6.1 Fabrication & Installation Team
+The field reality still resembles an Excel-style execution model:
 
--   5--6 workers
--   1 lead
--   Some workers also perform monitoring
+- work description
+- assigned by
+- assigned lead
+- progress percentage
+- remarks
+- completion note
 
-Workers: - Low literacy - No system login required - Work assigned
-verbally by lead
+Fabrication workers do not receive normal system logins.
 
-Lead: - Receives tasks from Ops. - Assigns work internally. - Reports
-progress.
+The product tracks worker reality through:
 
-------------------------------------------------------------------------
+- `worker_daily_entries` as the universal daily truth layer
+- fabrication-only `task_worker_assignments` for task occupancy and "who is free today" visibility
 
-### 6.2 Task Sources
+## Monitoring Reality
 
-Tasks originate from:
+Monitoring is site-based and operationally planned, but it should not become a rigid blocking workflow.
 
--   Ops
--   Management
--   Sales
--   Monitoring findings
--   Client demands
+Recovered behavior now locks this model:
 
-Current problem: No structured central queue.
+- Ops selects monthly due dates in advance for each site
+- a site can have multiple due dates in a month
+- the same pattern can be copied next month
+- the same pattern can be bulk-applied across multiple sites or groups such as highway routes
+- stored due dates are the real due truth
+- monitoring can still continue even if Ops skips formal approval of the suggested plan
 
-------------------------------------------------------------------------
+## Authority Reporting Reality
 
-### 6.3 Daily Work Tracking Reality
+Authority reporting is governed visibility, not duplicate data storage.
 
-Currently maintained in Excel:
+Recovered rules:
 
--   Worker name
--   Date
--   Activity type
--   Work plan
--   Work update
--   Remarks
+- authority representatives see only approved green-belt work proof
+- issue uploads never enter authority-ready output
+- authority users filter by date, belt, supervisor, and work type
+- download and WhatsApp helper sharing are supported
+- the system prepares safe output, but humans still send it
 
-Ops wants:
+## Commercial And Planning Reality
 
--   Monthly per-worker visibility
--   Skill utilization insight
--   Who is free today
--   Who did what in month
+Sales, Client Servicing, and Media Planning are not execution-control roles.
 
-Workers do not self-enter system data. Ops or lead records entries.
+They need:
 
-------------------------------------------------------------------------
+- monitoring and proof visibility
+- free-media visibility
+- request submission to Ops
+- read-only progress views for tasks linked to their requests, campaigns, or clients
 
-## 7. MONITORING REALITY
-
-Monitoring zones:
-
--   Green Belt Sites (mostly lit, daily)
--   City Sites (weekly / fixed date)
--   Highway Sites (periodic route-based)
-
-Monitoring may overlap with fabrication workers.
-
-Monitoring is currently reactive and client-driven.
-
-System goal: Make monitoring assisted, not enforced rigidly.
-
-------------------------------------------------------------------------
-
-## 8. AUTHORITY REPORTING REALITY
-
--   Authority representatives assigned per belt.
--   Reporting currently done manually via WhatsApp.
--   Supervisors may upload blurry or duplicate photos.
--   Ops filters before authority visibility.
-
-System requirement: Authority sees only approved uploads. No duplicate
-copies created.
-
-------------------------------------------------------------------------
-
-## 9. MANAGEMENT EXPECTATIONS
+## Management Reality
 
 Management wants:
 
--   Monthly belt-wise activity visibility
--   Supervisor-wise movement tracking
--   Evidence that belts are periodically maintained
--   Worker productivity visibility
--   Clean dashboards without operational complexity
+- broad visibility
+- monthly reporting
+- clean summaries
+- no operational UI complexity
 
-------------------------------------------------------------------------
+Management does not need mutation power.
 
-## 10. OPERATIONAL CONSTRAINTS
+## Product Design Implications
 
-System must respect:
+The system must remain:
 
--   Mobile-first field usage
--   Low literacy users
--   No forced tagging complexity
--   Minimal mandatory fields
--   No artificial scheduling engine
--   Manual archive only
--   Calendar month reporting
--   No auto task creation from uploads
--   No hidden automation
-
-------------------------------------------------------------------------
-
-## 11. DESIGN BOUNDARY PRINCIPLE
-
-The system assists and structures operations.
-
-It does NOT:
-
--   Replace human judgment
--   Force rigid scheduling
--   Automate beyond control
--   Introduce artificial compliance logic
-
-It reflects reality, then governs it.
-
-------------------------------------------------------------------------
-
-STATUS: Ground reality locked under Architecture Freeze v1.
+- mobile-practical
+- low-friction for field users
+- audit-safe for governance
+- explicit in status and lifecycle logic
+- realistic about imperfect evidence
+- careful not to over-automate decisions that Ops should still govern

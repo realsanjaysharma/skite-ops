@@ -18,10 +18,13 @@
  * - full_name
  * - email (UNIQUE)
  * - password_hash
+ * - failed_attempt_count
+ * - last_failed_attempt_at
+ * - force_password_reset
  * - is_active
  * - is_deleted
  * - deleted_at
- * - deleted_by
+ * - deleted_by_user_id
  * - created_at
  * - updated_at
  *
@@ -40,8 +43,10 @@ class UserRepository extends BaseRepository
     public function getUserByIdIncludingDeleted($userId)
     {
         return $this->fetchOne(
-            "SELECT * FROM users
-             WHERE id = ?",
+            "SELECT u.*, r.role_name, r.role_key, r.landing_module_key
+             FROM users u
+             JOIN roles r ON r.id = u.role_id
+             WHERE u.id = ?",
             [$userId]
         );
     }
@@ -52,8 +57,10 @@ class UserRepository extends BaseRepository
     public function getUserById($userId)
     {
         return $this->fetchOne(
-            "SELECT * FROM users 
-             WHERE id = ? AND is_deleted = 0",
+            "SELECT u.*, r.role_name, r.role_key, r.landing_module_key
+             FROM users u
+             JOIN roles r ON r.id = u.role_id
+             WHERE u.id = ? AND u.is_deleted = 0",
             [$userId]
         );
     }
@@ -61,9 +68,24 @@ class UserRepository extends BaseRepository
     public function getActiveUserById(int $userId)
     {
         return $this->fetchOne(
-            "SELECT * FROM users
-             WHERE id = ? AND is_deleted = 0",
+            "SELECT u.*, r.role_name, r.role_key, r.landing_module_key
+             FROM users u
+             JOIN roles r ON r.id = u.role_id
+             WHERE u.id = ? AND u.is_deleted = 0 AND u.is_active = 1",
             [$userId]
+        );
+    }
+
+    /**
+     * Fetch one role row by primary ID.
+     */
+    public function getRoleById(int $roleId)
+    {
+        return $this->fetchOne(
+            "SELECT * FROM roles
+             WHERE id = ?
+             LIMIT 1",
+            [$roleId]
         );
     }
 
@@ -74,8 +96,10 @@ class UserRepository extends BaseRepository
     public function getUserByEmail($email)
     {
         return $this->fetchOne(
-            "SELECT * FROM users 
-             WHERE email = ? AND is_deleted = 0",
+            "SELECT u.*, r.role_name, r.role_key, r.landing_module_key
+             FROM users u
+             JOIN roles r ON r.id = u.role_id
+             WHERE u.email = ? AND u.is_deleted = 0",
             [$email]
         );
     }
@@ -119,8 +143,10 @@ class UserRepository extends BaseRepository
     public function getAllUsers()
     {
         return $this->fetchAll(
-            "SELECT * FROM users 
-             WHERE is_deleted = 0"
+            "SELECT u.*, r.role_name, r.role_key, r.landing_module_key
+             FROM users u
+             JOIN roles r ON r.id = u.role_id
+             WHERE u.is_deleted = 0"
         );
     }
 
@@ -130,10 +156,12 @@ class UserRepository extends BaseRepository
     public function getUsersByRole($roleId)
     {
         return $this->fetchAll(
-            "SELECT * FROM users 
-             WHERE role_id = ? 
-             AND is_deleted = 0 
-             AND is_active = 1",
+            "SELECT u.*, r.role_name, r.role_key, r.landing_module_key
+             FROM users u
+             JOIN roles r ON r.id = u.role_id
+             WHERE u.role_id = ? 
+             AND u.is_deleted = 0 
+             AND u.is_active = 1",
             [$roleId]
         );
     }
@@ -206,7 +234,7 @@ class UserRepository extends BaseRepository
             "UPDATE users
              SET is_deleted = 0,
                  deleted_at = NULL,
-                 deleted_by = NULL,
+                 deleted_by_user_id = NULL,
                  is_active = 1,
                  force_password_reset = 1,
                  updated_at = NOW()
@@ -225,8 +253,8 @@ class UserRepository extends BaseRepository
     {
         $this->execute(
             "INSERT INTO users 
-            (full_name, email, password_hash, role_id, created_at)
-            VALUES (?, ?, ?, ?, NOW())",
+            (full_name, email, password_hash, role_id, force_password_reset, created_at)
+            VALUES (?, ?, ?, ?, 1, NOW())",
             [
                 $data['full_name'],
                 $data['email'],
@@ -267,7 +295,7 @@ class UserRepository extends BaseRepository
     {
         return $this->execute(
             "UPDATE users 
-             SET is_deleted = 1, is_active = 0, deleted_at = NOW(), deleted_by = ?, updated_at = NOW()
+             SET is_deleted = 1, is_active = 0, deleted_at = NOW(), deleted_by_user_id = ?, updated_at = NOW()
              WHERE id = ?",
             [$deletedBy, $userId]
         );

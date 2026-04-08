@@ -24,15 +24,6 @@ date_default_timezone_set('Asia/Kolkata');
 
 
 // ==========================================
-// SCHEMA VERSION
-// ==========================================
-
-// Must match schema_version in system_meta table.
-// Update this when a new migration is applied.
-define('SCHEMA_VERSION', 3);
-
-
-// ==========================================
 // WATERING COMPLIANCE
 // ==========================================
 

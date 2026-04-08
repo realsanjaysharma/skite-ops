@@ -96,3 +96,16 @@ Do not implement a module until:
 ## Acceptance Gate Rule
 
 No phase is complete until the relevant checklist in `09_MODULE_ACCEPTANCE_CHECKLISTS.md` is satisfied.
+
+## Active Engineering Rules
+
+The following discipline from the older governance and dev-note layer remains active:
+
+- controllers own HTTP validation and response shaping only
+- services own business rules and lifecycle enforcement
+- repositories own query and persistence logic only
+- RBAC stays in middleware and scope helpers, not in templates
+- no silent data mutation is allowed
+- multi-table governed mutations should use transactions
+- upload-heavy and list-heavy pages should use server-side pagination
+- structural changes require documentation synchronization with the recovered canon and build specs

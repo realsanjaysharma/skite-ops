@@ -61,12 +61,10 @@ It is the canonical source for:
 
 Legacy folders still exist:
 
-- `docs/00_governance`
 - `docs/01_structure`
 - `docs/02_interface`
 - `docs/03_context`
 - `docs/04_operations`
-- `docs/05_future`
 - `docs/06_schema`
 
 These folders are not all equal in value anymore.
@@ -105,3 +103,25 @@ RBAC must be enforced at middleware before controllers.
 Governance > Convenience
 Auditability > Automation
 Clarity > Cleverness
+
+## Repo-Facing Legacy Mirrors
+
+The following legacy files are now rewritten mirrors of the canon rather than independent product authorities:
+
+- `docs/03_context/00_PROJECT_OVERVIEW_FINAL.md`
+- `docs/03_context/01_REQUIREMENTS_CONTEXT_FINAL.md`
+- `docs/02_interface/02_ROLES_AND_ACCESS_FINAL.md`
+- `docs/02_interface/04_PAGE_CATALOG_FINAL_V4_LOCKED.md`
+- `docs/01_structure/05_DATA_AND_FLOW_NOTES_FINAL.md`
+- `docs/01_structure/06_DECISIONS_LOG_FINAL_LOCKED.md`
+- `docs/06_schema/11_SCHEMA_BASELINE_v1_FINAL_WITH_DDL.md`
+- `docs/06_schema/12_SCHEMA_SPECIFICATION_v1.md`
+- `docs/06_schema/schema_v1_full.sql`
+
+These files should help repo navigation and onboarding, but they should stay synchronized to the canon rather than redefine it.
+
+For executable first-run DB setup:
+
+1. run `docs/06_schema/schema_v1_full.sql`
+2. run `migrations/001_seed_foundation.sql`
+3. optionally create the first Ops user from `migrations/002_bootstrap_ops_user.template.sql`

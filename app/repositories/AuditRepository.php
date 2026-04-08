@@ -33,7 +33,7 @@ class AuditRepository extends BaseRepository
 
         return $this->execute(
             "INSERT INTO audit_logs
-            (actor_user_id, action_type, entity_type, entity_id, old_value, new_value, override_reason, created_at)
+            (actor_user_id, action_type, entity_type, entity_id, old_values_json, new_values_json, override_reason, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, NOW())",
             [
                 $userId,

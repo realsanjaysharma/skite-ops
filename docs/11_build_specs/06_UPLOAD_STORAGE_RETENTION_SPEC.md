@@ -62,6 +62,8 @@ Every upload row must capture at least:
 - `parent_type`
 - `parent_id`
 - `upload_type`
+- `work_type`
+- `is_discovery_mode`
 - `file_path`
 - `original_file_name`
 - `mime_type`
@@ -150,17 +152,21 @@ Implementation note:
 - creates `GREEN_BELT` parent uploads
 - work proof defaults to `authority_visibility = HIDDEN`
 - issue proof defaults to `authority_visibility = NOT_ELIGIBLE`
+- optional `work_type` should be stored when supplied for work uploads
 - no review-state feedback shown to supervisor
 
 ### Outsourced Upload
 
 - creates `GREEN_BELT` parent uploads
 - all outsourced uploads default to `NOT_ELIGIBLE` for authority flow
+- optional `work_type` may still be stored for internal oversight grouping
 
 ### Monitoring Upload
 
 - creates `SITE` parent uploads
 - always defaults to `NOT_ELIGIBLE`
+- `discovery_mode` must be persisted as upload metadata when used
+- when discovery mode is enabled, upload creation must also create or refresh a `DISCOVERED` free-media record linked back to discovery source context
 
 ### Task Detail Upload
 
@@ -269,6 +275,7 @@ The file body itself should be gone.
 ## Query Rules
 
 - authority portal queries must use only `APPROVED` green-belt work uploads
+- authority work-type filters must use stored upload `work_type`
 - supervisor-facing lists must exclude deleted uploads and must not reveal review outcome
 - monitoring and task pages should ignore authority visibility unless explicitly debugging
 

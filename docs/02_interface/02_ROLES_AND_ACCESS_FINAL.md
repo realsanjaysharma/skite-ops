@@ -1,259 +1,157 @@
-# 02_ROLES_AND_ACCESS.md
+# Skyte Ops Roles And Access
 
-Version: Architecture Freeze v1 Status: Role Governance Blueprint
+## Purpose
 
-------------------------------------------------------------------------
+This file is the repo-facing legacy mirror of the recovered role model.
+It should stay aligned with:
 
-## 1. PURPOSE
+- `docs/10_recovered_product/01_ROLE_AND_ACCESS_MODEL.md`
+- `docs/11_build_specs/01_RBAC_PERMISSION_GROUP_SPEC.md`
 
-This document defines:
+If this file conflicts with those sources, the recovered role model and build-spec RBAC contract win.
 
--   All system roles
--   Permission boundaries
--   Vertical scope separation
--   Override authority
--   Visibility constraints
--   Governance enforcement model
+## Access Model
 
-If a permission is not explicitly granted here, it is considered denied.
+Skite Ops uses role-based access control with these locked rules:
 
-------------------------------------------------------------------------
+- least privilege by default
+- module access through role scope
+- record scope enforced after module access
+- one role maps to one permission group in v1
+- dynamic role creation is allowed only through predefined permission groups and approved module scopes
+- no arbitrary micro-permission toggles
 
-## 2. ACCESS CONTROL MODEL
+## Landing By Role
 
-Access Model Type: Role-Based Access Control (RBAC)
+| Role | Landing Surface |
+|---|---|
+| Ops / Operations Manager | Master Operations Dashboard |
+| Head Supervisor | Supervisor Attendance and Watering Oversight |
+| Green Belt Supervisor | Supervisor Upload |
+| Outsourced Maintainer | Outsourced Upload |
+| Monitoring Team Member | Monitoring Upload |
+| Fabrication / Installation Lead | My Tasks |
+| Sales Team | Assigned Task Progress page |
+| Client Servicing Team | Assigned Task Progress page |
+| Media Planning Team | Assigned Task Progress page |
+| Authority Representative | Authority View |
+| Management | Management Dashboard |
 
-Characteristics:
+## Core Roles
 
--   Predefined permission groups only
--   No arbitrary micro-permission toggles
--   No user-specific custom hacks
--   Vertical-scoped visibility
--   Middleware-level enforcement before controller execution required
+### Ops / Operations Manager
 
-------------------------------------------------------------------------
+- full governance across all domains
+- approves requests, governs uploads, assigns work, closes issues, confirms free-media transitions, manages users and mappings, and performs auditable overrides
+- cannot bypass audit or silent governance
 
-## 3. CORE ROLES
+### Head Supervisor
 
-------------------------------------------------------------------------
+- maintained green belts only
+- can mark same-day watering, attendance, labour, and maintenance cycles
+- can move issues from `OPEN` to `IN_PROGRESS`
+- cannot approve uploads, close issues, or enter advertisement governance
 
-3.1 Operations Manager (Ops)
+### Green Belt Supervisor
 
-Authority Level: Full Governance
+- assigned belts only
+- can upload work proof or issue proof
+- can mark same-day watering on assigned belts
+- can view own recent uploads
+- cannot see authority review state or rejection feedback
 
-Scope: - All verticals - All belts - All sites - All tasks - All
-uploads - All reports
+### Outsourced Maintainer
 
-Permissions:
+- assigned outsourced belts only
+- those belts come from explicit outsourced-belt assignment, not supervisor assignment
+- can upload work proof and issue proof
+- does not participate in watering, attendance, or labour compliance
 
-Green Belt: - Create/Edit belts - Change watering frequency - Override
-watering on locked records (audit logged, reason required) - Approve/Reject uploads - Set issue
-priority - Close issues - Link issue to task - Override attendance -
-Override labour count - Start/Close maintenance cycle - Hide/Unhide belt
+### Monitoring Team Member
 
-Fabrication & Monitoring: - Create tasks - Assign tasks - Cancel tasks -
-Complete tasks - Archive tasks (manual only) - Record worker
-attendance - Record worker daily work entry - Override attendance within
-month
+- site-based monitoring scope
+- can upload monitoring proof and free-media discovery proof
+- can use navigation support
+- cannot edit site master data or approve anything
 
-System: - Manage users - Assign roles - View
-all alerts - Export all reports - Access audit logs
+### Fabrication / Installation Lead
 
-Sites: - Full CRUD
+- assigned tasks only
+- can update progress, remarks, worker allocation, upload proof, and mark work done
+- must provide `AFTER_WORK` proof before completion handoff
+- can use the Call Ops helper
+- cannot create, approve, or reassign tasks
 
-Cannot: - Bypass audit logging - Delete approved uploads - Modify
-immutable parent associations
+### Fabrication / Installation Workers
 
-------------------------------------------------------------------------
+- no normal system login
+- represented as worker resources and daily work entries
+- may receive read-only task visibility through a shared helper surface
 
-Sites:
+### Sales Team
 
--   Ops -> full CRUD
--   Supervisor -> view only
+- read-only operational consumption plus request creation
+- can see monitoring/client-facing proof and task progress linked to their requests, clients, or campaigns
+- can raise requests to Ops
+- cannot execute or govern tasks
 
-------------------------------------------------------------------------
+### Client Servicing Team
 
-3.2 Head Supervisor (Green Belt)
+- same operational posture as Sales, with request and read-only progress visibility
 
-Scope: - All MAINTAINED belts
+### Media Planning Team
 
-Permissions:
+- planning-facing read access to proof, site context, free media, and task progress linked to planning work
+- can raise requests to Ops
+- cannot govern site truth or task execution
 
--   Start/Close maintenance cycle
--   Mark watering (current date only)
--   Mark supervisor attendance
--   Upload work/issue photos
--   Change issue status: OPEN → IN_PROGRESS
+### Authority Representative
 
-Cannot: - Approve uploads for authority - Close issues - Override
-watering - Modify labour logs after month lock - Access advertisement
-modules
+- assigned belts only
+- sees approved green-belt work proof only
+- can filter by date, belt, supervisor, and work type, download, and use the WhatsApp helper from approved authority context
+- cannot upload, approve, or see internal-only material
 
-------------------------------------------------------------------------
+### Management
 
-3.3 Green Belt Supervisor
+- global read-only oversight across allowed dashboards, summaries, and reports
+- no mutation rights
 
-Scope: - Assigned belts only
+## Non-Login Or Resource Actors
 
-Permissions: - Upload work or issue - Mark watering (current date
-only) - Delete own upload within 5 minutes - View own upload history
-- View sites
+These are not standard login roles:
 
-Cannot: - Approve uploads - Close issues - Set issue priority - Override
-watering - View other belts - Access reports - Access advertisement
-modules
+- fabrication workers
+- daily labour
+- gardener
+- night guards
+- clients
+- external authority body
 
-------------------------------------------------------------------------
+## Boundary Rules
 
-3.4 Outsourced Maintainer
+- Head Supervisor is not Ops
+- authority users are not approval actors
+- Sales, Client Servicing, and Media Planning are requesters and consumers, not execution controllers
+- outsourced maintainers are not internal supervisors
+- management remains visibility-only
 
-Scope: - Assigned outsourced belts only
+## Review And Visibility Rules
 
-Permissions: - Upload work or issue - Raise issues
+- supervisors do not see authority review outcomes on uploads
+- authority users see approved work proof only
+- issue uploads are not authority-visible
+- requester roles use read-only task progress surfaces
+- role-safe visibility must be enforced both in UI and server-side behavior
 
-Restrictions: - No watering compliance - No labour tracking - No
-attendance tracking - No dashboard access - No approval rights
+## Enforcement Rule
 
-------------------------------------------------------------------------
+UI hiding alone is not enough.
 
-3.5 Monitoring Team Member
+Access must be enforced through:
 
-Scope: - Site-based monitoring activity in v1 (no fixed assigned-site mapping)
-
-Permissions: - Upload monitoring photos - Add optional comment - View
-site location
-
-Cannot: - Approve uploads - Modify tasks - Access green belt
-governance - Access reports outside monitoring
-
-------------------------------------------------------------------------
-
-3.6 Fabrication Lead
-
-Scope: - Tasks assigned to them
-
-Permissions: - View task details - Upload completion photos - Mark task
-status RUNNING / COMPLETED - Assign internal workers (recorded by Ops)
-
-Cannot: - Create tasks - Cancel tasks - Archive tasks - Modify task
-source/priority
-
-------------------------------------------------------------------------
-
-3.7 Fabrication Worker (No Login)
-
--   No system login
--   Recorded in worker entity
--   Attendance recorded by Ops
--   Work entries recorded by Ops
-
-------------------------------------------------------------------------
-
-3.8 Sales Team
-
-Scope: - Advertisement vertical only
-
-Permissions: - View monitoring uploads - View free/available
-media - Raise task request (no direct task creation) - Export
-advertisement reports
-
-Cannot: - Modify tasks - Approve uploads - Access green belt governance
-
-------------------------------------------------------------------------
-
-3.9 Media Planning Team
-
-Scope: - Advertisement & Monitoring data
-
-Permissions: - View monitoring uploads - View free media inventory -
-Export media data
-
-Cannot: - Modify operational data - Approve uploads
-
-------------------------------------------------------------------------
-
-3.10 Authorized Person (Authority Representative)
-
-Scope: - Belts assigned to them
-
-Permissions: - View approved uploads only - Download approved uploads -
-View belt summary
-
-Cannot: - See rejected uploads - Modify data - View advertisement domain
-
-------------------------------------------------------------------------
-
-3.11 Management
-
-Scope: - All vertical dashboards (read-only)
-
-Permissions: - View summary dashboards - View monthly reports - Export
-CSV
-
-Cannot: - Modify data - Approve anything - Override any compliance
-
-------------------------------------------------------------------------
-
-## 4. ROLE EXTENSIBILITY
-
-System allows:
-
--   Creation of new roles
--   Linking role to vertical scope
--   Assigning permission group
-
-Restrictions:
-
--   Cannot create arbitrary micro-permissions
--   Must select from predefined permission blocks
-
-------------------------------------------------------------------------
-
-## 5. MONTH-LOCK RULE
-
-For Attendance, Labour, Watering, and Daily Work Entry:
-
-"Past-month records are locked by default.
-Only Ops role can perform override on locked records.
-All overrides must require a reason and must be recorded in audit_logs.
-Overrides are action-specific and do not unlock the entire month or dataset."
-
-------------------------------------------------------------------------
-
-## 6. OVERRIDE AUTHORITY RULE
-
-Only Ops may:
-
--   Backdate watering
--   Override attendance
--   Override labour count
--   Close issues
--   Archive tasks
--   Modify watering frequency
-
-All override actions must: - Require reason - Be logged in audit
-
-------------------------------------------------------------------------
-
-## 7. VISIBILITY RULES
-
--   Authority sees only APPROVED uploads.
--   Rejected uploads invisible to authority.
--   Supervisor cannot see rejection reason.
--   Parent association immutable.
--   Archived tasks hidden from operational UI.
-
-------------------------------------------------------------------------
-
-## 8. SECURITY ENFORCEMENT
-
-All permission checks must occur:
-
--   At controller level
--   Not only UI level
-
-Front-end restriction alone is invalid.
-
-------------------------------------------------------------------------
-
-STATUS: Role governance locked under Architecture Freeze v1.
+- authenticated session checks
+- role and permission-group resolution
+- module scope
+- record scope
+- action compatibility with the role's permission group

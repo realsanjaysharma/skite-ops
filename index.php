@@ -83,6 +83,12 @@ switch ($route) {
         $controller->logout();
         return;
 
+    case 'auth/session':
+        require_once __DIR__ . '/app/controllers/AuthController.php';
+        $controller = new AuthController();
+        $controller->session();
+        return;
+
     case 'auth/reset-password':
         require_once __DIR__ . '/app/controllers/AuthController.php';
         $controller = new AuthController();

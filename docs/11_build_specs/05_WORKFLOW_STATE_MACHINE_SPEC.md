@@ -300,6 +300,11 @@ Monitoring schedule truth is stored as due-date rows, not as a persisted state m
 | `CONFIRMED_ACTIVE` | `EXPIRED` | Ops or controlled maintenance logic | expiry reached or stale state confirmed | update expiry state |
 | `CONFIRMED_ACTIVE` | `CONSUMED` | Ops | site no longer available because it is reused or sold | update final state |
 
+### Discovery Source Rule
+
+- when monitoring upload is submitted with discovery mode enabled, service logic must create or refresh a `DISCOVERED` free-media row for that site
+- `source_reference_id` should point to a representative discovery upload row when the source is monitoring discovery
+
 ### Not Allowed In V1
 
 - auto-confirming free media on campaign end

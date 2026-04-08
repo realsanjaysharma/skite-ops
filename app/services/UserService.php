@@ -136,6 +136,7 @@ class UserService
 
             $sanitizedData = $validatedData;
             unset($sanitizedData['password']);
+            $sanitizedData['force_password_reset'] = 1;
 
             $this->auditService->logAction(
                 $actorUserId,
@@ -565,8 +566,14 @@ class UserService
             throw new InvalidArgumentException('Password is required.');
         }
 
-        if (trim($password) === '') {
+        $password = trim($password);
+
+        if ($password === '') {
             throw new InvalidArgumentException('Password is required.');
+        }
+
+        if (strlen($password) < 8) {
+            throw new InvalidArgumentException('Password must be at least 8 characters');
         }
 
         return $password;
@@ -616,9 +623,13 @@ class UserService
         return [
             'id' => $user['id'] ?? null,
             'role_id' => $user['role_id'] ?? null,
+            'role_key' => $user['role_key'] ?? null,
+            'role_name' => $user['role_name'] ?? null,
             'full_name' => $user['full_name'] ?? null,
             'email' => $user['email'] ?? null,
+            'phone' => $user['phone'] ?? null,
             'is_active' => $user['is_active'] ?? null,
+            'force_password_reset' => $user['force_password_reset'] ?? null,
             'is_deleted' => $user['is_deleted'] ?? null,
             'created_at' => $user['created_at'] ?? null,
             'updated_at' => $user['updated_at'] ?? null

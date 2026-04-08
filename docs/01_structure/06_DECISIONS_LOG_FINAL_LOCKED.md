@@ -1,307 +1,163 @@
+# Skyte Ops Decisions Log
 
+## Purpose
 
-# 06_DECISIONS_LOG.md
-Version: FINAL (Architecture Freeze v1 – COMPLETE)
-Status: Governance Locked
-
-------------------------------------------------------------
-PURPOSE
-------------------------------------------------------------
-
-This document records all structural, behavioral, and governance decisions.
-If a rule exists here, it is considered frozen unless explicitly revised
-with a new numbered decision entry.
-
-============================================================
-SECTION 1: ARCHITECTURE & DEPLOYMENT
-============================================================
-
-Decision 001 – Architecture Freeze
-System architecture is frozen at v1.
-No structural changes allowed without updating this log.
-
-Decision 002 – Vertical Separation
-Green Belt, Advertisement, and Monitoring operate as separate domains.
-Cross-domain reporting allowed.
-Cross-domain editing not allowed.
-
-Decision 003 – Phase Separation
-Map View is Phase 2.
-Not included in v1 schema or data model.
-
-Decision 004 – Hosting Target
-System must be deployable on shared hosting (PHP + MySQL).
-No VPS-specific dependency in v1.
-
-============================================================
-SECTION 2: GREEN BELT GOVERNANCE
-============================================================
-
-Decision 005 – Maintenance Cycle Model
-Each belt has manual maintenance cycles.
-Head Supervisor may backdate cycle start within current month only.
-Cycle must be closed manually unless auto-closed by rule.
-
-Decision 006 – Auto-Close Rules
-Active cycle auto-closes when:
-- Belt is hidden
-- Belt permission becomes Expired
-System must log auto-closure in audit log.
-
-Decision 007 – Watering Frequency Model
-Watering Required replaced by Watering Frequency enum:
-- Daily
-- Alternate
-- Weekly
-- None
-Editable by Ops only.
-
-Decision 008 – Watering Frequency Change Behavior
-When frequency changes:
-- Applies from date of change
-- No retroactive compliance recalculation
-Past records remain unchanged.
-
-Decision 009 – Watering Enforcement
-Supervisor & Head can mark only current date.
-Ops may backdate within same month (audit logged).
-Override requires mandatory reason input.
-
-Decision 010 – Watering Unique Constraint
-Only one watering record allowed per belt per date.
-Enforced at database level.
-
-Decision 011 – Watering Compliance Scope
-Watering compliance applies only to:
-- Active belts
-- Maintenance Mode = Maintained
-Outsourced belts excluded.
-
-Decision 012 – Labour Model
-Labour entered per belt per day.
-Editable only within current month.
-Automatically aggregated to supervisor via belt assignment.
-
-Decision 013 – Attendance Model (Green Belt)
-Head Supervisor records attendance.
-"Past-month records are locked by default.
-Only Ops role can perform override on locked records.
-All overrides must require a reason and must be recorded in audit_logs.
-Overrides are action-specific and do not unlock the entire month or dataset."
-Attendance missing triggers alert.
-
-Decision 014 – Attendance Non-Blocking Rule
-If supervisor marked Absent:
-- Watering allowed
-- Upload allowed
-- Labour allowed
-System only displays absence status.
-
-Decision 015 – Outsourced Belt Model
-Outsourced belts:
-- No watering compliance tracking
-- No daily upload expectation
-- Visible in dashboard for activity monitoring only
-
-============================================================
-SECTION 3: UPLOAD & ISSUE GOVERNANCE
-============================================================
-
-Decision 016 – Upload Classification
-Every upload must be explicitly classified as:
-- Work
-- Issue
-Single type only.
-
-Decision 017 – Upload Parent Immutability
-Upload must belong to exactly one parent (belt/site/task).
-Parent cannot change after creation.
-
-Decision 018 – Upload Review Model
-Only Ops can approve/reject uploads.
-Issue uploads cannot be approved.
-Rejection reason internal only.
-
-Decision 019 – Supervisor Self-Delete Rule
-Supervisor may delete own upload within 5 minutes.
-After 5 minutes, locked (soft delete only).
-
-Decision 020 – Upload Retention Policy
-Approved uploads never auto-deleted.
-Rejected uploads require manual purge.
-Self-deleted uploads auto-purged after 30 days.
-
-Decision 021 – Issue Lifecycle
-States:
-- Open
-- In Progress
-- Closed
-Only Ops can close.
-Optional one-to-one task link.
-Task completion does NOT auto-close linked issue.
-UI may derive "Resolution Attempted" when a linked task is completed.
-
-============================================================
-SECTION 4: FABRICATION & WORKER GOVERNANCE
-============================================================
-
-Decision 022 – Task Status Model
-Task states:
-- Open
-- Running
-- Completed
-- Cancelled
-- Archived (manual)
-
-Decision 023 – Archive Rule
-Manual archive only.
-Archive never deletes records.
-
-Decision 024 – Worker Attendance Model
-Ops records worker attendance.
-"Past-month records are locked by default.
-Only Ops role can perform override on locked records.
-All overrides must require a reason and must be recorded in audit_logs.
-Overrides are action-specific and do not unlock the entire month or dataset."
-ON_LEAVE suppresses alerts.
-
-Decision 025 – Worker Daily Entry Dependency
-Daily work entry allowed only if attendance exists for that date.
-6 PM alert if no entry recorded.
-
-Decision 026 – Task Metadata Standardization
-Each task must include:
-- Category
-- Vertical Type
-- Priority
-- Location Text
-- Task Source
-
-============================================================
-SECTION 5: REPORTING & VISIBILITY
-============================================================
-
-Decision 027 – Report Scope
-All reports are calendar-month based.
-CSV export only (v1).
-Archived tasks included in reports.
-
-Decision 028 – Authority Visibility Model
-Authorized Person can see:
-- Assigned belts only
-- Approved uploads only
-Historical uploads remain visible after belt expiry.
-
-============================================================
-SECTION 6: PERMISSION & ROLE MODEL
-============================================================
-
-Decision 029 – Role-Based Access Only
-No micro-permission toggles per user.
-Predefined role groups only.
-
-Decision 030 – Vertical Scope Restriction
-Users limited to assigned vertical.
-No cross-vertical modification rights.
-
-Decision 031 – Audit Logging Requirement
-All overrides, backdates, status changes, auto-closures logged.
-Audit log accessible only by Ops.
-
-============================================================
-SECTION 7: ALERT & LOCK MODEL
-============================================================
-
-Decision 032 – Month Lock Rule
-Attendance, labour, watering entries, and worker entries follow this rule:
-"Past-month records are locked by default.
-Only Ops role can perform override on locked records.
-All overrides must require a reason and must be recorded in audit_logs.
-Overrides are action-specific and do not unlock the entire month or dataset."
-
-Decision 033 – Notification Panel Model
-Alerts grouped by category.
-Panel provides navigation only.
-No editing from panel.
-
-
-============================================================
-SECTION 8: SCHEMA FINALIZATION (v1 LOCK)
-============================================================
-
-Decision 034 – Supervisor Assignment Structural Revision
-default_supervisor_id removed from green_belts.
-Historical supervisor ownership moved to belt_supervisor_assignments.
-Single source of truth enforced.
-Date overlap prevention enforced at service layer.
-
-Decision 035 – Maintenance Cycle Active Enforcement Model
-Single active maintenance cycle per belt enforced at service layer.
-Database uses INDEX (belt_id, is_active).
-UNIQUE constraint intentionally rejected.
-Rationale: Allow multiple historical closed cycles.
-
-Decision 036 – Schema v1 Freeze Declaration
-Total 18 tables finalized.
-All ENUM vocabularies locked.
-No structural redesign permitted without migration.
-Schema Supremacy Rule activated.
-
-Decision 037 – Sites Entity Introduction
-Minimal sites master introduced via migration 002_add_sites_table.sql.
-Relationships and monitoring frequency remain intentionally deferred.
-
-Decision 038 – API Response Contract
-All API responses must follow a strict JSON structure:
-
-Success:
-{ "success": true, "data": <payload> }
-
-Error:
-{ "success": false, "error": "<message>" }
-
-No alternative response formats are allowed.
-
-Decision 039 – HTTP Method Discipline
-All routes must follow strict HTTP method semantics:
-
-- GET → Read operations only
-- POST → Create operations, authentication, and lifecycle actions
-- PUT → Update operations
-- DELETE → Delete operations
-
-No deviation from this mapping is allowed.
-
-Decision 040 – Route Parameter Standardization
-All entity routes must use a standardized identifier parameter:
-
-- Use `id` for all entity identifiers
-- Do not use variations like user_id, belt_id, etc. in route definitions
-
-Internal data structures may use specific field names, but route interfaces must remain consistent.
-
-Decision 041 – Login Audit Constraint
-No audit log must be created when login fails due to a non-existent email.
-
-Audit logging is allowed only when a valid user record exists.
-
-============================================================
-STATUS
-============================================================
-
-Architecture Fully Frozen – v1 Stable.
-All governance rules consolidated.
-### Email Uniqueness Rule
-
-Decision:
-Email uniqueness is enforced globally, including soft-deleted users.
-
-Rationale:
-- Prevent identity ambiguity
-- Maintain audit consistency
-- Ensure reliable tracking of historical ownership
-
-Impact:
-- Users cannot re-register using the same email after deletion
-- Email remains permanently reserved once used
-- System prioritizes governance over convenience
+This file records the repo-facing decision set after product recovery.
+It is intentionally shorter and cleaner than the pre-recovery log and should now mirror the recovered canon plus build specs.
+
+Primary references:
+
+- `docs/10_recovered_product/`
+- `docs/11_build_specs/`
+
+## Section 1: Product Constitution
+
+### Decision 001 - Canonical Authority Shift
+
+`docs/10_recovered_product` is the canonical product truth.
+`docs/11_build_specs` is the canonical implementation-spec layer.
+Legacy docs must mirror those layers rather than compete with them.
+
+### Decision 002 - Product Scope
+
+Skite Ops is a multi-domain internal operations platform covering:
+
+- green belts
+- advertisement sites and campaigns
+- monitoring
+- request-to-task execution
+- authority proof governance
+- commercial and management read models
+
+### Decision 003 - Separate Masters
+
+Green Belt Master and Advertisement Site Master remain separate surfaces and separate entity types.
+Advertisement sites may reference green belts, but green belts are not advertisement assets.
+
+## Section 2: Role And Governance Decisions
+
+### Decision 004 - Ops Final Authority
+
+Ops remains the final governance authority for approvals, assignments, closures, mappings, and overrides.
+
+### Decision 005 - Role-Specific Landing
+
+Login landing is role-specific, not generic.
+
+### Decision 006 - Dynamic Role Constraint
+
+Dynamic roles are allowed only through predefined permission groups and approved module scopes.
+One role maps to one permission group in v1.
+
+### Decision 007 - Supervisor Review Boundary
+
+Green Belt Supervisors must not see authority review state or rejection outcome on their uploads.
+
+### Decision 008 - Outsourced Separation
+
+Outsourced belts remain outside internal watering, labour, and attendance compliance logic.
+
+## Section 3: Green Belt Operations Decisions
+
+### Decision 009 - Watering State Model
+
+Watering uses explicit daily records for `DONE` and `NOT_REQUIRED`.
+`PENDING` is derived from the absence of a row.
+
+### Decision 010 - Watering Authority
+
+Supervisors and Head Supervisor act on same-day watering only.
+Ops override requires reason and audit.
+
+### Decision 011 - Maintenance Cycle Model
+
+Maintenance cycles are governed state with one active cycle per belt.
+Hidden or expired belts can force controlled cycle closure.
+
+### Decision 012 - Gardener And Night Guard Tracking
+
+Gardener and night guards are not login roles.
+They are tracked through separate daily counts in labour entries.
+
+## Section 4: Upload, Issue, And Authority Decisions
+
+### Decision 013 - Upload Parent Model
+
+Uploads use the real parent context of `GREEN_BELT`, `SITE`, or `TASK`.
+`parent_type = ISSUE` is not part of the recovered model.
+
+### Decision 014 - Authority Visibility Model
+
+Only approved green-belt work proof becomes authority-visible.
+Issue uploads and other non-authority uploads are not authority-eligible.
+
+### Decision 015 - Authority Share Helper
+
+One-click WhatsApp helper sharing is allowed from approved authority context, but the system does not track fake send-state in v1.
+
+### Decision 016 - Rejected Upload Cleanup
+
+Rejected uploads become cleanup candidates after 30 days.
+Purge removes file content but retains minimal metadata and purge markers.
+
+### Decision 017 - GPS Handling
+
+GPS is stored for Ops review only.
+It must not block upload and does not use automatic mismatch logic in v1.
+
+## Section 5: Request, Task, And Worker Decisions
+
+### Decision 018 - Request Before Task
+
+Sales, Client Servicing, and Media Planning create task requests.
+Ops approves or rejects them before task creation.
+
+### Decision 019 - Issue And Task Separation
+
+Issues and tasks remain separate objects.
+Task completion does not auto-close the issue.
+
+### Decision 020 - Task Completion Proof
+
+Task execution requires mandatory `AFTER_WORK` proof before completion handoff.
+`BEFORE_WORK` proof is optional.
+
+### Decision 021 - Worker Model
+
+`worker_daily_entries` is the universal daily truth layer.
+`task_worker_assignments` exists only for fabrication task occupancy.
+
+## Section 6: Monitoring And Planning Decisions
+
+### Decision 022 - Monitoring Plan Model
+
+Monitoring planning is soft Ops-approved planning, not hard blocking assignment.
+
+### Decision 023 - Monthly Due Truth
+
+Monitoring due truth comes from Ops-selected monthly due dates per site.
+Those dates can be copied forward and bulk-applied across sites or groups.
+
+### Decision 024 - Custom Schedule Override
+
+When a custom site schedule is chosen, it replaces the site's default cadence.
+
+## Section 7: Reporting And Technical Decisions
+
+### Decision 025 - Report Scope
+
+Reports are calendar-month only and CSV-only in v1.
+Per-user reports remain domain-scoped.
+
+### Decision 026 - Technical Constraint
+
+The product must remain practical for PHP, MySQL, and shared hosting.
+Controllers handle HTTP concerns, services own business rules, repositories own data access, and RBAC stays in middleware.
+
+## Change Rule
+
+Any future structural change should update:
+
+- the recovered canon where product intent changes
+- the build-spec layer where implementation contract changes
+- this repo-facing log where legacy mirrors need synchronized summary

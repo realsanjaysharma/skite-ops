@@ -48,6 +48,10 @@ GPS rule:
 6. Authority representatives filter, download, and manually share externally.
 7. One-click WhatsApp sharing is helper UX with a pre-filled message; a human still presses Send.
 
+Operational note:
+
+- when stored `work_type` is present on approved uploads, authority filters and summary generation should use that field directly instead of inferring work context from free text
+
 ## Authority Summary Flow
 
 The system is intended to support date-wise and belt-wise authority summary output based on approved proof.
@@ -135,9 +139,10 @@ Examples:
 ## Free Media Discovery Flow
 
 1. Monitoring identifies possible free or available media.
-2. Discovery proof is uploaded.
-3. Media Planning gains visibility into discovered opportunities.
-4. Ops retains governance where business-state transitions matter.
+2. Discovery proof is uploaded through monitoring flow.
+3. The system creates or refreshes a `DISCOVERED` free-media record tied to that discovery context.
+4. Media Planning gains visibility into discovered opportunities.
+5. Ops retains governance where business-state transitions matter.
 
 ## Campaign End To Free Media Transition Flow
 
@@ -149,7 +154,7 @@ Examples:
 ## Outsourced Belt Flow
 
 1. Outsourced maintainer logs in.
-2. Outsourced maintainer sees only assigned outsourced belts.
+2. Outsourced maintainer sees only outsourced belts mapped through active outsourced assignment.
 3. Work proof or issue proof is uploaded.
 4. Ops uses the uploads for oversight.
 5. Normal internal watering and compliance logic does not apply.

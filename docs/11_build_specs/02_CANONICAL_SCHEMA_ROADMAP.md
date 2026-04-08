@@ -60,6 +60,8 @@ Key columns:
 - `email`
 - `phone`
 - `password_hash`
+- `failed_attempt_count`
+- `last_failed_attempt_at`
 - `is_active`
 - `force_password_reset`
 - `is_deleted`
@@ -81,6 +83,7 @@ Indexes:
 
 - `idx_users_role_id`
 - `idx_users_is_active`
+- `idx_users_login_lock`
 
 #### `roles`
 
@@ -331,6 +334,32 @@ Indexes:
 
 - `idx_baa_belt_dates`
 - `idx_baa_authority_dates`
+
+#### `belt_outsourced_assignments`
+
+Purpose:
+
+- outsourced-belt access mapping
+
+Key columns:
+
+- `id`
+- `belt_id`
+- `outsourced_user_id`
+- `start_date`
+- `end_date`
+- `created_at`
+- `updated_at`
+
+Foreign keys:
+
+- `belt_id -> green_belts.id`
+- `outsourced_user_id -> users.id`
+
+Indexes:
+
+- `idx_boa_belt_dates`
+- `idx_boa_outsourced_dates`
 
 #### `maintenance_cycles`
 
@@ -732,6 +761,11 @@ Foreign keys:
 - `site_id -> sites.id`
 - `confirmed_by_user_id -> users.id`
 
+Notes:
+
+- when `source_type = MONITORING_DISCOVERY`, `source_reference_id` should point to a representative discovery upload row
+- monitoring discovery flow may create a new discovered row or refresh the current discovered row for the same site through service logic
+
 Indexes:
 
 - `idx_free_media_site_id`
@@ -752,6 +786,8 @@ Key columns:
 - `parent_type`
 - `parent_id`
 - `upload_type`
+- `work_type`
+- `is_discovery_mode`
 - `file_path`
 - `original_file_name`
 - `mime_type`
@@ -792,12 +828,15 @@ Indexes:
 - `idx_uploads_parent`
 - `idx_uploads_created_at`
 - `idx_uploads_visibility`
+- `idx_uploads_work_type`
+- `idx_uploads_discovery_mode`
 - `idx_uploads_deleted`
 - `idx_uploads_purged`
 
 Notes:
 
 - issue uploads used for internal issue evidence must carry `authority_visibility = NOT_ELIGIBLE`
+- `work_type` is an optional stored tag used for authority filtering and summary generation where work-context grouping matters
 - parent integrity must be enforced at service level because `parent_id` is polymorphic
 
 #### `issues`
@@ -993,7 +1032,7 @@ Highest-priority indexes for early implementation:
 
 1. `roles`, `permission_groups`
 2. `users`, `role_permission_mappings`, `role_module_scopes`, `audit_logs`, `system_settings`
-3. `green_belts`, `belt_supervisor_assignments`, `belt_authority_assignments`, `maintenance_cycles`
+3. `green_belts`, `belt_supervisor_assignments`, `belt_authority_assignments`, `belt_outsourced_assignments`, `maintenance_cycles`
 4. `watering_records`, `supervisor_attendance`, `labour_entries`
 5. `fabrication_workers`
 6. `sites`, `site_monitoring_due_dates`

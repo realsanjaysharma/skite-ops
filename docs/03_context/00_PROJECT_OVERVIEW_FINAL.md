@@ -1,259 +1,112 @@
-# 00_PROJECT_OVERVIEW.md
+# Skyte Ops Project Overview
 
-Version: Architecture Freeze v1 Status: Foundational Governance Document
+## Status
 
-------------------------------------------------------------------------
+This legacy overview has been rewritten to match the recovered product canon and the active build-spec layer.
+It is a repo-facing summary, not the highest authority document.
 
-## 1. PROJECT IDENTITY
+Primary sources now are:
 
-Working Name: Integrated Operations & Monitoring System
+- `docs/10_recovered_product/00_FINAL_PRODUCT_BEHAVIOR_MODEL.md`
+- `docs/10_recovered_product/01_ROLE_AND_ACCESS_MODEL.md`
+- `docs/10_recovered_product/03_WORKFLOWS_AND_LIFECYCLES.md`
+- `docs/11_build_specs/00_IMPLEMENTATION_MASTER_PLAN.md`
 
-Nature: Internal Operations Governance Platform
+## Product Identity
 
-Scope: Multi-vertical operational management system for: - Green Belt
-Maintenance - Advertisement Operations - Monitoring Management - Media
-Planning Support
+Skite Ops is a governance-first internal operations platform for Skite.
 
-This system is NOT public-facing. This system is NOT a client portal.
-This system is NOT a billing or ERP solution.
+It unifies:
 
-------------------------------------------------------------------------
-SCHEMA FREEZE DECLARATION (v1)
-------------------------------------------------------------------------
+- green belt operations
+- advertisement site and asset operations
+- monitoring
+- fabrication and installation execution
+- campaign and free-media governance
+- authority-facing proof access
+- commercial and support visibility
+- management reporting
+- Ops-led review, assignment, closure, and audit
 
-Schema Version: v1 (Finalized)
-Total Tables: 18
-Maintenance Cycle: Single-active enforced at service layer
-Supervisor Assignment: Historical model via belt_supervisor_assignments
-Compliance Model: Dynamic (no stored alert flags)
+The product replaces WhatsApp-driven reporting, spreadsheet tracking, manual proof forwarding, and memory-based coordination with one controlled operational system.
 
-No structural redesign allowed without:
-- Migration file
-- Decisions Log update
-- Documentation synchronization
+## Core Mission
 
-Schema v1 is constitutionally locked.
+Capture real operational evidence once, govern it through Ops, and reuse it safely across field teams, authority-facing roles, commercial users, and management.
 
-------------------------------------------------------------------------
+## Domain Scope
 
-------------------------------------------------------------------------
+The intended system includes all of these domains as first-class product scope:
 
-## 2. WHY THIS SYSTEM EXISTS
+- Green Belt Operations
+- Advertisement Site and Asset Operations
+- Monitoring
+- Campaign Management
+- Free and Available Media Tracking
+- Request-to-Task Workflow
+- Authority Visibility and Proof Governance
+- Commercial and Support Read Portals
+- Reports, Alerts, and Dashboards
+- User, Access, Audit, and System Governance
 
-The company currently operates using:
+## Operating Model
 
--   WhatsApp communication
--   Excel tracking sheets
--   Verbal coordination
--   Fragmented status updates
+One shared data layer supports several kinds of users:
 
-This creates:
+- field teams create proof and same-day operational entries
+- support and commercial teams raise requests
+- execution teams complete assigned work
+- Ops governs approvals, assignments, visibility, closures, and overrides
+- authority, commercial, and management roles consume controlled read models
 
--   No single source of truth
--   No audit traceability
--   No compliance enforcement
--   Manual authority reporting effort
--   No structured monthly analysis
--   No operational health visibility
+This is not only a green-belt tracker, a proof library, or a task board.
 
-This system replaces chaos with structured governance.
+## Governance Model
 
-------------------------------------------------------------------------
+Ops is the final governance authority.
 
-## 3. STRATEGIC OBJECTIVES
+That means:
 
-1.  Create a single source of truth.
-2.  Enforce role-based governance.
-3.  Provide audit-safe operational logging.
-4.  Enable structured compliance (watering, attendance, labour).
-5.  Separate governance from execution.
-6.  Enable monthly performance visibility.
-7.  Preserve historical records permanently.
-8.  Ensure system extensibility without structural breakage.
+- field users do not approve their own work
+- requesters do not create final execution truth directly
+- authority representatives consume approved proof but do not govern it
+- management sees the system in read-only form
+- overrides require reason and auditability
 
-------------------------------------------------------------------------
+## Product Boundaries
 
-## 4. VERTICAL STRUCTURE
+The product is intentionally realistic rather than idealized.
 
-The system contains three operational domains:
+It accepts that:
 
-### 4.1 Green Belt Vertical
+- evidence is imperfect
+- no upload does not prove no work happened
+- low-friction field UX matters
+- some operational truth must remain review-driven
+- dashboards and alerts are derived, not blindly stored
 
-Manages: - Legal permission lifecycle - Maintenance cycles - Watering
-compliance - Supervisor attendance - Labour tracking - Work & Issue
-uploads - Authority visibility control - Monthly belt health reporting
+## Delivery Constraints
 
-Green Belt also contains advertisement boards physically, but those
-boards are treated as advertisement assets, not as green belt entities.
+The build must remain practical for:
 
-------------------------------------------------------------------------
+- PHP
+- MySQL
+- shared hosting
+- explicit service-layer business logic
+- mobile-practical field use
 
-### 4.2 Advertisement Operations Vertical
+The product must not depend on hidden automation, cron-heavy correctness, or enterprise-only infrastructure assumptions.
 
-Manages: - Fabrication tasks - Installation tasks - Maintenance tasks -
-Removal tasks - Task lifecycle governance - Worker daily work entry -
-Task archiving (manual only) - Monthly worker productivity reporting
+## Canonical Reading Order
 
-------------------------------------------------------------------------
+When this overview conflicts with deeper docs, use this order:
 
-### 4.3 Monitoring Vertical
+1. `docs/10_recovered_product/`
+2. `docs/11_build_specs/`
+3. rewritten legacy docs in `docs/01_structure`, `docs/02_interface`, `docs/03_context`, and `docs/06_schema`
+4. operational support docs in `docs/04_operations`
 
-Manages: - Site-based monitoring uploads - Monitoring attendance -
-Planning visibility support
+## Repo-Facing Role Of This File
 
-Monitoring and Fabrication share worker model but remain logically
-separate verticals.
-
-------------------------------------------------------------------------
-
-## 5. GOVERNANCE MODEL
-
-Operations Manager (Ops) holds ultimate authority.
-
-Principles: - Least privilege enforcement - No silent data mutation -
-All overrides logged - All compliance calculated dynamically - Immutable
-parent-child associations - Calendar-month reporting only
-
-------------------------------------------------------------------------
-
-## 6. CORE SYSTEM ENGINES
-
-The system contains structured engines:
-
-1.  Watering Compliance Engine
-2.  Maintenance Cycle Engine
-3.  Attendance Engine
-4.  Labour Tracking Engine
-5.  Upload Classification Engine
-6.  Issue Lifecycle Engine
-7.  Task Lifecycle Engine
-8.  Alert Calculation Engine
-9.  Monthly Reporting Engine
-
-Each engine is defined in 05_DATA_AND_FLOW_NOTES.md.
-
-------------------------------------------------------------------------
-
-## 7. ARCHITECTURAL PHILOSOPHY
-
-This system is built as:
-
--   Governance-first
--   Audit-first
--   Mobile-first for field users
--   Service-enforced business rules
--   Schema-driven integrity
--   Manual archive (no automatic data hiding)
--   Explicit lifecycle transitions only
-
-No automation will alter operational data silently.
-
-Backend architecture rule:
-
-Controllers handle HTTP input/output only and must not contain business logic.
-Controllers handle request validation (format, required fields).
-Services handle business validation and domain rules.
-All business rules and system behavior must be implemented in the Service layer.
-Repositories are responsible only for database access and must not contain business logic.
-Authorization (RBAC) must be enforced at the middleware layer before reaching controllers. Services must not perform role-based access checks.
-
-------------------------------------------------------------------------
-
-## 8. COMPLIANCE BOUNDARIES
-
-Compliance applies only when:
-
--   Belt maintenance_mode = MAINTAINED
--   Permission_status != EXPIRED
--   Belt not hidden
-
-Outsourced belts: - No watering compliance - No labour compliance - No
-attendance compliance - Upload & issue allowed
-
-------------------------------------------------------------------------
-
-## 9. REPORTING FRAMEWORK
-
-Reports are monthly only.
-
-System supports:
-
--   Belt Health Summary (Monthly)
--   Supervisor Activity Report (Monthly)
--   Worker Activity Report (Monthly)
--   Advertisement Monthly Report
-
-CSV export required for all reports.
-
-------------------------------------------------------------------------
-
-## 10. DATA RETENTION POLICY
-
--   Approved uploads: permanent
--   Issue uploads: permanent (unless deleted within 5-minute window)
--   Rejected uploads: manual purge only
--   Self-deleted uploads: auto purge after 30 days
--   Tasks: manual archive only
--   Archived tasks remain in reports
-
-------------------------------------------------------------------------
-
-## 11. TECHNICAL DEPLOYMENT TARGET
-
-Designed for:
-
--   PHP + MySQL environment
--   Shared hosting compatibility
--   Git-based version control
--   Centralized middleware/controller HTTP permission handling
-
-No dependency on background cron jobs for core logic.
-
-------------------------------------------------------------------------
-
-## 12. NON-GOALS (V1 EXCLUSIONS)
-
-The system does NOT include:
-
--   Billing
--   Payroll
--   GPS tracking
--   Automated WhatsApp sending
--   AI automation
--   Financial accounting
--   Client login portals
-
-------------------------------------------------------------------------
-
-## 13. EXTENSIBILITY INTENT
-
-The architecture must allow:
-
--   Addition of new verticals
--   Addition of new roles
--   Addition of new report types
--   UI enhancements
--   Map view (Phase 2)
--   VPS deployment upgrade
-
-All structural change must update MD documentation first.
-
-------------------------------------------------------------------------
-
-## 14. DOCUMENTATION DISCIPLINE RULE
-
-This file is governance-level framing only.
-
-Structural definitions are maintained in:
-
-05_DATA_AND_FLOW_NOTES.md
-
-Any architectural change requires:
-
--   Update to this file
--   Update to Decisions Log
--   Version increment
-
-------------------------------------------------------------------------
-
-STATUS: Authoritative Overview aligned with Architecture Freeze v1.
+This file exists to give contributors a fast orientation to what Skite Ops actually is.
+It should stay concise and aligned to the recovered canon.

@@ -1,402 +1,160 @@
-# Skyte Ops --- Schema Specification v1
-
-Architectural Defense & Design Rationale Document
-
-This document explains: - Why each table exists - Why each constraint
-exists - Why alternative designs were rejected - How lifecycle rules are
-enforced - How governance integrity is preserved
-
-This document is aligned with Schema Baseline v1.
-
-------------------------------------------------------------------------
-
-# 1. roles
+# Skyte Ops Schema Specification
 
 ## Purpose
 
-Defines RBAC authority boundaries across operational verticals.
+This file explains the purpose and important behavioral meaning of each table in the recovered schema.
+It mirrors:
 
-## Design Rationale
+- `docs/11_build_specs/02_CANONICAL_SCHEMA_ROADMAP.md`
+- `docs/11_build_specs/05_WORKFLOW_STATE_MACHINE_SPEC.md`
+- `docs/11_build_specs/06_UPLOAD_STORAGE_RETENTION_SPEC.md`
 
-Vertical scope is controlled via ENUM to prevent runtime privilege
-drift. We intentionally avoided dynamic permission flags to ensure
-governance clarity.
+## Access And Governance Tables
 
-## Constraints
+### `users`
 
--   role_name UNIQUE
--   vertical_scope ENUM
-    ('GREEN_BELT','ADVERTISEMENT','MONITORING','ALL')
+Core authenticated identity for login roles.
+Preserves active/inactive state, force-reset behavior, login-lock tracking, and soft-delete history.
 
-## Why ENUM?
+### `roles`
 
-Permissions must not change casually. Governance systems require
-controlled vocabulary.
+Seeded and dynamic role catalog.
+Each role has one landing module and one permission-group mapping in v1.
 
-------------------------------------------------------------------------
+### `permission_groups`
 
-# 2. users
+Stable capability bundles such as `VIEW`, `UPLOAD`, `APPROVE`, and `MANAGE`.
 
-## Purpose
+### `role_permission_mappings`
 
-Stores authenticated actors of the system.
+One role to one permission-group mapping in v1.
+This prevents permission-spaghetti role design.
 
-## Design Rationale
+### `role_module_scopes`
 
-Users are governance actors. Every operational mutation must trace back
-to a user.
+Approved module keys for each role.
+These drive menus, route protection, and landing validation.
 
-## Key Decisions
+### `audit_logs`
 
--   Soft delete enabled to preserve historical accountability.
--   deleted_by self-reference ensures audit chain continuity.
--   ON DELETE SET NULL prevents FK cascade damage.
+Immutable governance trail for approvals, overrides, status changes, cleanup actions, and sensitive mutations.
 
-## Rejected Alternative
+### `system_settings`
 
-Hard delete was rejected due to audit loss risk.
+Controlled operational settings such as Ops phone number, cleanup thresholds, expiry defaults, and helper toggles.
 
-### Email Uniqueness Policy
+## Green Belt Domain Tables
 
-Email is globally unique across the system.
+### `green_belts`
 
-- A user's email remains reserved even after soft deletion.
-- Soft-deleted users (is_deleted = 1) continue to block reuse of the same email.
-- This ensures identity consistency and prevents historical ambiguity.
+Legal and operational truth for belts.
+Stores identity, location, permission state, maintenance mode, and watering configuration.
 
-Rationale:
-This system is governance-driven and audit-focused. Allowing email reuse would create ambiguity in logs, reports, and ownership tracking.
+### `belt_supervisor_assignments`
 
-Therefore:
-Email reuse after deletion is NOT allowed.
+Historical supervisor ownership.
+This prevents current-state-only reporting drift.
 
-------------------------------------------------------------------------
+### `belt_authority_assignments`
 
-# 3. system_meta
+Historical authority visibility mapping.
+Controls which authority representative can see which approved belts.
 
-## Purpose
+### `belt_outsourced_assignments`
 
-Tracks schema_version for migration control.
+Historical outsourced-belt mapping.
+Controls which outsourced maintainer or agency can see which outsourced belts for upload scoping.
 
-## Design Rationale
+### `maintenance_cycles`
 
-Schema changes must be versioned and traceable. This prevents silent
-structural drift.
+Governed cycle history for maintained belts.
+Supports active and closed cycle tracking plus controlled auto-close behavior.
 
-------------------------------------------------------------------------
+### `watering_records`
 
-# 4. audit_logs
+Stores explicit daily watering truth for `DONE` and `NOT_REQUIRED`.
+`PENDING` is derived from no row.
 
-## Purpose
+### `supervisor_attendance`
 
-Immutable mutation trail.
+Stores same-day supervisor presence or absence.
+Attendance is an operational signal, not a hard blocker for uploads.
 
-## Design Rationale
+### `labour_entries`
 
-All structural and operational changes must be traceable. Entity_type +
-entity_id indexing ensures fast trace retrieval.
+Stores labour counts per belt and date, including separate gardener and night-guard counts.
 
-## Governance Role
+## Execution Resource Tables
 
-Supports override accountability and compliance review.
+### `fabrication_workers`
 
-------------------------------------------------------------------------
+Non-login worker resource catalog for fabrication execution.
 
-# 5. sites
+### `worker_daily_entries`
 
-## Purpose
+Universal daily worker truth.
+Tracks attendance plus daily activity context, optionally linked to a task or site.
 
-Stores monitoring site master records.
+### `task_worker_assignments`
 
-## Fields
+Fabrication-only occupancy layer for assigning workers to active tasks and deriving availability.
 
--   id
--   name
--   location
--   is_active
--   created_at
--   updated_at
+## Advertisement And Monitoring Tables
 
-## Design Rationale
+### `sites`
 
-Sites are introduced as a minimal entity so monitoring assets can be
-represented explicitly without defining broader relationships in this
-step.
+Advertisement site and asset master.
+May reference a green belt for location context but remains a separate entity.
 
-------------------------------------------------------------------------
+### `site_monitoring_due_dates`
 
-# 6. green_belts
+Stored monthly monitoring due truth.
+Supports multiple due dates per site, copy-forward, and bulk-copy planning behavior.
 
-## Purpose
+### `campaigns`
 
-Core operational entity representing maintained assets.
+Campaign lifecycle truth for client advertising work.
 
-## Design Rationale
+### `campaign_sites`
 
-Belt contains compliance-defining attributes: - permission_status -
-maintenance_mode - watering_frequency
+History of which sites were linked to which campaigns and when.
 
-## Why Not Store Compliance Flag?
+### `free_media_records`
 
-Compliance is dynamic. Storing compliance would create drift risk.
+Governed free-media history from discovery or campaign-end sources through confirmation, expiry, or consumption.
+When the source is monitoring discovery, `source_reference_id` points back to representative discovery proof.
 
-## Index Strategy
+## Proof, Issues, Requests, And Tasks
 
-Composite index (maintenance_mode, permission_status, hidden) Optimizes
-compliance filtering.
+### `uploads`
 
-------------------------------------------------------------------------
+Unified proof table for green belts, sites, and tasks.
+Stores file metadata, proof type, optional `work_type`, discovery-mode flag for monitoring uploads, review metadata, GPS, authority visibility, soft-delete state, and purge markers.
 
-# 7. belt_supervisor_assignments
+### `issues`
 
-## Purpose
+Governed operational problem record.
+May reference a belt or a site and may optionally link to a task.
 
-Historical supervisor ownership resolution.
+### `task_requests`
 
-## Design Rationale
+Pre-approval intake object created by requester roles before Ops creates a real task.
 
-We rejected default_supervisor_id in green_belts to avoid dual source of
-truth. Historical table preserves accountability per date.
+### `tasks`
 
-## Why No DB Overlap Constraint?
+Ops-governed execution unit with task source, assignment, progress, remarks, lifecycle, and archival state.
 
-Date range overlap logic requires complex checks. Enforced in service
-layer for flexibility.
+## Important Schema Rules
 
-## Governance Impact
+- `parent_type = ISSUE` is not part of the recovered upload model
+- authority work-type filtering and summary generation depend on stored upload `work_type`
+- issue proof remains internal evidence and authority-ineligible
+- task completion proof requires `AFTER_WORK` before final completion handoff
+- monthly reports derive from operational tables and do not write back into truth tables
+- worker availability is derived from daily entries plus fabrication assignment state
+- monitoring due/completed/overdue views derive from due-date rows plus same-day site proof
 
-Labour and watering responsibility derived dynamically per date.
+## Sync Rule
 
-------------------------------------------------------------------------
-
-# 8. belt_authority_assignments
-
-## Purpose
-
-Visibility control for authority users.
-
-## Design Rationale
-
-Multiple authority users per belt allowed. No UNIQUE(belt_id) to
-preserve flexibility.
-
-------------------------------------------------------------------------
-
-# 9. maintenance_cycles
-
-## Purpose
-
-Defines operational maintenance window per belt.
-
-## Design Rationale
-
--   Multiple historical cycles allowed.
--   Single active cycle enforced via service-layer transaction.
-
-## Why Not UNIQUE(belt_id, is_active)?
-
-Would block multiple closed cycles. Service-layer enforcement chosen
-intentionally.
-
-## Lifecycle
-
-Active → Closed. No reopen allowed.
-
-## Governance Role
-
-Determines compliance evaluation window.
-
-------------------------------------------------------------------------
-
-# 10. watering_logs
-
-## Purpose
-
-Daily watering compliance record.
-
-## Constraints
-
-UNIQUE(belt_id, watering_date)
-
-## Design Rationale
-
-Enforces single watering per day structurally. Override requires reason
-for governance transparency.
-
-## Why Not Store "watering_done" Flag?
-
-Logs represent truth. Compliance derived dynamically.
-
-------------------------------------------------------------------------
-
-# 11. supervisor_attendance
-
-## Purpose
-
-Tracks daily supervisor presence.
-
-## Key Rule
-
-Does not block watering (intentional).
-
-## Rationale
-
-Attendance and watering are independent governance signals.
-
-------------------------------------------------------------------------
-
-# 12. labour_entries
-
-## Purpose
-
-Tracks manpower allocation per belt per day.
-
-## Constraint
-
-UNIQUE(belt_id, labour_date)
-
-## Design Rationale
-
-Ensures deterministic reporting. Override requires reason.
-
-------------------------------------------------------------------------
-
-# 13. tasks
-
-## Purpose
-
-Operational unit of work for Advertisement & Monitoring verticals.
-
-## Lifecycle
-
-OPEN → RUNNING → COMPLETED\
-OPEN → CANCELLED
-
-Backward transitions prohibited.
-
-## Design Rationale
-
--   priority ENUM includes CRITICAL.
--   archived flag separates visibility from lifecycle state.
-
-## Rejected Alternative
-
-Soft delete rejected to preserve operational history.
-
-------------------------------------------------------------------------
-
-# 13. issues
-
-## Purpose
-
-Operational problem tracking linked to BELT or SITE.
-
-## Key Constraint
-
-UNIQUE(task_id) ensures 1:1 issue-task relationship.
-
-## Design Rationale
-
-Issue and Task separation preserves domain clarity. Issue parent
-polymorphism limited to BELT/SITE for clarity.
-
-------------------------------------------------------------------------
-
-# 14. uploads
-
-## Purpose
-
-Evidence storage for work and issue validation.
-
-## Parent Model
-
-Supports BELT, SITE, TASK, ISSUE (single parent only).
-
-V1 service-layer rule is narrower:
-- parent_type = ISSUE must be rejected.
-- Only BELT parent WORK uploads are eligible for authority approval.
-- SITE and TASK uploads remain internal.
-
-## Why Polymorphic?
-
-Prevents duplication of upload tables. Maintains structural simplicity.
-
-## Soft Delete
-
-Allowed. Approved uploads permanent (service-layer enforced).
-
-------------------------------------------------------------------------
-
-# 15. workers
-
-## Purpose
-
-Field labour registry.
-
-## Design Rationale
-
-No login credentials stored. Workers are operational entities, not
-system actors.
-
-------------------------------------------------------------------------
-
-# 16. worker_attendance
-
-## Purpose
-
-Daily worker presence record.
-
-## Constraint
-
-UNIQUE(worker_id, attendance_date)
-
-## Governance Rule
-
-Worker daily entry requires attendance (service-layer enforced).
-
-------------------------------------------------------------------------
-
-# 17. worker_daily_entries
-
-## Purpose
-
-Tracks planned vs executed work per worker per day.
-
-## Design Rationale
-
-Multiple entries per day allowed. Linked optionally to task.
-
-## Governance Interaction
-
-Past-month records are locked by default.
-Only Ops role can perform override on locked records.
-All overrides must require a reason and must be recorded in audit_logs.
-Overrides are action-specific and do not unlock the entire month or dataset.
-Attendance dependency enforced.
-
-------------------------------------------------------------------------
-
-# Global Design Principles
-
--   No stored compliance flags.
--   No cascade deletes on governance entities.
--   ENUM vocabularies frozen under Schema v1.
--   Past-month records are locked by default. Only Ops role can perform override on locked records. All overrides must require a reason and must be recorded in audit_logs. Overrides are action-specific and do not unlock the entire month or dataset. Month-lock is enforced at service layer.
--   Controllers handle HTTP input/output only and must not contain business logic.
--   Controllers handle request validation (format, required fields).
--   Services handle business validation and domain rules.
--   All business rules and system behavior must be implemented in the Service layer.
--   Repositories are responsible only for database access and must not contain business logic.
--   Authorization (RBAC) must be enforced at the middleware layer before reaching controllers. Services must not perform role-based access checks.
--   Database enforces structural truth only.
-
-------------------------------------------------------------------------
-
-# Architectural Integrity Summary
-
-This schema: - Eliminates duplicate source of truth. - Preserves
-historical accountability. - Separates structural integrity from
-business logic. - Enforces governance without over-embedding logic in
-DB. - Supports extensibility (finance as separate future module).
-
-Schema v1 is architecturally stable and constitutionally frozen.
+If this file and the canonical schema roadmap diverge, update this file.
+It should stay as a readable schema explanation, not a second competing schema source.

@@ -1,226 +1,110 @@
-# 10_GIT_WORKFLOW.md
+# Skyte Ops Git Workflow
 
-Version: Architecture Freeze v1 (Fully Disciplined -- Finalized) Status:
-Development & Deployment Governance (Solo Maintainer Model)
+## Purpose
 
-  -------------
-  1\. PURPOSE
-  -------------
+This file records the active source-control and deployment workflow for the Skite Ops project.
+It supports disciplined implementation and release, but it does not define product scope.
 
-Defines strict source control, schema evolution, deployment, and
-rollback discipline for the Skyte Operations System.
+## 1. Repository Model
 
-Assumptions: - Single primary developer - Private GitHub repository -
-Shared hosting (cPanel) - Staging subdomain available - No direct
-production edits allowed
+- private repository
+- no direct production edits
+- use reviewable branch-based work
 
-  --------------------------
-  2\. REPOSITORY STRUCTURE
-  --------------------------
+Recommended branches:
 
-Repository: Private GitHub
+- `main` for production-ready code
+- `develop` for integration if you choose to keep a two-branch flow
+- `feature/*` for feature work
+- `hotfix/*` for urgent production fixes
 
-Branches:
+## 2. Ignore Policy
 
--   main → Production-ready only
--   develop → Integration branch
--   feature/\* → New features
--   hotfix/\* → Emergency production fixes
+Do not commit:
 
-Branch Rules: - No direct commits to main. - All work must originate
-from feature or hotfix branch. - Hotfix must be merged back into develop
-after release.
+- secrets
+- backups
+- uploaded files
+- local overrides
+- dependency folders that should be rebuilt from lockfiles or install commands
 
-  -----------------------------------
-  3\. .GITIGNORE POLICY (MANDATORY)
-  -----------------------------------
+## 3. Commit Discipline
 
-The repository must include a .gitignore file containing:
+- keep commits small and logical
+- do not mix unrelated work
+- use readable messages
+- keep doc, schema, and code changes synchronized when they represent one real change
 
-.env /storage/uploads/ /storage/archive/ /backups/ /vendor/ (if Composer
-used) /node_modules/ (if frontend tools added)
+## 4. Versioning
 
-Never commit: - Database dumps - Uploaded files - Backup files -
-Credentials - Local config overrides
+Use tagged releases for production deployments.
 
-  ---------------------
-  4\. BRANCHING MODEL
-  ---------------------
+Typical version meaning:
 
-Feature Workflow:
+- major = structural or platform-level break
+- minor = feature addition
+- patch = bug fix
 
-1.  git checkout -b feature/feature-name
-2.  Develop locally (XAMPP)
-3.  Test thoroughly
-4.  Merge into develop
-5.  Validate integration
-6.  Merge into main
-7.  Tag release
+## 5. Migration Discipline
 
-Hotfix Workflow:
+- keep migration files in a dedicated migrations directory
+- add migrations sequentially
+- do not make silent production schema edits
+- update canonical schema docs when schema truth changes
+- test schema changes locally before staging or production rollout
 
-1.  git checkout -b hotfix/bug-name
-2.  Fix locally
-3.  Test locally
-4.  Merge into main
-5.  Tag patch release
-6.  Merge hotfix back into develop
+Do not rely on the old trimmed-era `system_meta` pattern as documentation truth.
+The active schema truth is now anchored by:
 
-  -----------------------
-  5\. COMMIT DISCIPLINE
-  -----------------------
+- `docs/11_build_specs/02_CANONICAL_SCHEMA_ROADMAP.md`
+- `docs/06_schema/schema_v1_full.sql`
 
-Rules: - Small logical commits only - No mixed unrelated changes - Clear
-descriptive messages
+## 6. Staging Rule
 
-Format:
+- test on staging before production whenever practical
+- staging should mirror production runtime constraints closely
+- do not treat production as the first validation environment
 
-\[VERTICAL\] Short Description
+## 7. Deployment Flow
 
-Examples: \[GB\] Add watering frequency enum \[SECURITY\] Implement CSRF
-validation \[REPORT\] Add monthly CSV export
+Typical release flow:
 
-  -------------------------
-  6\. VERSIONING STRATEGY
-  -------------------------
+1. finish work on a feature or hotfix branch
+2. test locally
+3. merge intentionally
+4. deploy to staging
+5. run release validation checks
+6. deploy to production
+7. monitor the release
 
-Version Format: vMajor.Minor.Patch
+## 8. Release Validation
 
-Major: - Schema change - Structural architecture change
+Before marking a release stable:
 
-Minor: - New feature added
+- login works
+- role access works
+- uploads work
+- main operational pages boot correctly
+- reports generate where relevant
+- no obvious runtime warnings or fatal errors appear
 
-Patch: - Bug fix only
-
-Every production deployment must be tagged.
-
-  --------------------------------------------------
-  7\. DATABASE MIGRATION & SCHEMA VERSION TRACKING
-  --------------------------------------------------
-
-Migration Directory (MANDATORY):
-
--   Create /migrations/ directory in repository.
-
--   Each schema change must have migration file.
-
--   Naming convention:
-
-    001_add_watering_frequency.sql 002_add_attendance_table.sql
-    003_modify_task_status.sql
-
-Rules:
-
--   Migration number must increment sequentially.
--   schema_version in system_meta must match latest migration number.
--   system_meta must contain bootstrap row id = 1 before schema_version can be trusted.
--   schema_migrations and system_meta bootstrap state must be verified on fresh or recovered environments.
--   No manual structural DB changes in production.
--   All migrations documented in 06_DECISIONS_LOG.md.
--   Migration files never deleted --- only new migrations added.
-
-Before any schema change:
-
-1.  Manual DB backup required.
-2.  Add new migration file.
-3.  Apply locally.
-4.  Update schema_version.
-5.  Test locally.
-6.  Deploy to staging first.
-
-  ------------------------------
-  8\. STAGING ENVIRONMENT RULE
-  ------------------------------
-
-Staging must:
-
--   Mirror production PHP version.
--   Mirror database structure.
--   Use separate DB credentials.
--   Not share production data.
-
-Rules:
-
--   All releases tested on staging first.
--   No testing directly in production.
--   Only after staging validation → production deploy.
-
-  ------------------------------------------
-  9\. DEPLOYMENT WORKFLOW (Shared Hosting)
-  ------------------------------------------
-
-Deployment Method (Locked):
-
--   Release ZIP upload OR
--   cPanel Git Version Control
-
-One method must be chosen and used consistently. Never mix deployment
-methods.
-
-Standard Deployment:
-
-1.  Merge to main.
-2.  Tag release.
-3.  Deploy to staging.
-4.  Run release validation checklist.
-5.  Deploy to production.
-6.  Monitor system 24 hours.
-
-  -----------------------------------------
-  10\. PRODUCTION CONFIGURATION LOCK RULE
-  -----------------------------------------
-
--   Production .env changes must be documented.
--   Any production config change must be mirrored in staging.
--   No undocumented environment variable changes.
--   Never change production config without backup.
-
-  -----------------------------------
-  11\. RELEASE VALIDATION CHECKLIST
-  -----------------------------------
-
-Before marking release stable:
-
--   Login works
--   Role access correct
--   Upload functioning
--   Watering logic verified
--   Attendance logic verified
--   Reports generate
--   No PHP warnings/errors
--   Backup cron still active
--   schema_version matches migration count
--   system_meta row id = 1 exists
--   schema_migrations is initialized
-
-  ----------------------------------
-  12\. EMERGENCY ROLLBACK STRATEGY
-  ----------------------------------
+## 9. Rollback Rule
 
 If deployment fails:
 
-1.  Revert to previous tagged version.
-2.  Restore latest DB backup if needed.
-3.  Ensure rollback does not overwrite backup files.
-4.  Validate system.
-5.  Create new hotfix branch.
-6.  Document issue in decisions log.
+1. return to the previous known-good release
+2. restore database or storage from backup only when required
+3. validate the rollback state
+4. fix forward on a fresh hotfix branch
 
-  ----------------------------
-  13\. SOLO MAINTAINER RULES
-  ----------------------------
+## 10. Solo Maintainer Rules
 
--   Never deploy untagged code.
--   Never edit production via File Manager.
--   Never skip backup before schema change.
--   Always update MD files when structural changes occur.
--   Keep Git history readable.
--   No undocumented migrations.
--   No silent production config changes.
+- do not deploy untagged or unclear code to production
+- do not skip backup before risky schema work
+- do not leave migrations undocumented
+- do not change product behavior without updating the canon and build specs when needed
 
-------------------------------------------------------------------------
+## Active Status
 
-STATUS
-
-Git governance fully hardened. Migration discipline enforced. Production
-configuration lock active. Ready for Backend Implementation Phase.
+This file remains a kept operational doc.
+If the repo workflow changes materially, update it directly rather than recreating separate workflow summaries.

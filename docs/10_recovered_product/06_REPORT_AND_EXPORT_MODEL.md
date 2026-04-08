@@ -142,7 +142,7 @@ One row per worker for the selected month.
 
 - this report is fabrication-worker focused
 - worker activity comes from `worker_daily_entries`
-- fabrication task context may enrich counts through `task_worker_assignment`
+- fabrication task context may enrich counts through `task_worker_assignments`
 - no cross-vertical user activity should leak into this report
 - archived tasks still count historically where relevant
 

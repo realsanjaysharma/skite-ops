@@ -199,13 +199,72 @@ Required landing mapping:
 | `OUTSOURCED_MAINTAINER` | `green_belt.outsourced_upload` | `upload/outsourced` |
 | `MONITORING_TEAM` | `monitoring.upload` | `monitoring/upload` |
 | `FABRICATION_LEAD` | `task.my_tasks` | `task/my` |
-| `SALES_TEAM` | `task.progress_read` | `task/progress` |
-| `CLIENT_SERVICING` | `task.progress_read` | `task/progress` |
-| `MEDIA_PLANNING` | `task.progress_read` | `task/progress` |
+| `SALES_TEAM` | `task.progress_read` | `taskprogress/list` |
+| `CLIENT_SERVICING` | `task.progress_read` | `taskprogress/list` |
+| `MEDIA_PLANNING` | `task.progress_read` | `taskprogress/list` |
 | `AUTHORITY_REPRESENTATIVE` | `green_belt.authority_view` | `authority/view` |
 | `MANAGEMENT` | `dashboard.management` | `dashboard/management` |
 
+Interpretation note:
+
+- `landing_route` is the UI shell or page target after login
+- the data contracts needed by that page are defined separately below
+- a landing route string does not require every page to duplicate its own JSON contract section if that page reads through existing list or detail endpoints
+
 If `requires_password_reset = true`, frontend must force password reset flow before navigating to the landing route.
+
+## Dashboard And Oversight Routes
+
+### `dashboard/master`
+
+- method: `GET`
+- auth: Ops
+- response fields:
+  - summary cards required by the Master Operations Dashboard page spec
+
+### `dashboard/green-belt`
+
+- method: `GET`
+- auth: Ops, Head Supervisor
+- query params:
+  - `zone`
+  - `supervisor_user_id`
+  - `maintenance_mode`
+
+### `dashboard/advertisement`
+
+- method: `GET`
+- auth: Ops, Management
+- response fields:
+  - summary cards required by the Advertisement Dashboard page spec
+
+### `dashboard/monitoring`
+
+- method: `GET`
+- auth: Ops, Management
+- response fields:
+  - summary cards required by the Monitoring Dashboard page spec
+
+### `dashboard/management`
+
+- method: `GET`
+- auth: Management
+- response fields:
+  - read-only cross-domain summary cards required by the Management Dashboard page spec
+
+### `oversight/watering`
+
+- method: `GET`
+- auth: Head Supervisor, Ops
+- query params:
+  - `zone`
+  - `supervisor_user_id`
+  - `maintenance_mode`
+- response fields:
+  - attendance grid data
+  - watering grid data
+  - labour panel data
+  - quick exceptions
 
 ## Governance And User Routes
 
@@ -445,6 +504,33 @@ If `requires_password_reset = true`, frontend must force password reset flow bef
   - `assignment_id`
   - `end_date`
 
+### `outsourcedassignment/list`
+
+- method: `GET`
+- auth: Ops
+- query params:
+  - `belt_id`
+  - `outsourced_user_id`
+  - `active_only`
+
+### `outsourcedassignment/create`
+
+- method: `POST`
+- auth: Ops
+- request fields:
+  - `belt_id`
+  - `outsourced_user_id`
+  - `start_date`
+  - `end_date`
+
+### `outsourcedassignment/close`
+
+- method: `POST`
+- auth: Ops
+- request fields:
+  - `assignment_id`
+  - `end_date`
+
 ### `watering/list`
 
 - method: `GET`
@@ -541,8 +627,10 @@ If `requires_password_reset = true`, frontend must force password reset flow bef
   - `parent_type`
   - `parent_id`
   - `upload_type`
+  - `work_type`
   - `photo_label`
   - `comment_text`
+  - `discovery_mode`
   - `files[]`
   - `gps_latitude`
   - `gps_longitude`
@@ -553,9 +641,13 @@ If `requires_password_reset = true`, frontend must force password reset flow bef
     - `parent_type`
     - `parent_id`
     - `upload_type`
+    - `work_type`
+    - `is_discovery_mode`
     - `photo_label`
     - `authority_visibility`
     - `created_at`
+- service note:
+  - when `parent_type = SITE` and `discovery_mode = true`, upload creation must also create or refresh the site's `free_media_records` row in `DISCOVERED` state with `source_type = MONITORING_DISCOVERY`
 
 ### `upload/list`
 
@@ -567,6 +659,7 @@ If `requires_password_reset = true`, frontend must force password reset flow bef
   - `date_from`
   - `date_to`
   - `upload_type`
+  - `discovery_mode`
   - `authority_visibility`
 
 ### `upload/my-list`
@@ -722,6 +815,25 @@ If `requires_password_reset = true`, frontend must force password reset flow bef
   - `assigned_lead_user_id`
   - `client_name`
   - `campaign_id`
+
+### `taskprogress/list`
+
+- method: `GET`
+- auth: Sales, Client Servicing, Media Planning
+- query params:
+  - `status`
+  - `client_name`
+  - `campaign_id`
+  - `site_id`
+  - `date_from`
+  - `date_to`
+
+### `taskprogress/get`
+
+- method: `GET`
+- auth: Sales, Client Servicing, Media Planning
+- query params:
+  - `task_id`
 
 ### `task/get`
 
@@ -907,6 +1019,19 @@ If `requires_password_reset = true`, frontend must force password reset flow bef
   - `target_month`
   - `replace_existing`
 
+### `monitoring/history`
+
+- method: `GET`
+- auth: Ops, Monitoring Team, scoped read roles where exposed later
+- query params:
+  - `date_from`
+  - `date_to`
+  - `site_id`
+  - `site_category`
+  - `client_name`
+  - `campaign_id`
+  - `discovery_mode`
+
 ### `campaign/list`
 
 - method: `GET`
@@ -990,6 +1115,7 @@ If `requires_password_reset = true`, frontend must force password reset flow bef
   - `date`
   - `belt_id`
   - `supervisor_user_id`
+  - `work_type`
 
 ### `authority/share-helper`
 
@@ -1000,6 +1126,37 @@ If `requires_password_reset = true`, frontend must force password reset flow bef
 - response fields:
   - `message_text`
   - `whatsapp_url`
+
+### `audit/list`
+
+- method: `GET`
+- auth: Ops
+- query params:
+  - `actor_user_id`
+  - `entity_type`
+  - `action_type`
+  - `date_from`
+  - `date_to`
+
+### `settings/list`
+
+- method: `GET`
+- auth: Ops
+- response fields:
+  - `items[]`
+  - each item contains:
+    - `setting_key`
+    - `setting_value`
+    - `value_type`
+    - `description`
+
+### `settings/update`
+
+- method: `POST`
+- auth: Ops
+- request fields:
+  - `setting_key`
+  - `setting_value`
 
 ### `report/belt-health`
 

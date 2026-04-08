@@ -54,7 +54,7 @@
 
 - Login: yes
 - Scope: assigned outsourced belts only
-- Can see: assigned outsourced belts
+- Can see: assigned outsourced belts through active outsourced-assignment mapping
 - Can do: upload work proof, raise issue
 - Cannot do: mark watering, see compliance, use internal dashboards, access maintained belts, monitoring, or task control
 
@@ -122,7 +122,7 @@
 
 - Login: yes
 - Scope: global read-only oversight
-- Can see: all uploads, all supervisors, all belts, monitoring activity, open tasks and issues, dashboards, and reports
+- Can see: cross-domain operational visibility through allowed read-only dashboards, summaries, and reports, including uploads, supervisors, belts, monitoring activity, and open work state where those surfaces expose it
 - Can do: filter and review
 - Cannot do: approve, assign, edit, or share externally as a system actor
 

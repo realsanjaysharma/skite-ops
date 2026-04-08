@@ -243,7 +243,7 @@ Recommended v1 mapping:
 | `CLIENT_SERVICING` | `VIEW` | `task.progress_read`, `task.request_intake`, `monitoring.history`, `media.free_media_inventory` |
 | `MEDIA_PLANNING` | `VIEW` | `task.progress_read`, `task.request_intake`, `media.free_media_inventory`, `monitoring.history` |
 | `AUTHORITY_REPRESENTATIVE` | `VIEW` | `green_belt.authority_view` |
-| `MANAGEMENT` | `VIEW` | `dashboard.master_ops`, `dashboard.green_belt`, `dashboard.advertisement`, `dashboard.monitoring`, `dashboard.management`, `reports.monthly` |
+| `MANAGEMENT` | `VIEW` | `dashboard.advertisement`, `dashboard.monitoring`, `dashboard.management`, `reports.monthly` |
 
 ## Record Scope Rules
 
@@ -267,7 +267,7 @@ Module access alone is not enough. Record scope must also pass.
 
 ### `OUTSOURCED_MAINTAINER`
 
-- only outsourced belts assigned to that agency or user
+- only outsourced belts assigned through active outsourced-belt assignment
 - no maintained-belt access
 
 ### `MONITORING_TEAM`

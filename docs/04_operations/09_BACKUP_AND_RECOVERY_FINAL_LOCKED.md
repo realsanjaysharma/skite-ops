@@ -1,153 +1,107 @@
-# 09_BACKUP_AND_RECOVERY.md
+# Skyte Ops Backup And Recovery
 
-Version: Architecture Freeze v1 (Finalized) Status: Disaster Recovery
-Strategy (Shared Hosting Compatible)
+## Purpose
 
-  ------------------------------
-  1\. BACKUP STRATEGY OVERVIEW
-  ------------------------------
+This file records the active backup and recovery approach for the Skite Ops project.
+It is an operations reference, not a product-scope document.
 
-Recovery Tolerance: - Up to 1 day of data loss acceptable. - Zero-loss
-recovery not required in v1.
+## 1. Recovery Goals
 
-Target Recovery Time (RTO): - System restoration within 2--4 hours
-maximum.
+- up to one day of data loss is acceptable in v1 operations
+- target recovery time: 2 to 4 hours
+- zero-loss recovery is not required in the current deployment model
 
-Selected Strategy: - Daily automated database backup. - Weekly upload +
-archive storage backup. - Weekly off-site copy (Google Drive or
-encrypted external storage). - Monthly restore verification test. -
-Monthly immutable snapshot retained for 30 days.
+## 2. Database Backup Policy
 
-  ----------------------------
-  2\. DATABASE BACKUP POLICY
-  ----------------------------
+- daily automated database backup at 2:00 AM server time
+- backup created through hosting-compatible tooling such as `mysqldump` or equivalent panel automation
+- backup stored outside the public web root
+- keep last 7 daily backups
+- create a monthly immutable snapshot on the first day of the month
+- keep monthly snapshot for at least 30 days
 
-Frequency: - Daily automated backup at 2:00 AM (server time).
+Before any schema change, import, or production deployment:
 
-Method: - mysqldump via cPanel Cron Job. - Backup saved as .sql file.
+- create a fresh manual database snapshot
+- confirm the snapshot exists before proceeding
 
-Example: /home/account/backups/db_YYYY_MM_DD.sql
+## 3. Upload Storage Backup Policy
 
-Retention: - Keep last 7 daily backups. - Delete backups older than 7
-days automatically.
+Scope includes the protected upload store used by operational proof.
 
-Immutable Snapshot Rule: - On the 1st of each month, create a monthly
-snapshot. - Store separately as: db_monthly_YYYY_MM.sql - Retain for
-minimum 30 days. - Monthly snapshot must not be auto-overwritten.
+- weekly upload backup archive
+- upload backup must run after database backup
+- keep last 4 weekly upload backups
+- review storage usage regularly so backups do not silently fill hosting quota
 
-Storage Rules: - Stored outside public_html. - Backup folder must not be
-publicly accessible.
+## 4. Off-Site Copy Policy
 
-Operational Rule: - Cron job execution manually verified once per
-month. - Confirm new .sql file generated daily.
+- keep at least one external copy outside the hosting account
+- verify off-site accessibility weekly
+- acceptable destinations include private cloud storage or encrypted offline media
 
-Pre-Deployment Protection Rule: - Before any schema change, bulk import,
-or production deployment: - Manually generate immediate DB snapshot. -
-Confirm snapshot integrity before proceeding.
+## 5. Restoration Procedure
 
-  --------------------------------------------
-  3\. UPLOAD + ARCHIVE STORAGE BACKUP POLICY
-  --------------------------------------------
+### Database
 
-Scope Includes: - /storage/uploads/ - /storage/archive/ (if archive
-feature active)
+1. Create or prepare the target database.
+2. Import the selected SQL backup.
+3. restore environment credentials if needed.
 
-Frequency: - Weekly ZIP archive (recommended Sunday 3:00 AM).
+### Upload Storage
 
-Critical Sync Rule: - Upload backup must run AFTER daily DB backup. -
-Prevents database reference mismatch.
+1. Restore the protected upload directory.
+2. confirm correct permissions.
+3. verify application-level file access through the normal protected flow.
 
-Example: uploads_backup_YYYY_MM_DD.zip
+### Post-Restore Checks
 
-Retention: - Keep last 4 weekly backups. - Delete older archives to
-control disk usage.
+- login works
+- dashboard boot works
+- upload access works
+- authority-safe views open
+- reports generate
+- key operational records can be read
 
-Storage Capacity Monitoring: - Backup folder size reviewed monthly. -
-Ensure backups do not exceed hosting quota.
+## 6. Failure Scenarios Covered
 
-  ----------------------------
-  4\. OFF-SITE BACKUP POLICY
-  ----------------------------
+Covered:
 
-Frequency: - Weekly.
+- accidental data deletion
+- server crash
+- deployment mistake
+- file corruption
+- partial compromise where backups remain intact
 
-Procedure: 1. Download latest DB backup (.sql). 2. Download latest
-uploads backup (.zip). 3. Upload to: - Private Google Drive folder OR -
-Encrypted external hard drive.
+Not covered:
 
-Rule: - Off-site backup must not remain only on hosting server. - At
-least one external copy required at all times. - Verify off-site copy
-accessibility weekly.
+- simultaneous loss of hosting and all off-site copies
+- total compromise of both primary and backup credentials
 
-  ---------------------------
-  5\. RESTORATION PROCEDURE
-  ---------------------------
+## 7. Verification Discipline
 
-Database Recovery: 1. Create new database in cPanel. 2. Import latest
-.sql file via phpMyAdmin. 3. Update .env DB credentials if required.
+- perform restore test in a non-production environment at least monthly
+- confirm DB import works
+- confirm upload access works
+- confirm the application boots normally
 
-Uploads Recovery: 1. Extract uploads_backup.zip into /storage/uploads/.
-2. Extract archive if needed. 3. Verify folder permissions (750 or 755).
-4. Confirm access through PHP controller.
+## 8. Git Is Not Backup
 
-Post-Recovery Validation Checklist: - Login works. - Dashboard loads. -
-Upload works. - Authority access confirmed. - Reports generate
-correctly. - Watering and attendance logs accessible.
+Git covers code history only.
+Git does not replace:
 
-  -------------------------------
-  6\. FAILURE SCENARIOS COVERED
-  -------------------------------
+- database backup
+- upload backup
+- runtime data backup
 
-Covered: - Accidental deletion of records. - Server crash. - Hosting
-suspension. - File corruption. - Partial hacking incident. - Code
-deployment mistake. - Data corruption propagation (limited by monthly
-immutable snapshot).
+## 9. Operations Rules
 
-Not Covered: - Simultaneous hosting + off-site loss. - Total account
-compromise including off-site credentials.
+- do not manually delete backup files outside retention policy
+- keep backup automation active
+- keep off-site copy current
+- take a manual DB snapshot before risky production operations
 
-  --------------------------------
-  7\. BACKUP VERIFICATION POLICY
-  --------------------------------
+## Active Status
 
--   Monthly restore test in LOCAL environment only.
--   Confirm:
-    -   Database imports successfully.
-    -   Upload files accessible.
-    -   Application boots normally.
--   Log restore test date in internal operations record.
-
-  -------------------------
-  8\. GIT IS NOT A BACKUP
-  -------------------------
-
-Clarification:
-
--   Git stores application code only.
--   Git does NOT store:
-    -   Database contents
-    -   Upload files
-    -   Runtime data
-    -   Session data
-
-Backup strategy is separate from Git workflow.
-
-  -----------------------------
-  9\. BACKUP DISCIPLINE RULES
-  -----------------------------
-
--   No manual deletion of backup files outside retention policy.
--   Backup cron must remain active at all times.
--   Archive folder included in weekly backup.
--   DB backup must precede upload backup.
--   Storage usage reviewed monthly.
--   Off-site copy verified weekly.
--   Monthly immutable snapshot retained for 30 days.
--   Pre-deployment manual DB snapshot mandatory.
-
-------------------------------------------------------------------------
-
-STATUS
-
-Backup system finalized and hardened. Aligned with shared hosting
-constraints. Operationally serious and interview-defendable.
+This file remains an active operations reference.
+If backup mechanics change materially, update this file and the relevant deployment runbook together.

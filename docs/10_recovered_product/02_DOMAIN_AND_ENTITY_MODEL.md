@@ -61,6 +61,18 @@ This is required for:
 Authority access is belt-specific.
 This assignment controls which authority user can see which approved proof.
 
+### Belt-To-Outsourced Assignments
+
+Outsourced access also needs an explicit assignment layer.
+This is required because outsourced maintainers should only see the outsourced belts actually mapped to that agency or user.
+
+It exists to support:
+
+- outsourced upload scoping
+- oversight accountability
+- time-bound outsourced-belt history
+- clean separation from internal supervisor assignment
+
 ### Maintenance Cycles
 
 Maintenance cycle is a governed operational entity that stores:
@@ -108,9 +120,9 @@ It exists to support:
 - worker-wise monthly activity
 - day-by-day operational visibility
 
-### Task-Worker Assignment
+### Task-Worker Assignments
 
-`task_worker_assignment` is a fabrication-specific assignment layer.
+`task_worker_assignments` is a fabrication-specific assignment layer.
 
 It exists to support:
 
@@ -122,7 +134,7 @@ It exists to support:
 Recovered design lock:
 
 - `worker_daily_entries` remains the primary daily truth layer
-- `task_worker_assignment` exists only for fabrication use
+- `task_worker_assignments` exists only for fabrication use
 - other daily work does not need this extra assignment layer
 
 ## Advertisement And Monitoring Domain
@@ -182,6 +194,11 @@ It needs support for:
 - aging and recheck behavior
 - planning visibility
 
+Recovered implementation direction:
+
+- monitoring discovery uploads should create or refresh a `DISCOVERED` free-media record
+- the free-media record should retain source context back to the discovery event
+
 ## Proof, Issues, Requests, And Tasks
 
 ### Uploads / Proof
@@ -201,6 +218,8 @@ Uploads should retain:
 - creator
 - parent context
 - timestamps
+- optional `work_type` tag where work-context filtering matters
+- `is_discovery_mode` flag where monitoring uploads are also acting as free-media discovery proof
 - optional comments or tags
 - governance visibility state
 - soft-delete behavior where appropriate
@@ -212,6 +231,7 @@ Important recovered rules:
 
 - GPS is stored for Ops review only; no automatic mismatch logic is required in v1
 - task completion proof uses labeled photos: After Work required, Before Work optional
+- green-belt work proof should support an optional stored `work_type` so authority filters and summaries do not depend on comment parsing
 - supervisor uploads remain upload-focused and should not expose authority review outcome back to supervisors
 - approved authority visibility is governed access, not duplicate storage or in-system external send tracking
 - rejected uploads can become manual cleanup candidates after 30 days

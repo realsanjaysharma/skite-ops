@@ -1,300 +1,103 @@
-# Skyte Ops --- Schema Baseline v1
+# Skyte Ops Schema Baseline
 
-Schema Version: 1\
-Architecture Status: Frozen\
-Redesign Allowed: No\
-Migration Required For Structural Change: Yes\
-Compliance Model: Dynamic (No stored alert flags)
+## Purpose
 
-Freeze Date: 2026-03-24
+This file is the repo-facing schema baseline summary for the recovered product.
+It mirrors:
 
-------------------------------------------------------------------------
+- `docs/11_build_specs/02_CANONICAL_SCHEMA_ROADMAP.md`
+- `docs/06_schema/schema_v1_full.sql`
 
-## FULL DDL SNAPSHOT (Authoritative)
+Use this file for table-set orientation and structural guarantees.
+Use the SQL file for executable DDL and the specification file for table-by-table meaning.
 
-``` sql
--- ==========================================
--- SKYTE OPS - SCHEMA V1 (PRODUCTION BASELINE)
--- ==========================================
+## Baseline Principles
 
--- ROLES
-CREATE TABLE roles (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    role_name VARCHAR(100) NOT NULL UNIQUE,
-    vertical_scope ENUM('GREEN_BELT','ADVERTISEMENT','MONITORING','ALL') NOT NULL,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB;
+- operational truth is stored once and reused through role-scoped views
+- dashboards, alerts, and summaries stay derived
+- monitoring due truth comes from stored monthly due dates
+- authority visibility is stored on uploads; external sending is not
+- history is preserved through append-safe records, soft delete, archive, and purge markers where relevant
 
--- USERS
-CREATE TABLE users (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    role_id BIGINT UNSIGNED NOT NULL,
-    full_name VARCHAR(150) NOT NULL,
-    email VARCHAR(150) NOT NULL UNIQUE,
-    password_hash VARCHAR(255) NOT NULL,
-    failed_attempt_count INT NOT NULL DEFAULT 0,
-    last_failed_attempt_at DATETIME NULL,
-    force_password_reset BOOLEAN NOT NULL DEFAULT FALSE,
-    is_active BOOLEAN NOT NULL DEFAULT TRUE,
-    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
-    deleted_at DATETIME NULL,
-    deleted_by BIGINT UNSIGNED NULL,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE RESTRICT,
-    FOREIGN KEY (deleted_by) REFERENCES users(id) ON DELETE SET NULL
-) ENGINE=InnoDB;
+## Canonical Table Groups
 
--- SYSTEM META
-CREATE TABLE system_meta (
-    id TINYINT UNSIGNED PRIMARY KEY,
-    schema_version INT UNSIGNED NOT NULL,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB;
+### Access And Governance
 
--- AUDIT LOGS
-CREATE TABLE audit_logs (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    actor_user_id BIGINT UNSIGNED NOT NULL,
-    action_type VARCHAR(100) NOT NULL,
-    entity_type VARCHAR(100) NOT NULL,
-    entity_id BIGINT UNSIGNED NOT NULL,
-    old_value LONGTEXT NULL,
-    new_value LONGTEXT NULL,
-    override_reason TEXT NULL,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (actor_user_id) REFERENCES users(id) ON DELETE RESTRICT,
-    INDEX idx_audit_entity (entity_type, entity_id),
-    INDEX idx_audit_actor (actor_user_id),
-    INDEX idx_audit_created (created_at)
-) ENGINE=InnoDB;
+- `users`
+- `roles`
+- `permission_groups`
+- `role_permission_mappings`
+- `role_module_scopes`
+- `audit_logs`
+- `system_settings`
 
--- SITES
-CREATE TABLE sites (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(150) NOT NULL,
-    location VARCHAR(255) NULL,
-    is_active TINYINT(1) DEFAULT 1,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+### Green Belt Domain
 
--- GREEN BELTS
-CREATE TABLE green_belts (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    common_name VARCHAR(150) NOT NULL,
-    authority_name VARCHAR(150) NOT NULL,
-    zone VARCHAR(150) NULL,
-    permission_status ENUM('APPLIED','AGREEMENT_SIGNED','RENEWAL_IN_PROCESS','EXPIRED') NOT NULL,
-    permission_start_date DATE NOT NULL,
-    permission_end_date DATE NULL,
-    maintenance_mode ENUM('MAINTAINED','OUTSOURCED') NOT NULL,
-    watering_frequency ENUM('DAILY','ALTERNATE_DAY','WEEKLY','NOT_REQUIRED') NOT NULL,
-    watering_frequency_effective_from DATE NOT NULL,
-    hidden BOOLEAN NOT NULL DEFAULT FALSE,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_compliance_scope (maintenance_mode, permission_status, hidden)
-) ENGINE=InnoDB;
+- `green_belts`
+- `belt_supervisor_assignments`
+- `belt_authority_assignments`
+- `belt_outsourced_assignments`
+- `maintenance_cycles`
+- `watering_records`
+- `supervisor_attendance`
+- `labour_entries`
 
--- BELT SUPERVISOR ASSIGNMENTS
-CREATE TABLE belt_supervisor_assignments (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    belt_id BIGINT UNSIGNED NOT NULL,
-    supervisor_id BIGINT UNSIGNED NOT NULL,
-    assigned_from DATE NOT NULL,
-    assigned_to DATE NULL,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (belt_id) REFERENCES green_belts(id) ON DELETE RESTRICT,
-    FOREIGN KEY (supervisor_id) REFERENCES users(id) ON DELETE RESTRICT,
-    INDEX idx_bsa_lookup (belt_id, assigned_from, assigned_to),
-    INDEX idx_bsa_supervisor (supervisor_id)
-) ENGINE=InnoDB;
+### Execution Resources
 
--- BELT AUTHORITY ASSIGNMENTS
-CREATE TABLE belt_authority_assignments (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    belt_id BIGINT UNSIGNED NOT NULL,
-    authorized_user_id BIGINT UNSIGNED NOT NULL,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (belt_id) REFERENCES green_belts(id) ON DELETE RESTRICT,
-    FOREIGN KEY (authorized_user_id) REFERENCES users(id) ON DELETE RESTRICT,
-    INDEX idx_baa_belt (belt_id),
-    INDEX idx_baa_authority (authorized_user_id)
-) ENGINE=InnoDB;
+- `fabrication_workers`
+- `worker_daily_entries`
+- `task_worker_assignments`
 
--- MAINTENANCE CYCLES (FINAL CLEAN VERSION)
-CREATE TABLE maintenance_cycles (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    belt_id BIGINT UNSIGNED NOT NULL,
-    cycle_start_date DATE NOT NULL,
-    cycle_end_date DATE NULL,
-    is_active BOOLEAN NOT NULL DEFAULT TRUE,
-    started_by BIGINT UNSIGNED NOT NULL,
-    closed_by BIGINT UNSIGNED NULL,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (belt_id) REFERENCES green_belts(id) ON DELETE RESTRICT,
-    FOREIGN KEY (started_by) REFERENCES users(id) ON DELETE RESTRICT,
-    FOREIGN KEY (closed_by) REFERENCES users(id) ON DELETE SET NULL,
-    INDEX idx_mc_belt_active (belt_id, is_active)
-) ENGINE=InnoDB;
+### Advertisement And Monitoring
 
--- WATERING LOGS
-CREATE TABLE watering_logs (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    belt_id BIGINT UNSIGNED NOT NULL,
-    watering_date DATE NOT NULL,
-    marked_by BIGINT UNSIGNED NOT NULL,
-    marked_at DATETIME NOT NULL,
-    override_by BIGINT UNSIGNED NULL,
-    override_reason TEXT NULL,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (belt_id) REFERENCES green_belts(id) ON DELETE RESTRICT,
-    FOREIGN KEY (marked_by) REFERENCES users(id) ON DELETE RESTRICT,
-    FOREIGN KEY (override_by) REFERENCES users(id) ON DELETE SET NULL,
-    UNIQUE KEY uniq_belt_date (belt_id, watering_date),
-    INDEX idx_wl_date (watering_date)
-) ENGINE=InnoDB;
+- `sites`
+- `site_monitoring_due_dates`
+- `campaigns`
+- `campaign_sites`
+- `free_media_records`
 
--- SUPERVISOR ATTENDANCE
-CREATE TABLE supervisor_attendance (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    supervisor_id BIGINT UNSIGNED NOT NULL,
-    attendance_date DATE NOT NULL,
-    status ENUM('PRESENT','ABSENT') NOT NULL,
-    override_by BIGINT UNSIGNED NULL,
-    override_reason TEXT NULL,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (supervisor_id) REFERENCES users(id) ON DELETE RESTRICT,
-    FOREIGN KEY (override_by) REFERENCES users(id) ON DELETE SET NULL,
-    UNIQUE KEY uniq_supervisor_date (supervisor_id, attendance_date)
-) ENGINE=InnoDB;
+### Proof, Issues, Requests, And Tasks
 
--- LABOUR ENTRIES
-CREATE TABLE labour_entries (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    belt_id BIGINT UNSIGNED NOT NULL,
-    labour_date DATE NOT NULL,
-    labour_count INT UNSIGNED NOT NULL,
-    override_by BIGINT UNSIGNED NULL,
-    override_reason TEXT NULL,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (belt_id) REFERENCES green_belts(id) ON DELETE RESTRICT,
-    FOREIGN KEY (override_by) REFERENCES users(id) ON DELETE SET NULL,
-    UNIQUE KEY uniq_belt_date (belt_id, labour_date)
-) ENGINE=InnoDB;
+- `uploads`
+- `issues`
+- `task_requests`
+- `tasks`
 
--- TASKS
-CREATE TABLE tasks (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    category VARCHAR(100) NOT NULL,
-    vertical ENUM('ADVERTISEMENT','MONITORING') NOT NULL,
-    priority ENUM('LOW','MEDIUM','HIGH','CRITICAL') NOT NULL DEFAULT 'MEDIUM',
-    source VARCHAR(100) NOT NULL,
-    location_text VARCHAR(255) NOT NULL,
-    assigned_lead BIGINT UNSIGNED NULL,
-    status ENUM('OPEN','RUNNING','COMPLETED','CANCELLED') NOT NULL DEFAULT 'OPEN',
-    completion_note TEXT NULL,
-    archived BOOLEAN NOT NULL DEFAULT FALSE,
-    created_by BIGINT UNSIGNED NOT NULL,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (assigned_lead) REFERENCES users(id) ON DELETE SET NULL,
-    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE RESTRICT
-) ENGINE=InnoDB;
+## Key Structural Guarantees
 
--- ISSUES
-CREATE TABLE issues (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    parent_type ENUM('BELT','SITE') NOT NULL,
-    parent_id BIGINT UNSIGNED NOT NULL,
-    status ENUM('OPEN','IN_PROGRESS','CLOSED') NOT NULL DEFAULT 'OPEN',
-    priority ENUM('LOW','MEDIUM','HIGH','CRITICAL') NOT NULL DEFAULT 'MEDIUM',
-    task_id BIGINT UNSIGNED NULL,
-    created_by BIGINT UNSIGNED NOT NULL,
-    closed_by BIGINT UNSIGNED NULL,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE RESTRICT,
-    FOREIGN KEY (closed_by) REFERENCES users(id) ON DELETE SET NULL,
-    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE SET NULL,
-    UNIQUE KEY uniq_issue_task (task_id)
-) ENGINE=InnoDB;
+- one active permission group per role in v1
+- one unique module-scope row per role and module key
+- historical supervisor assignment, not a single supervisor field on green belts
+- historical authority assignment, not a single hardwired authority field
+- historical outsourced-belt assignment for outsourced maintainer scoping
+- one active maintenance cycle per belt enforced in service logic
+- one watering row per belt and date when an explicit action exists
+- one attendance row per supervisor and date
+- one labour row per belt and date
+- one worker daily entry per worker and date
+- one site due-date row per site and due date
+- one upload row per physical file
 
--- UPLOADS
-CREATE TABLE uploads (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    upload_type ENUM('WORK','ISSUE') NOT NULL,
-    parent_type ENUM('BELT','SITE','TASK','ISSUE') NOT NULL,
-    parent_id BIGINT UNSIGNED NOT NULL,
-    file_path VARCHAR(255) NOT NULL,
-    comment TEXT NULL,
-    authority_visibility ENUM('HIDDEN','APPROVED','REJECTED') NOT NULL DEFAULT 'HIDDEN',
-    rejection_note TEXT NULL,
-    created_by BIGINT UNSIGNED NOT NULL,
-    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
-    deleted_at DATETIME NULL,
-    deleted_by BIGINT UNSIGNED NULL,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE RESTRICT,
-    FOREIGN KEY (deleted_by) REFERENCES users(id) ON DELETE SET NULL
-) ENGINE=InnoDB;
+## Important Modeling Boundaries
 
--- WORKERS
-CREATE TABLE workers (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(150) NOT NULL,
-    skill_type VARCHAR(100) NOT NULL,
-    status ENUM('ACTIVE','ON_LEAVE','INACTIVE') NOT NULL DEFAULT 'ACTIVE',
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB;
+- green belts and advertisement sites are separate entities
+- upload is not issue
+- issue is not task
+- task request is not task
+- authority view is filtered access to uploads, not duplicate storage
+- authority work-type filtering depends on stored upload `work_type`
+- monitoring discovery filtering depends on stored upload discovery-mode metadata
+- custom monitoring due-date plans replace default cadence for that site
 
--- WORKER ATTENDANCE
-CREATE TABLE worker_attendance (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    worker_id BIGINT UNSIGNED NOT NULL,
-    attendance_date DATE NOT NULL,
-    status ENUM('PRESENT','ABSENT','HALF_DAY') NOT NULL DEFAULT 'PRESENT',
-    override_by BIGINT UNSIGNED NULL,
-    override_reason TEXT NULL,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (worker_id) REFERENCES workers(id) ON DELETE RESTRICT,
-    FOREIGN KEY (override_by) REFERENCES users(id) ON DELETE SET NULL,
-    UNIQUE KEY uniq_worker_date (worker_id, attendance_date)
-) ENGINE=InnoDB;
+## Deletion And Retention Rules
 
--- WORKER DAILY ENTRIES
-CREATE TABLE worker_daily_entries (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    worker_id BIGINT UNSIGNED NOT NULL,
-    entry_date DATE NOT NULL,
-    task_id BIGINT UNSIGNED NULL,
-    activity_type VARCHAR(100) NOT NULL,
-    work_plan TEXT NOT NULL,
-    work_update TEXT NOT NULL,
-    remarks TEXT NULL,
-    created_by BIGINT UNSIGNED NOT NULL,
-    override_by BIGINT UNSIGNED NULL,
-    override_reason TEXT NULL,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (worker_id) REFERENCES workers(id) ON DELETE RESTRICT,
-    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE SET NULL,
-    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE RESTRICT,
-    FOREIGN KEY (override_by) REFERENCES users(id) ON DELETE SET NULL
-) ENGINE=InnoDB;
-```
+- users are soft-deleted
+- tasks are archived, not deleted
+- uploads support soft delete and purge markers
+- rejected uploads become manual cleanup candidates after the configured threshold
+- issue evidence remains permanent in v1
 
-------------------------------------------------------------------------
+## Migration Order
 
-Schema v1 is constitutionally frozen.
+Use the canonical roadmap order from `docs/11_build_specs/02_CANONICAL_SCHEMA_ROADMAP.md`.
+Do not rebuild schema order from the old trimmed model.

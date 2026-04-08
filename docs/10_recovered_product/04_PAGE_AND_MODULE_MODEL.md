@@ -75,11 +75,13 @@ Drill-down page showing belt information, watering history, cycle history, uploa
 
 Low-friction field evidence page for maintained belts.
 It may capture soft GPS metadata silently for Ops verification and must not expose authority review results back to supervisors.
+Where work-context filtering matters later, the page should support an optional stored `work_type` tag for work uploads.
 
 ### Outsourced Upload
 
 Separate upload flow for outsourced belts.
 This should not be merged into the internal supervisor experience.
+It should resolve available belts from explicit outsourced-belt assignments, not from internal supervisor assignment logic.
 
 ### Upload Review
 
@@ -90,6 +92,7 @@ Ops governance page between raw field evidence and authority visibility.
 Read-only authority portal for approved green-belt proof only.
 The system controls visibility; external sharing remains outside system control.
 It should support filtered download, one-click WhatsApp helper sharing with a pre-filled message, and the authority summary model locked in `07_AUTHORITY_SHARE_AND_SUMMARY_MODEL.md`.
+Any work-type filter shown here must be backed by stored upload work-type data rather than comment parsing.
 
 ### Site And Asset Master
 
@@ -103,6 +106,7 @@ Campaign lifecycle page covering site linkage and campaign-end review.
 ### Monitoring Upload
 
 Field proof page for monitoring and free-media discovery.
+When discovery mode is used, the upload flow should create or refresh the governed discovered free-media state instead of leaving discovery as an unlinked photo-only event.
 
 ### Monitoring Plan
 
@@ -120,6 +124,7 @@ Commercial and support intake page for action requests that must go through Ops.
 
 Read-only task-progress surface for Sales, Client Servicing, and Media Planning.
 It shows progress and status for tasks linked to their requests, clients, campaigns, or planning asks without turning those roles into execution users.
+Implementation should use dedicated read-only task-progress routes rather than colliding with execution-side progress-update routes.
 
 ### Task Management
 

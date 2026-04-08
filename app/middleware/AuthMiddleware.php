@@ -12,20 +12,21 @@ class AuthMiddleware
      * Route keys match index.php route strings exactly.
      */
     private array $routePermissions = [
-        'user/create' => [1],
-        'user/update' => [1],
-        'user/delete' => [1],
-        'user/activate' => [1],
-        'user/deactivate' => [1],
-        'user/restore' => [1],
-        'user/list'   => [1],
-        'user/get'    => [1],
+        'user/create' => ['OPS_MANAGER'],
+        'user/update' => ['OPS_MANAGER'],
+        'user/delete' => ['OPS_MANAGER'],
+        'user/activate' => ['OPS_MANAGER'],
+        'user/deactivate' => ['OPS_MANAGER'],
+        'user/restore' => ['OPS_MANAGER'],
+        'user/list'   => ['OPS_MANAGER'],
+        'user/get'    => ['OPS_MANAGER'],
     ];
 
     /**
      * Routes allowed while force password reset is pending.
      */
     private array $forceResetAllowedRoutes = [
+        'auth/session',
         'auth/logout',
         'auth/reset-password',
     ];
@@ -37,8 +38,6 @@ class AuthMiddleware
         }
 
         $userId = $_SESSION['user_id'] ?? null;
-        $roleId = $_SESSION['role_id'] ?? null;
-
         // Requests without an authenticated session must never reach controllers.
         if (!$userId) {
             Response::error('Unauthorized', 401);
@@ -69,6 +68,9 @@ class AuthMiddleware
             Response::error('Unauthorized', 401);
             exit;
         }
+
+        $role = $userRepository->getRoleById((int) ($user['role_id'] ?? 0));
+        $roleKey = $role['role_key'] ?? null;
 
         $isUtilityRoute = in_array($route, $this->forceResetAllowedRoutes, true);
 
@@ -107,7 +109,7 @@ class AuthMiddleware
 
         $allowedRoles = $this->routePermissions[$route];
 
-        if (!in_array($roleId, $allowedRoles)) {
+        if (!is_string($roleKey) || !in_array($roleKey, $allowedRoles, true)) {
             Response::error('Forbidden', 403);
             exit;
         }

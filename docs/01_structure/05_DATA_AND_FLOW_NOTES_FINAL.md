@@ -1,376 +1,162 @@
-# 05_DATA_AND_FLOW_NOTES.md
+# Skyte Ops Data And Flow Notes
 
-Version: Architecture Freeze v1 (Final) Status: Schema-Ready
-Authoritative Blueprint
+## Purpose
 
-------------------------------------------------------------------------
+This file is the repo-facing structural mirror of the recovered entity and workflow model.
+It is no longer the top authority for scope.
 
-0.  PURPOSE
+Primary references:
 
-This document defines the complete structural, behavioral, and
-governance model of the system.
+- `docs/10_recovered_product/02_DOMAIN_AND_ENTITY_MODEL.md`
+- `docs/10_recovered_product/03_WORKFLOWS_AND_LIFECYCLES.md`
+- `docs/11_build_specs/02_CANONICAL_SCHEMA_ROADMAP.md`
+- `docs/11_build_specs/05_WORKFLOW_STATE_MACHINE_SPEC.md`
 
-It governs: - Entities - Relationships - Lifecycle rules - Lock rules -
-Override rules - Compliance engines - Alert logic - Archive behavior -
-Reporting dependencies - Cross-entity effects
+## Global Structural Rules
 
-If behavior is not defined here, it does not exist.
+- store operational truth once and reuse it through role-scoped views
+- do not store dashboard counters, alert rows, or authority summaries as primary truth
+- no hidden lifecycle mutations
+- override paths must be attributable and auditable
+- issue lifecycle remains separate from task lifecycle
+- upload existence remains separate from upload visibility
 
-------------------------------------------------------------------------
+## Core Entity Boundaries
 
-1.  GLOBAL SYSTEM RULES
+### Governance And Access
 
-2.  Every primary entity must include:
+- users
+- roles
+- permission groups
+- role-permission mappings
+- role-module scopes
+- audit logs
+- system settings
 
-    -   id (Primary Key)
-    -   created_at
-    -   updated_at
+### Green Belt Domain
 
-3.  All override actions must include:
+- green belts
+- belt-supervisor assignments
+- belt-authority assignments
+- belt-outsourced assignments
+- maintenance cycles
+- watering records
+- supervisor attendance
+- labour entries
 
-    -   override_by
-    -   override_reason
-    -   audit log entry
+### Execution Resources
 
-4.  Alerts are NOT stored in database.
+- fabrication workers
+- worker_daily_entries
+- fabrication-only task_worker_assignments
 
-    -   Alerts are calculated dynamically from current state.
+### Advertisement And Monitoring
 
-5.  All reports operate on calendar month only.
+- sites
+- site_monitoring_due_dates
+- campaigns
+- campaign_sites
+- free_media_records
 
-6.  No circular foreign key dependencies allowed.
+### Proof, Issues, Requests, And Tasks
 
-7.  Immutable relationships may not be modified after creation.
+- uploads
+- issues
+- task_requests
+- tasks
 
-8.  No silent data mutation anywhere in system.
+## Stored Versus Derived Truth
 
-9.  User Operational State Rule
+### Stored
 
-    A user is operationally usable only when:
+- core masters and assignments
+- operational entries
+- uploads and review metadata
+- issues and tasks
+- monitoring monthly due dates
+- free-media records
+- settings and audit history
 
-    -   is_deleted = 0
-    -   is_active = 1
+### Derived
 
-    Non-deleted users may still be inactive and must not be treated as usable.
+- dashboards
+- alerts
+- worker availability
+- watering compliance percentages
+- monitoring due/completed/overdue views
+- authority summary text
+- monthly report rows
 
-------------------------------------------------------------------------
+## Major Workflow Boundaries
 
-2.  GREEN BELT DOMAIN
+### Green Belt Proof
 
-2.1 Green Belt (Master Entity)
+- field proof is created first
+- Ops review governs authority visibility later
+- issue proof never becomes authority proof
 
-Fields:
+### Watering
 
-id
+- watering is its own daily operational record
+- `DONE` and `NOT_REQUIRED` are stored
+- `PENDING` is derived from no row
 
-common_name
+### Maintenance Cycles
 
-authority_name
+- one active cycle per belt at a time
+- manual start and close
+- hidden or expired belts can force governed auto-close behavior
 
-zone
+### Requests And Tasks
 
-permission_status ENUM: APPLIED AGREEMENT_SIGNED RENEWAL_IN_PROCESS EXPIRED
+- requesters create requests, not tasks
+- Ops approves or rejects request intake
+- approved requests convert into tasks
+- execution handoff and Ops closure remain separate
 
-permission_start_date
+### Worker Tracking
 
-permission_end_date (nullable)
+- worker_daily_entries are the universal daily truth
+- fabrication task-worker assignments add occupancy context for fabrication only
 
-maintenance_mode ENUM: MAINTAINED OUTSOURCED
+### Monitoring Due Truth
 
-watering_frequency ENUM: DAILY ALTERNATE_DAY WEEKLY NOT_REQUIRED
+- site due truth comes from Ops-managed monthly due-date rows
+- a site can have multiple dates in a month
+- dates can be copied into future months
+- dates can be bulk-copied across multiple sites or groups
+- custom due-date plans replace default cadence for that site
 
-watering_frequency_effective_from DATE
+### Authority Output
 
-hidden BOOLEAN
+- authority access uses approved work proof only
+- output is visibility-driven, not duplicate-file-driven
+- WhatsApp helper output is a convenience layer, not send-state truth
 
-Supervisor ownership is handled via belt_supervisor_assignments.
+## Upload And Retention Notes
 
-There is no supervisor field inside green_belts.
+- one file equals one upload row
+- work proof and issue proof remain separate through `upload_type`
+- optional upload `work_type` stays stored where authority filtering or summary grouping needs it
+- monitoring discovery mode stays stored on uploads where history filtering needs it
+- rejected uploads remain internal and become cleanup candidates after 30 days
+- self-deleted uploads purge after the configured threshold
+- issue proof remains permanent evidence in v1
+- purged uploads keep minimal governance-safe metadata
 
-Assignment Rules:
+## Additional Wiring Notes
 
-Historical model
+- outsourced belt scope must come from explicit outsourced-assignment records, not from supervisor mappings
+- monitoring discovery mode must create or refresh governed free-media discovery state, not just store an upload
 
-One active assignment per belt
+## Reporting Notes
 
-No overlapping date ranges
+- monthly reports are calendar-month only
+- CSV is the only export format in v1
+- per-user reports remain domain-scoped
+- archived tasks stay historically visible where the report model requires them
 
-Supervisor resolved dynamically by date
+## Sync Rule
 
-Rule:
-
-When watering_frequency changes, watering_frequency_effective_from is set to current date.
-
-Compliance calculations must respect effective_from date.
-
-Past compliance calculations must not be recalculated.
-
-------------------------------------------------------------------------
-
-2.2 Permission Lifecycle Rules
-
--   Only AGREEMENT_SIGNED may auto-transition to EXPIRED.
--   If permission_end_date \< current_date → status becomes EXPIRED.
--   Auto-transition to EXPIRED must create audit log entry.
--   System must store previous_status and transition_timestamp.
--   When EXPIRED:
-    -   Active maintenance cycle auto-closes.
-    -   Watering compliance stops.
-    -   Labour compliance stops.
-    -   Attendance expectations stop.
--   Approved uploads remain historically visible.
-
-------------------------------------------------------------------------
-
-2.3 Maintenance Mode Rules
-
-MAINTAINED: - Watering compliance active - Labour tracking active -
-Attendance active - Maintenance cycle active
-
-OUTSOURCED: - No watering compliance - No labour compliance - No
-attendance compliance - Uploads allowed - Issues allowed
-
-------------------------------------------------------------------------
-
-2.4 Hidden Rule
-
-If hidden = true: - Active maintenance cycle auto-closes - Watering
-compliance stops - Labour compliance stops - Attendance expectation
-stops - Historical data preserved
-
-------------------------------------------------------------------------
-
-3.  WATERING MODEL
-
-3.1 Watering Frequency
-
--   Editable by Ops only
--   Effective from change date
--   No retroactive recalculation
--   Change logged in audit
-
-If NOT_REQUIRED: - Watering UI hidden - No watering alerts generated
-
-------------------------------------------------------------------------
-
-3.2 Watering Log
-
-UNIQUE (belt_id, watering_date)
-
-Fields: - id - belt_id - watering_date - marked_by - marked_at -
-override_by (nullable) - override_reason (nullable)
-
-------------------------------------------------------------------------
-
-3.3 Marking Rules
-
-Supervisor / Head: - May mark current server date only - Cutoff = 20:00
-server time - Cannot backdate - Cannot future-date
-
-Past-month records are locked by default.
-Only Ops role can perform override on locked records.
-All overrides must require a reason and must be recorded in audit_logs.
-Overrides are action-specific and do not unlock the entire month or dataset.
-
-------------------------------------------------------------------------
-
-3.4 Compliance Logic
-
-DAILY: - Required every calendar day
-
-ALTERNATE_DAY: - Required if days_since_last_watered \>= 2
-
-WEEKLY: - Required if days_since_last_watered \>= 7
-
-If no prior watering exists: - Watering expected immediately after belt
-activation
-
-Compliance stops when: - maintenance_mode = OUTSOURCED -
-permission_status = EXPIRED - hidden = true
-
-------------------------------------------------------------------------
-
-3.5 Monthly Watering Compliance %
-
-watered_days / expected_watering_days
-
-Displayed in: - Belt Monthly Health Report - Supervisor Monthly Activity
-Report
-
-------------------------------------------------------------------------
-
-4.  MAINTENANCE CYCLE
-
-Fields: - id - belt_id - cycle_start_date - cycle_end_date (nullable) -
-started_by - closed_by
-
-Rules: - Manual start by Head Supervisor - Manual close by Head
-Supervisor - Ops override allowed (audit required) - Alert if cycle open
-\> 4 days - Auto-close if belt hidden or expired - Supervisor
-reassignment allowed mid-cycle (audit logged)
-
-------------------------------------------------------------------------
-
-5.  ATTENDANCE SYSTEM
-
-5.1 Green Belt Attendance
-
-UNIQUE (supervisor_id, date)
-
--   Marked by Head Supervisor
--   Morning alert if missing
--   Past-month records are locked by default.
--   Only Ops role can perform override on locked records.
--   All overrides must require a reason and must be recorded in audit_logs.
--   Overrides are action-specific and do not unlock the entire month or dataset.
--   Does NOT block watering or uploads
--   If missing, alert visible on Master & Ops Dashboard
-
-------------------------------------------------------------------------
-
-5.2 Monitoring & Fabrication Attendance
-
-UNIQUE (worker_id, date)
-
--   Marked by Ops
--   Morning alert if missing
--   Past-month records are locked by default.
--   Only Ops role can perform override on locked records.
--   All overrides must require a reason and must be recorded in audit_logs.
--   Overrides are action-specific and do not unlock the entire month or dataset.
--   If worker_status = ON_LEAVE:
-    -   Attendance alert suppressed
-    -   6 PM work-entry alert suppressed
-
-------------------------------------------------------------------------
-
-6.  LABOUR TRACKING
-
-UNIQUE (belt_id, date)
-
-Fields: - belt_id - date - labour_count
-
-Rules: - Only valid when maintenance_mode = MAINTAINED - Morning alert
-if missing - Past-month records are locked by default. Only Ops role can
-perform override on locked records. All overrides must require a reason
-and must be recorded in audit_logs. Overrides are action-specific and do
-not unlock the entire month or dataset. - Aggregation based on
-supervisor assigned on that specific date - Does NOT affect health
-engine
-
-------------------------------------------------------------------------
-
-7.  UPLOAD MODEL
-
-Fields: - id - upload_type ENUM (WORK, ISSUE) - parent_type ENUM (BELT,
-SITE, TASK) - parent_id - authority_visibility ENUM (HIDDEN, APPROVED,
-REJECTED) - created_by - created_at - soft_deleted BOOLEAN 
-Default:
-- authority_visibility = HIDDEN on creation.
-
-Uploads can be associated with:
-
--   Green Belt
--   Site
--   Task
-
-Eligibility:
-- Only BELT parent WORK uploads may transition to APPROVED.
-- ISSUE uploads cannot be APPROVED.
-- SITE and TASK uploads remain internal in v1.
-- REJECTED state requires internal rejection note.
-
-Rules: - Parent association immutable - Supervisor may delete within 5
-minutes - After 5 minutes → locked - Self-deleted uploads auto-purged
-after 30 days - Rejected uploads require manual purge by Ops - Approved
-uploads permanent - Issue uploads permanent unless soft-deleted in
-5-minute window - Approved uploads remain visible after belt expiry
-
-------------------------------------------------------------------------
-
-8.  ISSUE MODEL
-
-States: - OPEN - IN_PROGRESS - CLOSED
-
-Rules: - Only Ops can close - Optional 1:1 link to Task - Task
-completion does NOT auto-close issue - UI may derive "Resolution
-Attempted" when linked task is completed - No backward transitions
-
-------------------------------------------------------------------------
-
-9.  FABRICATION & MONITORING DOMAIN
-
-9.1 Task
-
-Fields: - id - category - vertical - priority - source - location_text -
-assigned_lead - status ENUM (OPEN, RUNNING, COMPLETED, CANCELLED) -
-completion_note - archived BOOLEAN
-Archive Rules:
-- If archived = true → task becomes read-only.
-- Archived tasks excluded from operational lists.
-- Archived tasks included in historical reports.
-- Archive does NOT delete data.
-Rules: - CANCELLED → read-only - Archive is manual only - Archived tasks
-hidden from operational lists - Archived tasks included in historical
-reports
-
-
-------------------------------------------------------------------------
-
-9.2 Worker
-
-Fields: - id - name - skill_type - status ENUM (ACTIVE, ON_LEAVE,
-INACTIVE)
-
-------------------------------------------------------------------------
-
-9.3 Daily Work Entry
-
-Fields: - worker_id - date - task_id (nullable) - activity_type -
-work_plan - work_update - remarks
-
-Rules: - Multiple entries allowed per worker per day - 6 PM alert if no
-entry - Past-month records are locked by default. Only Ops role can
-perform override on locked records. All overrides must require a reason
-and must be recorded in audit_logs. Overrides are action-specific and do
-not unlock the entire month or dataset. - Work entry allowed only if worker attendance exists for that date 
-- Does NOT auto-update task
-progress
-
-------------------------------------------------------------------------
-
-10. ALERT ENGINE
-
-Alerts are dynamic and grouped by category.
-
-Green Belt Alerts: - Attendance missing - Labour missing - Watering
-missing - Cycle delay - Expiry warning
-
-Fabrication/Monitoring Alerts: - Attendance missing - Work entry
-missing - High priority tasks - Monitoring overdue
-
-------------------------------------------------------------------------
-
-11. REPORTING MODEL
-
-Calendar month only.
-
-Reports: - Belt Health Summary - Supervisor Activity - Worker Activity -
-Advertisement Monthly Report
-
-CSV export supported for all reports. Archived tasks included in
-reports.
-
-------------------------------------------------------------------------
-
-12. GOVERNANCE RULES
-
--   All overrides require reason
--   All overrides logged
--   Role-based access enforced at controller level
--   No silent data mutation allowed
-
-------------------------------------------------------------------------
-
-STATUS: Finalized Architecture Blueprint. Schema may now be designed
-from this document without ambiguity.
+When this file and the build-spec layer diverge, the build-spec layer wins on implementation detail.
+When this file and the recovered canon diverge on product truth, the recovered canon wins.
