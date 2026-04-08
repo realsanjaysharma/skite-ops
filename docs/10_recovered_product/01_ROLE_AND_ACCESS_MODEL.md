@@ -13,13 +13,14 @@
 ## Role Landing Behavior
 
 - Ops lands on the Master Operations Dashboard
-- Head Supervisor lands on the green-belt oversight view
+- Head Supervisor lands on Supervisor Attendance and Watering Oversight
 - Green Belt Supervisor lands on the Supervisor Upload page
 - Outsourced Maintainer lands on the Outsourced Upload page
 - Monitoring Team lands on the Monitoring Upload or monitoring work view
 - Fabrication Lead lands on My Tasks
-- Sales and Client Servicing land on their proof-and-request surfaces
-- Media Planning lands on planning and free-media views
+- Sales lands on a read-only assigned task progress page
+- Client Servicing lands on a read-only assigned task progress page
+- Media Planning lands on a read-only assigned task progress page
 - Authority Representative lands on Authority View
 - Management lands on a read-only dashboard
 
@@ -86,25 +87,28 @@
 
 - Login: yes
 - Scope: advertisement and client-facing proof
-- Can see: monitoring proof and client-facing proof views
+- Landing page: read-only assigned task progress page
+- Can see: monitoring proof, client-facing proof views, and progress status for tasks linked to their requests, clients, or campaigns
 - Can do: filter, download, manually share through WhatsApp, raise requests to Ops
-- Cannot do: upload monitoring proof, approve, edit site or campaign state
+- Cannot do: upload monitoring proof, approve, edit site or campaign state, work inside task execution flow
 
 ### Client Servicing Team
 
 - Login: yes
 - Scope: advertisement and client-facing proof
-- Can see: monitoring proof and client-facing proof views
+- Landing page: read-only assigned task progress page
+- Can see: monitoring proof, client-facing proof views, and progress status for tasks linked to their requests, clients, or campaigns
 - Can do: filter, download, manually share through WhatsApp, raise requests to Ops
-- Cannot do: upload, approve, edit site or campaign state
+- Cannot do: upload, approve, edit site or campaign state, work inside task execution flow
 
 ### Media Planning Team
 
 - Login: yes
 - Scope: planning-facing site, proof, and free-media visibility
-- Can see: site metadata, board and pole proof, free and available media views
+- Landing page: read-only assigned task progress page
+- Can see: site metadata, board and pole proof, free and available media views, and progress status for tasks linked to their requests, clients, campaigns, or planning asks
 - Can do: filter, download, raise free-media or action requests to Ops
-- Cannot do: upload monitoring proof directly, approve, modify site truth
+- Cannot do: upload monitoring proof directly, approve, modify site truth, work inside task execution flow
 
 ### Authority Representative / Authorized Person
 
@@ -125,8 +129,8 @@
 ## Non-Login Or Not Fully Finalized Actors
 
 - Daily labour: tracked as count, not as user identity by default
-- Gardener: mentioned in operations reality, not finalized as system role
-- Night guards: mentioned in operations reality, not finalized as system role
+- Gardener: tracked through separate daily resource counts, not as login role
+- Night guards: tracked through separate daily resource counts, not as login roles
 - Clients: not system users
 - External authority body: not system users
 
@@ -147,6 +151,7 @@ The recovered transcripts lock this behavior:
 - role creation is constrained through predefined permission groups
 - new roles can be linked to vertical access and allowed modules
 - arbitrary micro-permission toggles are not allowed
+- one role maps to one permission group in v1
 
 This implies a governed RBAC model, not open-ended permission design.
 

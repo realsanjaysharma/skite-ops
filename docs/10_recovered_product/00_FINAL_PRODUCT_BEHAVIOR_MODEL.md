@@ -97,7 +97,9 @@ The intended product is built around these core entities:
 - watering records
 - supervisor attendance
 - labour entries
+- gardener and night-guard daily counts
 - fabrication workers
+- worker-daily entries
 - task-worker assignments
 - advertisement sites and assets
 - campaigns
@@ -118,6 +120,7 @@ Important modeling boundaries:
 - Request is not the same as Task
 - authority-facing visibility is governed access, not duplicate data storage
 - dashboard state, alerts, and compliance are mostly derived
+- monitoring due truth comes from Ops-managed site schedules where due dates are selected in advance for each month, can be copied forward into the next month, and can be bulk-applied across multiple sites or operational groups
 
 ## Main Workflows
 
@@ -133,6 +136,7 @@ The intended product behavior includes:
 - task execution and final Ops review flow
 - worker allocation and availability flow
 - monitoring proof flow
+- monitoring planning and due-list flow
 - free media discovery flow
 - campaign-end to free-media transition flow
 - outsourced belt oversight flow
@@ -190,6 +194,7 @@ The intended product includes these major surfaces:
 - outsourced belts must stay outside normal internal compliance logic
 - requesters cannot bypass Ops and create execution truth directly
 - dynamic roles are allowed only through predefined permission groups
+- one role maps to one permission group in v1
 - no hidden lifecycle magic
 - no hidden approval shortcuts
 - auditability matters

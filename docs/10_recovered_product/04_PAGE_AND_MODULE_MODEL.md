@@ -89,10 +89,12 @@ Ops governance page between raw field evidence and authority visibility.
 
 Read-only authority portal for approved green-belt proof only.
 The system controls visibility; external sharing remains outside system control.
+It should support filtered download, one-click WhatsApp helper sharing with a pre-filled message, and the authority summary model locked in `07_AUTHORITY_SHARE_AND_SUMMARY_MODEL.md`.
 
 ### Site And Asset Master
 
 Operational source of truth for advertisement sites and assets.
+This remains separate from Green Belt Master even when an advertisement site references a green belt location.
 
 ### Campaign Management
 
@@ -102,9 +104,22 @@ Campaign lifecycle page covering site linkage and campaign-end review.
 
 Field proof page for monitoring and free-media discovery.
 
+### Monitoring Plan
+
+Soft Ops-approved planning surface for monitoring.
+The system can generate a suggested due list and plan, but monitoring work is not blocked if Ops does not formally approve it.
+Ops should be able to select multiple due dates for each site from a monthly calendar and copy the same pattern into the next month when needed.
+Ops should also be able to copy the same monthly plan across multiple selected sites or groups such as highway sites.
+Stored monthly due dates are the true operational basis for monitoring due lists.
+
 ### Raise Request Page
 
 Commercial and support intake page for action requests that must go through Ops.
+
+### Assigned Task Progress Page
+
+Read-only task-progress surface for Sales, Client Servicing, and Media Planning.
+It shows progress and status for tasks linked to their requests, clients, campaigns, or planning asks without turning those roles into execution users.
 
 ### Task Management
 
@@ -132,8 +147,17 @@ Admin or Ops-only cleanup surface for rejected uploads that are old enough to be
 
 Separate reporting surface for monthly and operational reporting, including CSV export behavior when finalized.
 Per-user reports must remain domain-scoped.
+Exact CSV columns, grouping, filters, and inclusion rules are locked in `06_REPORT_AND_EXPORT_MODEL.md`.
 
 ### System Settings
 
 Controlled tuning page for thresholds and system-level operational settings.
 This may also store approved operational shortcuts such as the Ops phone number used by Call Ops.
+
+### Supervisor Attendance And Watering Oversight
+
+Head Supervisor landing surface focused on:
+
+- same-day watering oversight
+- supervisor attendance
+- operational visibility over maintained belts

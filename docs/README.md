@@ -1,204 +1,107 @@
 # Skyte Ops Documentation System
 
-This repository contains a governance-first operations system.
+This repository now uses a two-layer documentation model:
 
-The documentation is structured as a hierarchical authority system.
+- `docs/10_recovered_product` = canonical product truth
+- `docs/11_build_specs` = canonical implementation-spec layer
 
-Not all documents have equal authority.
+Older docs outside those layers remain useful as references, but many are legacy interpretation docs from the trimmed-system phase.
 
-The reading order and authority levels must be respected during development.
+## Reading Order
 
----
+Use this order during active planning and implementation:
 
-# Documentation Hierarchy
+1. `docs/10_recovered_product/00_FINAL_PRODUCT_BEHAVIOR_MODEL.md`
+2. `docs/10_recovered_product/01_ROLE_AND_ACCESS_MODEL.md`
+3. `docs/10_recovered_product/02_DOMAIN_AND_ENTITY_MODEL.md`
+4. `docs/10_recovered_product/03_WORKFLOWS_AND_LIFECYCLES.md`
+5. `docs/10_recovered_product/04_PAGE_AND_MODULE_MODEL.md`
+6. `docs/10_recovered_product/06_REPORT_AND_EXPORT_MODEL.md`
+7. `docs/10_recovered_product/07_AUTHORITY_SHARE_AND_SUMMARY_MODEL.md`
+8. `docs/11_build_specs/*`
 
-The documentation is divided into levels.
+Only after that should rewritten legacy docs be treated as synchronized repo-facing references.
 
-Higher levels override lower levels.
+## Documentation Layers
 
-LEVEL 0 — GOVERNANCE (Highest Authority)
+### Product Truth
 
-These files control architecture boundaries and system rules.
+`docs/10_recovered_product/`
 
-docs/00_governance/
+This folder captures the recovered intended product from the original transcripts.
+It is the canonical source for:
 
-Files:
+- scope
+- roles
+- entities
+- workflows
+- pages
+- reporting
+- authority-sharing behavior
 
-NON_NEGOTIABLES_V3.md  
-CURRENT_PHASE.md  
-SYSTEM_BOOT_PROMPT_V3.md  
-00_PROJECT_FILE_MAP_FINAL_V2.md
+### Build Specs
 
-These files define:
+`docs/11_build_specs/`
 
-• Architecture freeze status  
-• System boundaries  
-• Development discipline  
-• Documentation reading order
+This folder captures implementation-level truth.
+It is the canonical source for:
 
-If any file conflicts with these, these files take precedence.
+- build order
+- RBAC details
+- schema roadmap
+- route contracts
+- page field behavior
+- workflow state machines
+- upload retention and storage rules
+- formulas
+- system settings
+- acceptance checklists
 
----
+### Legacy References
 
-LEVEL 1 — STRUCTURAL AUTHORITY
+Legacy folders still exist:
 
-docs/01_structure/
+- `docs/00_governance`
+- `docs/01_structure`
+- `docs/02_interface`
+- `docs/03_context`
+- `docs/04_operations`
+- `docs/05_future`
+- `docs/06_schema`
 
-Files:
+These folders are not all equal in value anymore.
+Some files should be kept, some rewritten, some merged, and some archived.
 
-05_DATA_AND_FLOW_NOTES_FINAL.md  
-06_DECISIONS_LOG_FINAL_LOCKED.md  
+See:
 
-These files define:
+- `docs/10_recovered_product/08_LEGACY_DOC_REWRITE_PLAN.md`
+- `docs/10_recovered_product/09_LEGACY_DOC_CLASSIFICATION.md`
 
-• System entities  
-• Lifecycle rules  
-• Compliance logic  
-• Governance decisions
+## Active Rule
 
-All backend implementation must align with these documents.
+When a legacy doc conflicts with recovered product truth:
 
----
+- recovered product docs win on product intent
+- build-spec docs win on implementation contract
+- legacy docs must be rewritten, merged, or archived
 
-LEVEL 2 — SYSTEM INTERFACE
+## Still Useful Existing Folders
 
-docs/02_interface/
+These remain useful support layers and should be realigned gradually:
 
-Files:
+- `docs/04_operations`
+- `docs/06_schema`
 
-04_PAGE_CATALOG_FINAL_V4_LOCKED.md  
-02_ROLES_AND_ACCESS_FINAL.md  
-03_DESIGN_PRINCIPLES_FINAL.md  
-
-These define:
-
-• Page structure
-• Role-based access model
-• UI architecture
-• Development principles
-
----
-
-LEVEL 3 — CONTEXT & PRODUCT INTENT
-
-docs/03_context/
-
-Files:
-
-00_PROJECT_OVERVIEW_FINAL.md  
-01_REQUIREMENTS_CONTEXT_FINAL.md  
-MASTER_CONTEXT_V3.md  
-ARCHITECTURAL_RATIONALE_V3.md  
-PRODUCT_BEHAVIOR_SPEC_V3.md  
-
-These explain the operational purpose and system philosophy.
-
----
-
-LEVEL 4 — OPERATIONAL GOVERNANCE
-
-docs/04_operations/
-
-Files:
-
-08_SECURITY_AND_DEPLOYMENT_FINAL.md  
-09_BACKUP_AND_RECOVERY_FINAL_LOCKED.md  
-10_GIT_WORKFLOW_FINAL_LOCKED_V2.md  
-DEV_NOTES_FINAL_LOCKED_V3.md  
-
-These define development workflow and operational safety rules.
-
----
-
-LEVEL 5 — FUTURE IDEAS
-
-docs/05_future/
-
-Files:
-
-07_OPEN_QUESTIONS_AND_FUTURE_IDEAS_FINAL.md  
-
-This file contains potential future enhancements and ideas.
-
-These are NOT part of v1 implementation.
-
----
-
-# Schema Documentation
-
-docs/06_schema/
-
-Files:
-
-schema_v1_full.sql  
-11_SCHEMA_BASELINE_v1_FINAL_WITH_DDL.md  
-12_SCHEMA_SPECIFICATION_v1.md  
-
-The schema is frozen at version v1.
-
-If documentation conflicts with the SQL schema, the schema file takes precedence.
-
-Schema changes require:
-
-• Migration file  
-• Decisions Log update  
-• Documentation update
-
----
-
-# Architecture Diagrams
-
-The system architecture and implementation roadmap are documented in:
-
-docs/architecture/skite_ops_architecture_roadmap.pdf
-
-This document contains:
-
-• Backend Architecture Diagram  
-• Project Structure Diagram  
-• Development Roadmap (Implementation Order)
-
-This file provides a visual reference for how the backend layers interact and the recommended development sequence.
-
-Backend architecture follows a layered model:
-
-Controller  
-→ Service  
-→ Repository  
-→ Database
+## Backend Layer Rule
 
 Controllers handle HTTP input/output only and must not contain business logic.
-
-Controllers handle request validation (format, required fields).
-
+Controllers handle request validation for format and required fields.
 Services handle business validation and domain rules.
+Repositories handle database access only.
+RBAC must be enforced at middleware before controllers.
 
-All business rules and system behavior must be implemented in the Service layer.
+## Development Philosophy
 
-Repositories are responsible only for database access and must not contain business logic.
-
-Authorization (RBAC) must be enforced at the middleware layer before reaching controllers. Services must not perform role-based access checks.
-
-All database access must go through repositories.
-
-The architecture diagram reflects the layered backend structure used throughout the system implementation.
-
----
-
-# Architecture Status
-
-Architecture: Frozen  
-Schema: v1 Locked  
-Active Phase: Backend Implementation
-
-Redesign is not allowed unless CURRENT_PHASE explicitly changes.
-
----
-
-# Development Philosophy
-
-Governance > Convenience  
-Auditability > Automation  
+Governance > Convenience
+Auditability > Automation
 Clarity > Cleverness
-
-All code must follow the rules defined in the documentation hierarchy.

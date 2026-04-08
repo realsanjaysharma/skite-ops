@@ -18,6 +18,7 @@ The product supports both the constitutional role set and controlled future role
 
 Permission groups are predefined access bundles such as view, upload, approve, and manage patterns.
 They prevent arbitrary permission spaghetti.
+In v1, one role maps to one permission group.
 
 ### Role-Permission Mapping
 
@@ -85,6 +86,7 @@ Attendance is a support and governance record, separate from uploads and waterin
 ### Labour Entries
 
 Labour is tracked as count-based operational input, not full worker identity management by default.
+Separate daily counts can also be tracked for gardener and night-guard support where needed.
 
 ## Fabrication And Execution Resources
 
@@ -93,17 +95,35 @@ Labour is tracked as count-based operational input, not full worker identity man
 Fabrication workers are tracked as operational resource entries rather than full login users by default.
 This supports monthly worker activity and daily workload visibility without creating low-value login complexity.
 
+### Worker Daily Entries
+
+`worker_daily_entries` is the universal daily work-truth layer.
+
+It exists to support:
+
+- one worker on one date style daily logging
+- attendance
+- task-linked execution where relevant
+- monitoring, driving, support, and other daily activities
+- worker-wise monthly activity
+- day-by-day operational visibility
+
 ### Task-Worker Assignment
 
-`task_worker_assignment` is a required many-to-many operational entity.
+`task_worker_assignment` is a fabrication-specific assignment layer.
 
 It exists to support:
 
 - multiple workers per task
 - lead-managed worker allocation
-- worker-wise monthly activity
-- daily workload visibility
-- "who is free today" style derived views
+- fabrication workload visibility
+- fabrication-specific "who is free today" style derived views
+
+Recovered design lock:
+
+- `worker_daily_entries` remains the primary daily truth layer
+- `task_worker_assignment` exists only for fabrication use
+- other daily work does not need this extra assignment layer
 
 ## Advertisement And Monitoring Domain
 
@@ -122,8 +142,21 @@ It is intended to carry:
 - lighting type
 - operational status
 - monitoring relevance
+- monthly monitoring due-date schedule
+- copy-forward support for next-month scheduling
+- multiple due dates selectable from a calendar per site
+- bulk plan-copy support across multiple selected sites or operational groups
 
 Green belts and advertisement sites remain separate entities even when related.
+
+Recovered monitoring schedule direction now supports:
+
+- Ops selects a site's due dates in advance for the month from a calendar
+- a site may have multiple due dates within the same month
+- the system should support practical patterns such as Monday and Friday or multiple month dates
+- Ops can copy the same pattern into the next month and then adjust it if needed
+- Ops can copy the same monthly pattern across multiple sites or groups such as highway routes
+- the selected monthly dates are the operational due truth for that site
 
 ### Campaigns
 
@@ -172,15 +205,17 @@ Uploads should retain:
 - governance visibility state
 - soft-delete behavior where appropriate
 - purge markers where hard purge is allowed later
-- optional soft GPS verification metadata for non-blocking Ops review
+- stored GPS metadata for Ops review
 - task-proof photo labeling where required
 
 Important recovered rules:
 
-- soft GPS verification is non-blocking and only flags suspicious mismatch for Ops review
+- GPS is stored for Ops review only; no automatic mismatch logic is required in v1
 - task completion proof uses labeled photos: After Work required, Before Work optional
 - supervisor uploads remain upload-focused and should not expose authority review outcome back to supervisors
 - approved authority visibility is governed access, not duplicate storage or in-system external send tracking
+- rejected uploads can become manual cleanup candidates after 30 days
+- rejected-upload purge should retain minimal metadata and purge markers for governance safety
 
 ### Issues
 

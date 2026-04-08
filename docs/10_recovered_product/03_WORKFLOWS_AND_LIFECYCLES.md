@@ -10,16 +10,17 @@ It should behave like real operations, not like a simplified software demo.
 
 1. Supervisor works on an assigned belt.
 2. Supervisor uploads proof with optional work context and optional short comment.
-3. System may capture location metadata softly for Ops verification.
+3. System stores location metadata for Ops review.
 4. Upload becomes immediately visible internally to Ops, Head Supervisor, and Management.
 5. Upload does not automatically become authority-visible.
 6. Ops reviews eligible proof and governs authority visibility.
 7. Approved proof becomes visible to the assigned authority representative.
 
-Soft GPS rule:
+GPS rule:
 
-- mismatch should flag for Ops review
-- upload must not be blocked just because GPS looks wrong
+- GPS is stored for Ops review
+- upload must not be blocked because GPS looks wrong
+- no automatic mismatch threshold is required in v1
 
 ## Watering Flow
 
@@ -45,6 +46,7 @@ Soft GPS rule:
 4. Approved work proof becomes visible inside the authority portal.
 5. Authorized Person access is controlled through visibility, not duplicate file creation.
 6. Authority representatives filter, download, and manually share externally.
+7. One-click WhatsApp sharing is helper UX with a pre-filled message; a human still presses Send.
 
 ## Authority Summary Flow
 
@@ -56,6 +58,8 @@ Recovered locking note:
 - the final in-system model is visibility control plus portal access
 - external sharing itself happens outside the system
 - the system does not need fake "shared externally" truth if visibility control is the real governance point
+- summary output is end-of-day oriented rather than continuously final during the day
+- summary content is text-only, belt-wise, and limited to authority-relevant work done
 
 ## Issue Flow
 
@@ -77,7 +81,7 @@ Recovered locking note:
 
 1. Ops assigns task to the execution side.
 2. Fabrication or installation lead sees the task in My Tasks.
-3. Lead can allocate one or more tracked workers against the task.
+3. Lead can allocate one or more tracked fabrication workers against the task.
 4. Execution happens on ground.
 5. Lead uploads mandatory After Work proof and optional Before Work proof.
 6. Lead can use a one-tap Call Ops shortcut when needed.
@@ -89,9 +93,10 @@ Recovered locking note:
 
 1. Ops assigns a task to a Fabrication Lead.
 2. Lead records which workers are assigned to that task.
-3. Worker allocation feeds daily workload visibility.
-4. "Who is free today" is derived from active worker-task assignments, not guessed manually.
-5. Monthly worker activity reports are derived from the same assignment history.
+3. Worker allocation feeds fabrication workload visibility.
+4. `worker_daily_entries` remains the main daily truth layer.
+5. "Who is free today" is derived using daily entries plus fabrication assignment context where needed.
+6. Monthly worker activity reports are derived from the same daily and assignment history.
 
 ## Monitoring Proof Flow
 
@@ -101,6 +106,16 @@ Recovered locking note:
 4. The system does not auto-send proof to clients.
 5. Commercial teams manually reuse and share the controlled proof outward.
 
+## Monitoring Planning And Due Flow
+
+1. Ops selects each site's monitoring due dates in advance for the month.
+2. A site may have multiple due dates within the same month.
+3. Ops can copy the same due-date pattern into the next month and adjust it where needed.
+4. Ops can also bulk-apply the same due-date pattern across multiple selected sites or groups such as highway routes.
+5. The selected dates become the operational due truth for each affected site.
+6. The system can still present a suggested plan or due list, but that list must come from the stored monthly due dates rather than guessed cadence formulas.
+7. Monitoring work is not blocked if Ops skips formal approval of a suggested plan.
+
 ## Role Landing Flow
 
 After login, users land on their role-relevant surface instead of a generic landing page.
@@ -108,9 +123,13 @@ After login, users land on their role-relevant surface instead of a generic land
 Examples:
 
 - Ops -> Master Operations Dashboard
+- Head Supervisor -> Supervisor Attendance and Watering Oversight
 - Green Belt Supervisor -> Supervisor Upload
 - Outsourced Maintainer -> Outsourced Upload
 - Fabrication Lead -> My Tasks
+- Sales -> read-only assigned task progress page
+- Client Servicing -> read-only assigned task progress page
+- Media Planning -> read-only assigned task progress page
 - Authority Representative -> Authority View
 
 ## Free Media Discovery Flow
@@ -169,8 +188,8 @@ Examples:
 
 1. Rejected uploads remain hidden from authority access.
 2. Rejected uploads stay visible to Ops for review and governance.
-3. Older rejected uploads become cleanup candidates.
-4. Ops can use a dedicated cleanup page to bulk permanently delete eligible rejected uploads while retaining minimal governance-safe history where required.
+3. Rejected uploads become manual cleanup candidates after 30 days.
+4. Ops can use a dedicated cleanup page to bulk permanently delete eligible rejected uploads while retaining minimal governance-safe metadata where required.
 
 ## Lifecycle Rules
 
