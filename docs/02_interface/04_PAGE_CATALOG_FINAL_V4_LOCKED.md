@@ -1,5 +1,11 @@
 # Skyte Ops Page Catalog
 
+## Authority Note
+
+- Purpose: Repo-facing mirror for onboarding and navigation.
+- Authority Level: Mirror only.
+- If Conflict: `docs/10_recovered_product/*` wins on product meaning and `docs/11_build_specs/*` wins on implementation behavior.
+
 ## Purpose
 
 This file is the repo-facing page and module inventory.

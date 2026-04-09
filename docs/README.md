@@ -75,6 +75,21 @@ See:
 - `docs/10_recovered_product/08_LEGACY_DOC_REWRITE_PLAN.md`
 - `docs/10_recovered_product/09_LEGACY_DOC_CLASSIFICATION.md`
 
+## Document Authority Rules
+
+Use this precedence rule everywhere:
+
+1. `docs/10_recovered_product/*` wins on product meaning, scope, roles, entities, workflows, pages, and reporting intent
+2. `docs/11_build_specs/*` wins on implementation behavior, schema design, routes, fields, state transitions, formulas, settings, and acceptance criteria
+3. rewritten legacy docs are repo-facing mirrors only and must not override either canonical layer
+4. operational support docs help environment and workflow decisions, but they do not redefine product scope or implementation contracts
+
+If two documents appear to conflict:
+
+- use `docs/10_recovered_product/*` to settle what the system is supposed to be
+- use `docs/11_build_specs/*` to settle how that behavior must be implemented
+- update mirror docs to match; do not treat drift as intentional truth
+
 ## Active Rule
 
 When a legacy doc conflicts with recovered product truth:

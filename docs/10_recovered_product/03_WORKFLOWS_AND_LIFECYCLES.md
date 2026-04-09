@@ -1,5 +1,11 @@
 # Recovered Workflows And Lifecycles
 
+## Authority Note
+
+- Purpose: Canonical recovered product document.
+- Authority Level: Product truth.
+- If Conflict: This file controls product meaning and scope. `docs/11_build_specs/*` controls implementation behavior. Repo-facing mirror docs must be updated to match, not treated as competing truth.
+
 ## Workflow Philosophy
 
 The intended product supports low-friction field capture, Ops-governed review, shared data reuse, and explicit lifecycle transitions.

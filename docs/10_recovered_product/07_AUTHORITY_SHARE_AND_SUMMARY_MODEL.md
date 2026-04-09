@@ -1,5 +1,11 @@
 # Recovered Authority Share And Summary Model
 
+## Authority Note
+
+- Purpose: Canonical recovered product document.
+- Authority Level: Product truth.
+- If Conflict: This file controls product meaning and scope. `docs/11_build_specs/*` controls implementation behavior. Repo-facing mirror docs must be updated to match, not treated as competing truth.
+
 ## Purpose
 
 This file freezes the recovered behavior for authority-facing sharing and text summaries strongly enough for page design, query design, and later implementation specs.

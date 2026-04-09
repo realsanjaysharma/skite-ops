@@ -1,5 +1,11 @@
 # Implementation Master Plan
 
+## Authority Note
+
+- Purpose: Canonical implementation-spec document.
+- Authority Level: Implementation truth.
+- If Conflict: This file controls implementation behavior. `docs/10_recovered_product/*` controls product meaning and scope. Repo-facing mirror docs must be updated to match, not treated as competing truth.
+
 ## Purpose
 
 This file defines the implementation sequence for building the recovered product without drifting back into the trimmed legacy version.

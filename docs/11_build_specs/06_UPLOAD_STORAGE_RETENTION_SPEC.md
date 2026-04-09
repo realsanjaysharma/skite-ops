@@ -1,5 +1,11 @@
 # Upload Storage And Retention Spec
 
+## Authority Note
+
+- Purpose: Canonical implementation-spec document.
+- Authority Level: Implementation truth.
+- If Conflict: This file controls implementation behavior. `docs/10_recovered_product/*` controls product meaning and scope. Repo-facing mirror docs must be updated to match, not treated as competing truth.
+
 ## Purpose
 
 This file defines the implementation contract for upload storage, metadata, validation, and retention behavior.

@@ -1,5 +1,11 @@
 # Recovered Page And Module Model
 
+## Authority Note
+
+- Purpose: Canonical recovered product document.
+- Authority Level: Product truth.
+- If Conflict: This file controls product meaning and scope. `docs/11_build_specs/*` controls implementation behavior. Repo-facing mirror docs must be updated to match, not treated as competing truth.
+
 ## Product Surface Principle
 
 Dashboards provide visibility and navigation.

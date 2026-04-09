@@ -1,5 +1,11 @@
 # Workflow State Machine Spec
 
+## Authority Note
+
+- Purpose: Canonical implementation-spec document.
+- Authority Level: Implementation truth.
+- If Conflict: This file controls implementation behavior. `docs/10_recovered_product/*` controls product meaning and scope. Repo-facing mirror docs must be updated to match, not treated as competing truth.
+
 ## Purpose
 
 This file freezes exact status models and allowed transitions for the main governed operational objects.

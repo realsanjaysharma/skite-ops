@@ -1,6 +1,10 @@
 -- ==========================================
 -- SKYTE OPS - CANONICAL SCHEMA BASELINE
 -- ==========================================
+-- Authority Note:
+-- - Purpose: Repo-facing executable schema mirror for local bootstrap and DB validation.
+-- - Authority Level: Mirror executable artifact.
+-- - If Conflict: docs/11_build_specs/* remains implementation authority; update this SQL to match it.
 -- This file is the repo-facing executable schema target rewritten from:
 -- - docs/11_build_specs/02_CANONICAL_SCHEMA_ROADMAP.md
 -- - docs/11_build_specs/05_WORKFLOW_STATE_MACHINE_SPEC.md

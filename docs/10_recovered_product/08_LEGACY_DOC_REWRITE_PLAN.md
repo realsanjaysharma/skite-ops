@@ -1,5 +1,11 @@
 # Legacy Doc Rewrite Plan
 
+## Authority Note
+
+- Purpose: Canonical recovered product support document.
+- Authority Level: Product-support truth.
+- If Conflict: `docs/10_recovered_product/*` controls product meaning and `docs/11_build_specs/*` controls implementation behavior. This file supports migration planning and must not override either layer.
+
 ## Purpose
 
 This file records how the legacy layer was realigned against the recovered canon and what the repo should treat as finished versus still-active cleanup work.

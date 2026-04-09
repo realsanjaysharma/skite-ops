@@ -1,5 +1,11 @@
 # Skyte Ops Project Overview
 
+## Authority Note
+
+- Purpose: Repo-facing mirror for onboarding and navigation.
+- Authority Level: Mirror only.
+- If Conflict: `docs/10_recovered_product/*` wins on product meaning and `docs/11_build_specs/*` wins on implementation behavior.
+
 ## Status
 
 This legacy overview has been rewritten to match the recovered product canon and the active build-spec layer.

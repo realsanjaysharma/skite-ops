@@ -1,5 +1,11 @@
 # Skyte Ops Schema Baseline
 
+## Authority Note
+
+- Purpose: Repo-facing schema mirror for onboarding and navigation.
+- Authority Level: Mirror only.
+- If Conflict: `docs/11_build_specs/*` wins on implementation behavior and schema intent. This file must be updated to match it.
+
 ## Purpose
 
 This file is the repo-facing schema baseline summary for the recovered product.

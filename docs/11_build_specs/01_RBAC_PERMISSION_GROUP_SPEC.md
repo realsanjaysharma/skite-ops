@@ -1,5 +1,11 @@
 # RBAC And Permission Group Spec
 
+## Authority Note
+
+- Purpose: Canonical implementation-spec document.
+- Authority Level: Implementation truth.
+- If Conflict: This file controls implementation behavior. `docs/10_recovered_product/*` controls product meaning and scope. Repo-facing mirror docs must be updated to match, not treated as competing truth.
+
 ## Purpose
 
 This file defines the implementation-grade RBAC model for the recovered product.
