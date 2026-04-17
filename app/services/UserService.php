@@ -19,6 +19,8 @@
 
 require_once __DIR__ . '/../repositories/UserRepository.php';
 require_once __DIR__ . '/AuditService.php';
+require_once __DIR__ . '/RbacService.php';
+require_once __DIR__ . '/../../config/constants.php';
 require_once __DIR__ . '/../../config/database.php';
 
 class UserService
@@ -34,6 +36,11 @@ class UserService
     private AuditService $auditService;
 
     /**
+     * @var RbacService
+     */
+    private RbacService $rbacService;
+
+    /**
      * @var PDO
      */
     private $db;
@@ -42,6 +49,7 @@ class UserService
     {
         $this->userRepository = new UserRepository();
         $this->auditService = new AuditService();
+        $this->rbacService = new RbacService();
         $this->db = Database::getConnection();
     }
 
@@ -84,9 +92,19 @@ class UserService
      * This list is for lifecycle visibility and admin control, not "usable users" only.
      * Consumers must check is_active before allowing authentication or operational actions.
      */
-    public function getAllUsers()
+    public function getAllUsers(array $filters = []): array
     {
-        return $this->formatUserListResponse($this->userRepository->getAllUsers());
+        $normalizedFilters = $this->normalizeListFilters($filters);
+        $result = $this->userRepository->getAllUsers($normalizedFilters);
+
+        return [
+            'items' => $this->formatUserListResponse($result['items']),
+            'pagination' => [
+                'page' => $result['page'],
+                'limit' => $result['limit'],
+                'total' => $result['total'],
+            ],
+        ];
     }
 
     /**
@@ -119,7 +137,7 @@ class UserService
         $this->validateUserId($actorUserId);
 
         try {
-            $this->assertRoleExists($validatedData['role_id']);
+            $this->assertAssignableRole($validatedData['role_id']);
 
             if ($this->userRepository->emailExists($validatedData['email'])) {
                 throw new InvalidArgumentException('Email already exists');
@@ -194,7 +212,7 @@ class UserService
                 throw new RuntimeException('User not found or has been deleted.');
             }
 
-            $this->assertRoleExists($validatedData['role_id']);
+            $this->assertAssignableRole($validatedData['role_id']);
 
             $existingUser = $this->userRepository->getUserByEmail($validatedData['email']);
 
@@ -594,11 +612,9 @@ class UserService
     /**
      * role_id must reference an existing role before persistence.
      */
-    private function assertRoleExists(int $roleId): void
+    private function assertAssignableRole(int $roleId): void
     {
-        if (!$this->userRepository->roleExists($roleId)) {
-            throw new InvalidArgumentException('Invalid role_id');
-        }
+        $this->rbacService->getRoleAccessContext($roleId);
     }
 
     /**
@@ -625,6 +641,8 @@ class UserService
             'role_id' => $user['role_id'] ?? null,
             'role_key' => $user['role_key'] ?? null,
             'role_name' => $user['role_name'] ?? null,
+            'landing_module_key' => $user['landing_module_key'] ?? null,
+            'permission_group_key' => $user['permission_group_key'] ?? null,
             'full_name' => $user['full_name'] ?? null,
             'email' => $user['email'] ?? null,
             'phone' => $user['phone'] ?? null,
@@ -648,5 +666,27 @@ class UserService
         }
 
         return $formattedUsers;
+    }
+
+    private function normalizeListFilters(array $filters): array
+    {
+        $normalized = [
+            'page' => max(1, (int) ($filters['page'] ?? 1)),
+            'limit' => max(1, (int) ($filters['limit'] ?? DEFAULT_PAGE_LIMIT)),
+        ];
+
+        if (isset($filters['is_active']) && $filters['is_active'] !== '') {
+            if (!in_array((string) $filters['is_active'], ['0', '1'], true)) {
+                throw new InvalidArgumentException('is_active must be 0 or 1');
+            }
+
+            $normalized['is_active'] = (int) $filters['is_active'];
+        }
+
+        if (isset($filters['role_id']) && $filters['role_id'] !== '') {
+            $normalized['role_id'] = $this->validateRoleId($filters['role_id']);
+        }
+
+        return $normalized;
     }
 }

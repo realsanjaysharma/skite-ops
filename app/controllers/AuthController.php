@@ -63,7 +63,9 @@ class AuthController
                 'requires_password_reset' => $requiresPasswordReset,
                 'csrf_token' => $csrfToken,
                 'landing_module_key' => $authResult['landing_module_key'] ?? null,
-                'landing_route' => $authResult['landing_route'] ?? null
+                'landing_route' => $authResult['landing_route'] ?? null,
+                'permission_group_key' => $authResult['permission_group_key'] ?? null,
+                'allowed_module_keys' => $authResult['allowed_module_keys'] ?? []
             ]);
         } catch (Throwable $exception) {
             Response::error($exception->getMessage(), 400);
@@ -86,14 +88,20 @@ class AuthController
             }
 
             $sessionData = $this->authService->getSessionData((int) $userId);
+            $sessionUser = $sessionData['user'] ?? null;
+            $_SESSION['role_id'] = $sessionUser['role_id'] ?? $_SESSION['role_id'] ?? null;
+            $_SESSION['role_key'] = $sessionUser['role_key'] ?? $_SESSION['role_key'] ?? null;
+            $_SESSION['force_password_reset'] = (bool) ($sessionData['requires_password_reset'] ?? false);
             $csrfToken = Csrf::generateToken();
 
             Response::success([
-                'user' => $sessionData['user'] ?? null,
+                'user' => $sessionUser,
                 'requires_password_reset' => (bool) ($sessionData['requires_password_reset'] ?? false),
                 'csrf_token' => $csrfToken,
                 'landing_module_key' => $sessionData['landing_module_key'] ?? null,
-                'landing_route' => $sessionData['landing_route'] ?? null
+                'landing_route' => $sessionData['landing_route'] ?? null,
+                'permission_group_key' => $sessionData['permission_group_key'] ?? null,
+                'allowed_module_keys' => $sessionData['allowed_module_keys'] ?? []
             ]);
         } catch (Throwable $exception) {
             Response::error($exception->getMessage(), 400);

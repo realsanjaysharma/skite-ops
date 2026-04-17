@@ -64,88 +64,67 @@ if (count($parts) !== 2 || $parts[0] === '' || $parts[1] === '') {
 }
 
 require_once __DIR__ . '/app/middleware/AuthMiddleware.php';
+$routeRegistry = require __DIR__ . '/config/route_registry.php';
+$routeConfig = $routeRegistry[$route] ?? null;
 
-if ($route !== 'auth/login') {
+if ($routeConfig === null) {
+    http_response_code(400);
+    echo json_encode([
+        'success' => false,
+        'error' => 'Route not found'
+    ]);
+    return;
+}
+
+if (!(bool) ($routeConfig['public'] ?? false)) {
     $authMiddleware = new AuthMiddleware();
-    $authMiddleware->authorize($route);
+    $authMiddleware->authorize($route, $routeConfig);
 }
 
-switch ($route) {
-    case 'auth/login':
-        require_once __DIR__ . '/app/controllers/AuthController.php';
-        $controller = new AuthController();
-        $controller->login();
-        return;
+$controllerName = $routeConfig['controller'] ?? null;
+$controllerMethod = $routeConfig['method'] ?? null;
 
-    case 'auth/logout':
-        require_once __DIR__ . '/app/controllers/AuthController.php';
-        $controller = new AuthController();
-        $controller->logout();
-        return;
-
-    case 'auth/session':
-        require_once __DIR__ . '/app/controllers/AuthController.php';
-        $controller = new AuthController();
-        $controller->session();
-        return;
-
-    case 'auth/reset-password':
-        require_once __DIR__ . '/app/controllers/AuthController.php';
-        $controller = new AuthController();
-        $controller->resetPassword();
-        return;
-
-    case 'user/create':
-        require_once __DIR__ . '/app/controllers/UserController.php';
-        $controller = new UserController();
-        $controller->createUser();
-        return;
-
-    case 'user/update':
-        require_once __DIR__ . '/app/controllers/UserController.php';
-        $controller = new UserController();
-        $controller->updateUser();
-        return;
-
-    case 'user/get':
-        require_once __DIR__ . '/app/controllers/UserController.php';
-        $controller = new UserController();
-        $controller->getUserById();
-        return;
-
-    case 'user/list':
-        require_once __DIR__ . '/app/controllers/UserController.php';
-        $controller = new UserController();
-        $controller->getAllUsers();
-        return;
-
-    case 'user/delete':
-        require_once __DIR__ . '/app/controllers/UserController.php';
-        $controller = new UserController();
-        $controller->softDeleteUser();
-        return;
-
-    case 'user/activate':
-        require_once __DIR__ . '/app/controllers/UserController.php';
-        $controller = new UserController();
-        $controller->activateUser();
-        return;
-
-    case 'user/deactivate':
-        require_once __DIR__ . '/app/controllers/UserController.php';
-        $controller = new UserController();
-        $controller->deactivateUser();
-        return;
-
-    case 'user/restore':
-        require_once __DIR__ . '/app/controllers/UserController.php';
-        $controller = new UserController();
-        $controller->restoreUser();
-        return;
+if (!is_string($controllerName) || !is_string($controllerMethod)) {
+    http_response_code(500);
+    echo json_encode([
+        'success' => false,
+        'error' => 'Route handler not configured'
+    ]);
+    return;
 }
 
-http_response_code(400);
-echo json_encode([
-    'success' => false,
-    'error' => 'Route not found'
-]);
+$controllerFile = __DIR__ . '/app/controllers/' . $controllerName . '.php';
+
+if (!file_exists($controllerFile)) {
+    http_response_code(500);
+    echo json_encode([
+        'success' => false,
+        'error' => 'Controller file not found'
+    ]);
+    return;
+}
+
+require_once $controllerFile;
+
+if (!class_exists($controllerName)) {
+    http_response_code(500);
+    echo json_encode([
+        'success' => false,
+        'error' => 'Controller class not found'
+    ]);
+    return;
+}
+
+$controller = new $controllerName();
+
+if (!method_exists($controller, $controllerMethod)) {
+    http_response_code(500);
+    echo json_encode([
+        'success' => false,
+        'error' => 'Controller method not found'
+    ]);
+    return;
+}
+
+$controller->{$controllerMethod}();
+return;

@@ -18,6 +18,8 @@
 
 require_once __DIR__ . '/../repositories/UserRepository.php';
 require_once __DIR__ . '/AuditService.php';
+require_once __DIR__ . '/RbacService.php';
+require_once __DIR__ . '/../../config/constants.php';
 require_once __DIR__ . '/../../config/database.php';
 
 class AuthService
@@ -33,6 +35,11 @@ class AuthService
     private AuditService $auditService;
 
     /**
+     * @var RbacService
+     */
+    private RbacService $rbacService;
+
+    /**
      * @var PDO
      */
     private $db;
@@ -41,6 +48,7 @@ class AuthService
     {
         $this->userRepository = new UserRepository();
         $this->auditService = new AuditService();
+        $this->rbacService = new RbacService();
         $this->db = Database::getConnection();
     }
 
@@ -154,14 +162,16 @@ class AuthService
             null
         );
 
-        $safeUser = $this->formatAuthUserResponse($user);
-        $landingContext = $this->buildLandingContext((int) $user['role_id']);
+        $accessContext = $this->rbacService->getUserAccessContext((int) $user['id']);
+        $safeUser = $this->formatAuthUserResponse($user, $accessContext);
 
         return [
             'user' => $safeUser,
             'requires_password_reset' => ((int) $user['force_password_reset'] === 1),
-            'landing_module_key' => $landingContext['landing_module_key'],
-            'landing_route' => $landingContext['landing_route']
+            'landing_module_key' => $accessContext['landing_module_key'],
+            'landing_route' => $accessContext['landing_route'],
+            'permission_group_key' => $accessContext['permission_group_key'],
+            'allowed_module_keys' => $accessContext['allowed_module_keys'],
         ];
     }
 
@@ -176,14 +186,16 @@ class AuthService
             throw new RuntimeException('User not found');
         }
 
-        $safeUser = $this->formatAuthUserResponse($user);
-        $landingContext = $this->buildLandingContext((int) $user['role_id']);
+        $accessContext = $this->rbacService->getUserAccessContext($userId);
+        $safeUser = $this->formatAuthUserResponse($user, $accessContext);
 
         return [
             'user' => $safeUser,
             'requires_password_reset' => ((int) $user['force_password_reset'] === 1),
-            'landing_module_key' => $landingContext['landing_module_key'],
-            'landing_route' => $landingContext['landing_route']
+            'landing_module_key' => $accessContext['landing_module_key'],
+            'landing_route' => $accessContext['landing_route'],
+            'permission_group_key' => $accessContext['permission_group_key'],
+            'allowed_module_keys' => $accessContext['allowed_module_keys'],
         ];
     }
 
@@ -271,7 +283,7 @@ class AuthService
     /**
      * Return only safe authenticated user fields.
      */
-    private function formatAuthUserResponse($user)
+    private function formatAuthUserResponse($user, array $accessContext)
     {
         return [
             'id' => $user['id'] ?? null,
@@ -280,54 +292,8 @@ class AuthService
             'role_name' => $user['role_name'] ?? null,
             'full_name' => $user['full_name'] ?? null,
             'email' => $user['email'] ?? null,
-            'is_active' => $user['is_active'] ?? null
+            'is_active' => $user['is_active'] ?? null,
+            'permission_group_key' => $accessContext['permission_group_key'] ?? null,
         ];
-    }
-
-    /**
-     * Resolve landing module and route from the canonical roles table.
-     */
-    private function buildLandingContext(int $roleId): array
-    {
-        $role = $this->userRepository->getRoleById($roleId);
-
-        if ($role === null) {
-            throw new RuntimeException('Role not found');
-        }
-
-        $landingModuleKey = $role['landing_module_key'] ?? null;
-
-        if (!is_string($landingModuleKey) || trim($landingModuleKey) === '') {
-            throw new RuntimeException('Landing module not configured');
-        }
-
-        return [
-            'landing_module_key' => $landingModuleKey,
-            'landing_route' => $this->mapLandingModuleToRoute($landingModuleKey)
-        ];
-    }
-
-    /**
-     * v1 landing route map from the API contract.
-     */
-    private function mapLandingModuleToRoute(string $landingModuleKey): string
-    {
-        $map = [
-            'dashboard.master_ops' => 'dashboard/master',
-            'green_belt.watering_oversight' => 'oversight/watering',
-            'green_belt.supervisor_upload' => 'upload/supervisor',
-            'green_belt.outsourced_upload' => 'upload/outsourced',
-            'monitoring.upload' => 'monitoring/upload',
-            'task.my_tasks' => 'task/my',
-            'task.progress_read' => 'taskprogress/list',
-            'green_belt.authority_view' => 'authority/view',
-            'dashboard.management' => 'dashboard/management',
-        ];
-
-        if (!isset($map[$landingModuleKey])) {
-            throw new RuntimeException('Landing route not configured');
-        }
-
-        return $map[$landingModuleKey];
     }
 }

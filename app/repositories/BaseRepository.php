@@ -22,7 +22,8 @@
  *
  * Transaction Rule:
  * - Transactions are controlled by SERVICE layer
- * - Repository should NOT expose transaction control publicly
+ * - Transaction methods are public so services can call them
+ * - Should NOT be called directly from controllers
  */
 
 require_once __DIR__ . '/../../config/database.php';
@@ -53,7 +54,7 @@ class BaseRepository
      *
      * Returns:
      * - array (row data)
-     * - false (if no result)
+     * - null (if no result)
      */
     protected function fetchOne($sql, $params = [])
     {
@@ -110,10 +111,10 @@ class BaseRepository
      * BEGIN TRANSACTION
      *
      * IMPORTANT:
-     * - Protected: only used internally or via Service layer
+     * - Public so SERVICE layer can control transaction boundaries
      * - Should NOT be called directly from controllers
      */
-    protected function beginTransaction()
+    public function beginTransaction()
     {
         return $this->db->beginTransaction();
     }
@@ -123,7 +124,7 @@ class BaseRepository
      *
      * Called when all operations succeed
      */
-    protected function commit()
+    public function commit()
     {
         return $this->db->commit();
     }
@@ -133,7 +134,7 @@ class BaseRepository
      *
      * Called when any operation fails
      */
-    protected function rollback()
+    public function rollback()
     {
         return $this->db->rollBack();
     }

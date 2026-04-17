@@ -17,6 +17,7 @@
 
 require_once __DIR__ . '/../services/UserService.php';
 require_once __DIR__ . '/../helpers/Response.php';
+require_once __DIR__ . '/../../config/constants.php';
 
 class UserController
 {
@@ -132,7 +133,12 @@ class UserController
         }
 
         try {
-            $users = $this->userService->getAllUsers();
+            $users = $this->userService->getAllUsers([
+                'page' => $_GET['page'] ?? 1,
+                'limit' => $_GET['limit'] ?? DEFAULT_PAGE_LIMIT,
+                'is_active' => $_GET['is_active'] ?? null,
+                'role_id' => $_GET['role_id'] ?? null,
+            ]);
 
             Response::success($users);
         } catch (Throwable $exception) {

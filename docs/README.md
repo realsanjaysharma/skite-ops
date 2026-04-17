@@ -5,6 +5,10 @@ This repository now uses a two-layer documentation model:
 - `docs/10_recovered_product` = canonical product truth
 - `docs/11_build_specs` = canonical implementation-spec layer
 
+For AI-assisted multi-tool development, also read:
+
+- `docs/AI_TOOL_HANDOFF_GUIDE.md` = code patterns, tool workflow, and session start instructions
+
 Older docs outside those layers remain useful as references, but many are legacy interpretation docs from the trimmed-system phase.
 
 ## Reading Order

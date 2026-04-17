@@ -1,65 +1,23 @@
 <?php
 
-/**
- * UserRepository
- *
- * Purpose:
- * Handles all database interactions related to users.
- *
- * IMPORTANT RULES:
- * - This class ONLY executes SQL
- * - No business logic (validation, hashing, rules)
- * - Must strictly follow schema_v1_full.sql
- *
- * Schema Mapping:
- * users table columns:
- * - id
- * - role_id
- * - full_name
- * - email (UNIQUE)
- * - password_hash
- * - failed_attempt_count
- * - last_failed_attempt_at
- * - force_password_reset
- * - is_active
- * - is_deleted
- * - deleted_at
- * - deleted_by_user_id
- * - created_at
- * - updated_at
- *
- * Soft Delete Rule:
- * - All reads must filter is_deleted = 0
- * - No hard deletes allowed
- */
-
 require_once __DIR__ . '/BaseRepository.php';
+require_once __DIR__ . '/../../config/constants.php';
 
 class UserRepository extends BaseRepository
 {
-    /**
-     * Get user by primary ID including deleted rows.
-     */
     public function getUserByIdIncludingDeleted($userId)
     {
         return $this->fetchOne(
-            "SELECT u.*, r.role_name, r.role_key, r.landing_module_key
-             FROM users u
-             JOIN roles r ON r.id = u.role_id
+            $this->baseUserSelect() . "
              WHERE u.id = ?",
             [$userId]
         );
     }
 
-    /**
-     * Get user by primary ID
-     */
     public function getUserById($userId)
     {
         return $this->fetchOne(
-            "SELECT u.*, r.role_name, r.role_key, r.landing_module_key
-             FROM users u
-             JOIN roles r ON r.id = u.role_id
+            $this->baseUserSelect() . "
              WHERE u.id = ? AND u.is_deleted = 0",
             [$userId]
         );
@@ -68,48 +26,37 @@ class UserRepository extends BaseRepository
     public function getActiveUserById(int $userId)
     {
         return $this->fetchOne(
-            "SELECT u.*, r.role_name, r.role_key, r.landing_module_key
-             FROM users u
-             JOIN roles r ON r.id = u.role_id
+            $this->baseUserSelect() . "
              WHERE u.id = ? AND u.is_deleted = 0 AND u.is_active = 1",
             [$userId]
         );
     }
 
-    /**
-     * Fetch one role row by primary ID.
-     */
     public function getRoleById(int $roleId)
     {
         return $this->fetchOne(
-            "SELECT * FROM roles
-             WHERE id = ?
+            "SELECT r.*,
+                    pg.id AS permission_group_id,
+                    pg.group_key AS permission_group_key,
+                    pg.group_name AS permission_group_name
+             FROM roles r
+             LEFT JOIN role_permission_mappings rpm ON rpm.role_id = r.id
+             LEFT JOIN permission_groups pg ON pg.id = rpm.permission_group_id
+             WHERE r.id = ?
              LIMIT 1",
             [$roleId]
         );
     }
 
-    /**
-     * Get user by email (used for authentication)
-     * Email is UNIQUE in schema
-     */
     public function getUserByEmail($email)
     {
         return $this->fetchOne(
-            "SELECT u.*, r.role_name, r.role_key, r.landing_module_key
-             FROM users u
-             JOIN roles r ON r.id = u.role_id
+            $this->baseUserSelect() . "
              WHERE u.email = ? AND u.is_deleted = 0",
             [$email]
         );
     }
 
-    /**
-     * Checks if email exists in users table.
-     * NOTE:
-     * - Includes soft-deleted users (permanent uniqueness rule)
-     * - Used as a pre-check only (DB constraint is final authority)
-     */
     public function emailExists(string $email): bool
     {
         $user = $this->fetchOne(
@@ -122,9 +69,6 @@ class UserRepository extends BaseRepository
         return $user !== null;
     }
 
-    /**
-     * Check whether a role exists in the roles table.
-     */
     public function roleExists(int $roleId): bool
     {
         $role = $this->fetchOne(
@@ -137,31 +81,55 @@ class UserRepository extends BaseRepository
         return $role !== null;
     }
 
-    /**
-     * Get all non-deleted users, regardless of active state.
-     */
-    public function getAllUsers()
+    public function getAllUsers(array $filters = []): array
     {
-        return $this->fetchAll(
-            "SELECT u.*, r.role_name, r.role_key, r.landing_module_key
-             FROM users u
-             JOIN roles r ON r.id = u.role_id
-             WHERE u.is_deleted = 0"
+        $where = ['u.is_deleted = 0'];
+        $params = [];
+
+        if (isset($filters['is_active'])) {
+            $where[] = 'u.is_active = ?';
+            $params[] = (int) $filters['is_active'];
+        }
+
+        if (isset($filters['role_id'])) {
+            $where[] = 'u.role_id = ?';
+            $params[] = (int) $filters['role_id'];
+        }
+
+        $whereSql = ' WHERE ' . implode(' AND ', $where);
+        $page = max(1, (int) ($filters['page'] ?? 1));
+        $limit = max(1, (int) ($filters['limit'] ?? DEFAULT_PAGE_LIMIT));
+        $offset = ($page - 1) * $limit;
+
+        $countRow = $this->fetchOne(
+            "SELECT COUNT(*) AS total
+             FROM users u" . $whereSql,
+            $params
         );
+
+        $items = $this->fetchAll(
+            $this->baseUserSelect() . $whereSql . "
+             ORDER BY u.created_at DESC, u.id DESC
+             LIMIT {$limit} OFFSET {$offset}",
+            $params
+        );
+
+        return [
+            'items' => $items,
+            'total' => (int) ($countRow['total'] ?? 0),
+            'page' => $page,
+            'limit' => $limit,
+        ];
     }
 
-    /**
-     * Get users filtered by role
-     */
     public function getUsersByRole($roleId)
     {
         return $this->fetchAll(
-            "SELECT u.*, r.role_name, r.role_key, r.landing_module_key
-             FROM users u
-             JOIN roles r ON r.id = u.role_id
-             WHERE u.role_id = ? 
-             AND u.is_deleted = 0 
-             AND u.is_active = 1",
+            $this->baseUserSelect() . "
+             WHERE u.role_id = ?
+             AND u.is_deleted = 0
+             AND u.is_active = 1
+             ORDER BY u.full_name ASC",
             [$roleId]
         );
     }
@@ -243,16 +211,10 @@ class UserRepository extends BaseRepository
         );
     }
 
-    /**
-     * Create new user
-     *
-     * NOTE:
-     * - password must already be hashed (handled in service layer)
-     */
     public function createUser($data)
     {
         $this->execute(
-            "INSERT INTO users 
+            "INSERT INTO users
             (full_name, email, password_hash, role_id, force_password_reset, created_at)
             VALUES (?, ?, ?, ?, 1, NOW())",
             [
@@ -266,13 +228,10 @@ class UserRepository extends BaseRepository
         return $this->lastInsertId();
     }
 
-    /**
-     * Update user basic information
-     */
     public function updateUser($userId, $data)
     {
         return $this->execute(
-            "UPDATE users 
+            "UPDATE users
              SET full_name = ?, email = ?, role_id = ?, updated_at = NOW()
              WHERE id = ? AND is_deleted = 0",
             [
@@ -284,20 +243,28 @@ class UserRepository extends BaseRepository
         );
     }
 
-    /**
-     * Soft delete user
-     *
-     * IMPORTANT:
-     * - Data is not removed
-     * - Required for audit/history
-     */
     public function softDeleteUser($userId, $deletedBy)
     {
         return $this->execute(
-            "UPDATE users 
+            "UPDATE users
              SET is_deleted = 1, is_active = 0, deleted_at = NOW(), deleted_by_user_id = ?, updated_at = NOW()
              WHERE id = ?",
             [$deletedBy, $userId]
         );
+    }
+
+    private function baseUserSelect(): string
+    {
+        return "SELECT u.*,
+                       r.role_name,
+                       r.role_key,
+                       r.landing_module_key,
+                       r.is_active AS role_is_active,
+                       pg.group_key AS permission_group_key,
+                       pg.group_name AS permission_group_name
+                FROM users u
+                JOIN roles r ON r.id = u.role_id
+                LEFT JOIN role_permission_mappings rpm ON rpm.role_id = r.id
+                LEFT JOIN permission_groups pg ON pg.id = rpm.permission_group_id";
     }
 }
