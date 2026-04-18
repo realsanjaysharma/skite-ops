@@ -24,6 +24,7 @@ Future prompts can reference this file instead of repeating product context.
 - BaseRepository transaction methods fixed to public for service-layer control
 - AI tool handoff guide created at `docs/AI_TOOL_HANDOFF_GUIDE.md` for multi-tool workflow
 - Phase 2 Green Belt Core backend is COMPLETE (9 files, 16 routes, detail payload aligned, syntax validated)
+- upload service foundation is COMPLETE (shared storage, metadata persistence, self-delete, discovery side-effect, direct verification)
 
 ## Validated Baseline
 
@@ -65,10 +66,13 @@ Validated behaviors:
 - `app/services/RbacService.php`
 - `app/services/RoleService.php`
 - `app/services/AuditService.php`
+- `app/services/UploadStorageService.php`
+- `app/services/UploadService.php`
 - `app/repositories/BaseRepository.php`
 - `app/repositories/UserRepository.php`
 - `app/repositories/RbacRepository.php`
 - `app/repositories/AuditRepository.php`
+- `app/repositories/UploadRepository.php`
 - `config/database.php`
 - `config/constants.php`
 - `config/rbac.php`
@@ -183,28 +187,143 @@ Reason:
 - assignment creation now enforces correct role keys for supervisor, authority, and outsourced mappings
 - active maintenance cycles now auto-close with audit when a belt becomes hidden or permission expires
 
-## Current Recommended Next Task
+### Phase 3 - Upload Service Foundation
 
-Begin Phase 3 (field operations).
+Status: `COMPLETE - DIRECT SERVICE VERIFICATION PASSED`
 
-Use:
+New files created:
 
-- `docs/11_build_specs/02_CANONICAL_SCHEMA_ROADMAP.md` (watering_records, supervisor_attendance, labour_entries, maintenance_cycles, issues, uploads)
-- `docs/11_build_specs/03_API_AND_ROUTE_CONTRACT.md` (watering/*, attendance/*, labour/*, cycle/*, upload/*, issue/* routes)
-- `docs/11_build_specs/04_PAGE_FIELD_AND_ACTION_SPEC.md` (Supervisor Upload, Watering, Attendance, Labour, Issue pages)
-- `docs/11_build_specs/05_WORKFLOW_STATE_MACHINE_SPEC.md` (maintenance cycle and issue state machines)
-- `docs/11_build_specs/06_UPLOAD_STORAGE_RETENTION_SPEC.md` (upload storage, validation, parent context matrix)
+- `app/repositories/UploadRepository.php` - polymorphic parent checks, upload persistence, filtered list queries, discovery free-media refresh helpers
+- `app/services/UploadStorageService.php` - file normalization, MIME/extension/size validation, collision-safe storage paths under `storage/uploads`
+- `app/services/UploadService.php` - shared upload creation, creator list foundation, self-delete foundation, discovery side-effects
+- `tests/test_upload_foundation.php` - direct verification script for upload foundation behavior
+
+Updated files:
+
+- `config/constants.php` - upload size aligned to `10 MB` and max files per submission aligned to `10`
+
+Completed behavior:
+
+- normalized multi-file handling for `multipart/form-data` style `files[]`
+- server-side MIME, extension, count, and size validation
+- relative storage path generation using `uploads/<parent_type>/<YYYY>/<MM>/...`
+- upload metadata row creation for `GREEN_BELT`, `SITE`, and `TASK` parents
+- authority visibility defaults by surface (`SUPERVISOR`, `OUTSOURCED`, `MONITORING`, `TASK`)
+- monitoring discovery mode creates or refreshes `DISCOVERED` free-media state
+- creator-scoped upload listing foundation exists for later My Uploads routes
+- self-delete foundation exists with 5-minute window and v1 issue-upload restriction
+- stray root file `['AuthController'` removed as repo cleanup
+
+Relevant validation:
+
+- PHP syntax validation passed for `UploadRepository.php`, `UploadStorageService.php`, `UploadService.php`, and `test_upload_foundation.php`
+- `tests/test_upload_foundation.php` passed: `14 PASSED, 0 FAILED`
+
+Known deferrals:
+
+- no upload HTTP routes or controllers added in this task
+- no surface-specific RBAC wiring added in this task
+- upload review, cleanup, and purge flows remain future scoped tasks
+
+### Phase 3 - Supervisor Upload Backend
+
+Status: `COMPLETE - SYNTAX VERIFIED`
+
+New files created:
+- `app/controllers/UploadController.php` - handles HTTP request parsing, extracts `role_key` to define `surface` and calls `UploadService->createUploadsForSurface`.
+
+Updated files:
+- `config/route_registry.php` - added `upload/create` allowing dynamic resolution without a single hard-coded `module_key`.
+- `app/services/UploadService.php` - added `verifyRecordScope()` check injecting `BeltAssignmentRepository` logic for `SUPERVISOR` and `OUTSOURCED` belt assignment validations.
+- `tests/test_upload_foundation.php` - updated to create assignments so verification uses valid context.
+
+Completed behavior:
+- `upload/create` available as a shared cross-role endpoint governed dynamically by role-based surface.
+- `SUPERVISOR` surface strictly bounds `parent_id` to green belts currently covered under active supervisor assignments.
+- Validated that decoupled multi-photo validation, default authority_visibility (e.g. `HIDDEN` vs `NOT_ELIGIBLE`) logic from previous foundation operates appropriately via `UploadController`.
+
+Relevant validation:
+- PHP syntax checks passed for `UploadController.php`, `config/route_registry.php`, and `UploadService.php`.
+
+Known deferrals:
+- `upload/my-list` deferred to next scoped task.
+- Upload review queue for Ops deferred to later scoped task.
+
+## Static Prompt Workflow
+
+Use the same prompt every implementation turn:
+
+```text
+Continue from docs/11_build_specs/10_IMPLEMENTATION_PROGRESS.md and implement only the current next scoped task.
+Use only the locked docs and docs/AI_TOOL_HANDOFF_GUIDE.md; do not restate context, redesign behavior, or touch unrelated modules.
+Run only relevant validation, update docs/11_build_specs/10_IMPLEMENTATION_PROGRESS.md with status/results/blockers, then stop.
+```
+
+This prompt should not need wording changes between modules.
+The only thing that changes over time is the progress file itself.
+
+## Current Next Scoped Task
+
+`supervisor my uploads backend`
+
+## Serial Scoped Task Queue
+
+Run these tasks in order, one per implementation turn.
+Do not skip ahead unless the current task is blocked and that blocker is recorded below.
+
+1. `upload service foundation` - COMPLETE
+2. `supervisor upload backend` - COMPLETE
+3. `supervisor my uploads backend`
+4. `outsourced upload backend`
+5. `watering backend`
+6. `supervisor attendance backend`
+7. `labour entries backend`
+8. `issue management backend`
+9. `task request intake backend`
+10. `task creation from request backend`
+11. `task management backend`
+12. `task detail and progress update backend`
+13. `fabrication lead work-done flow backend`
+14. `fabrication workers master backend`
+15. `worker daily entries backend`
+16. `task worker assignment backend`
+17. `worker availability and worker activity backend`
+18. `site master backend`
+19. `monitoring due-date planning backend`
+20. `monitoring upload backend`
+21. `monitoring history backend`
+22. `campaign management backend`
+23. `free media backend`
+24. `authority view backend`
+25. `authority summary and whatsapp helper backend`
+26. `reports backend`
+27. `system settings backend`
+28. `rejected uploads cleanup backend`
+29. `frontend navigation shell from allowed_module_keys`
+30. `phase acceptance review for completed modules`
+
+## Current Task Reference Docs
+
+Read only the docs needed for the current scoped task.
+For the current `supervisor upload backend` task, start with:
+
+- `docs/11_build_specs/01_RBAC_PERMISSION_GROUP_SPEC.md`
+- `docs/11_build_specs/02_CANONICAL_SCHEMA_ROADMAP.md`
+- `docs/11_build_specs/03_API_AND_ROUTE_CONTRACT.md`
+- `docs/11_build_specs/04_PAGE_FIELD_AND_ACTION_SPEC.md`
+- `docs/11_build_specs/05_WORKFLOW_STATE_MACHINE_SPEC.md`
+- `docs/11_build_specs/06_UPLOAD_STORAGE_RETENTION_SPEC.md`
 - `docs/11_build_specs/09_MODULE_ACCEPTANCE_CHECKLISTS.md`
 
-Expected scope:
+## Task Update Rule
 
-- upload service foundation (file validation, storage path, metadata insertion)
-- supervisor upload and my-uploads flows
-- outsourced upload flow
-- watering record CRUD with scheduler logic
-- supervisor attendance
-- labour entries
-- issue management CRUD and lifecycle
+After each task:
+
+- mark the completed task in a short results note
+- move `Current Next Scoped Task` to the next queue item
+- record only relevant validation
+- record blockers only if they stop the current task
+- stop after the current task instead of continuing into the next one
 
 ## Phase 1 Work Completed In Code
 
@@ -246,34 +365,12 @@ Residual notes:
 - backend now returns `allowed_module_keys` for future menu generation, but no frontend navigation shell exists yet
 - Phase 1 routes do not yet exercise rich domain record-scope filters; deeper record-scope testing begins with Green Belt and later modules
 
-## After Phase 1
+## Legacy Prompt Notes
 
-Recommended next order:
+The older "recommended next order" and ad hoc prompt style are now superseded by:
 
-1. Green Belt Master + detail
-2. belt assignments
-3. upload/storage foundation
-4. watering + attendance + labour
-5. issues + request-to-task flow
-6. fabrication lead + worker tracking
-7. site master + monitoring
-8. campaigns + free media
-9. authority view
-10. reports + settings + cleanup
+- `Current Next Scoped Task`
+- `Serial Scoped Task Queue`
+- `Static Prompt Workflow`
 
-## Prompt Shortcut
-
-You can use prompts like:
-
-- `Continue from docs/11_build_specs/10_IMPLEMENTATION_PROGRESS.md and implement the current next task.`
-- `Update the implementation progress file after finishing the module.`
-- `Review current module against the progress file and acceptance checklist.`
-
-## Update Rule
-
-Update this file whenever:
-
-- a phase starts
-- a module is completed
-- a blocker is discovered
-- the recommended next task changes
+Any AI tool should follow those sections instead of inventing a fresh plan.

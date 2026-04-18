@@ -54,7 +54,10 @@ define('UPLOAD_SELF_DELETE_WINDOW_MINUTES', 5);
 
 // Maximum allowed upload file size in megabytes.
 // Governance Reference: SECURITY doc section 5
-define('MAX_UPLOAD_SIZE_MB', 5);
+define('MAX_UPLOAD_SIZE_MB', 10);
+
+// Maximum number of files allowed in one submission.
+define('MAX_UPLOAD_FILES_PER_SUBMISSION', 10);
 
 // Allowed file extensions for uploads (checked alongside MIME type).
 define('ALLOWED_UPLOAD_EXTENSIONS', ['jpg', 'jpeg', 'png', 'webp']);

@@ -217,4 +217,14 @@ return [
         'module_key' => 'green_belt.maintenance_cycles',
         'capability' => 'manage',
     ],
+
+    // =========================================
+    // UPLOADS
+    // =========================================
+
+    'upload/create' => [
+        'controller' => 'UploadController',
+        'method' => 'createUpload',
+        // Shared endpoint: module access is governed by UploadController surface resolution
+    ],
 ];
