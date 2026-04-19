@@ -768,6 +768,27 @@ Completed behavior:
 Relevant validation:
 - Confirmed flawlessly.
 
+### Phase 4 - System Settings Backend
+
+Status: `COMPLETE - SYNTAX VERIFIED`
+
+New files created:
+- `app/repositories/SystemSettingsRepository.php` - Implemented database access for `system_settings` table.
+- `app/services/SystemSettingsService.php` - Developed business logic with data type casting, validation, and Audit Log integration.
+- `app/controllers/SystemSettingsController.php` - Created `list` and `update` endpoints.
+
+Files updated:
+- `config/route_registry.php` - Registered settings endpoints under `settings.system` module.
+
+Completed behavior:
+- Exposes system-wide configurations securely to authorized users.
+- Ensures all configuration changes are audited.
+- Supports typed configuration values (BOOLEAN, INTEGER, JSON).
+
+Relevant validation:
+- PHP syntax verified across all new files.
+- Verified route registration in the system registry.
+
 ## Static Prompt Workflow
 
 Use the same prompt every implementation turn:
@@ -783,7 +804,7 @@ The only thing that changes over time is the progress file itself.
 
 ## Current Next Scoped Task
 
-`system settings backend`
+`rejected uploads cleanup backend`
 
 ## Serial Scoped Task Queue
 
@@ -816,7 +837,7 @@ Do not skip ahead unless the current task is blocked and that blocker is recorde
 24. `authority view backend` - COMPLETE
 25. `authority summary and whatsapp helper backend` - COMPLETE
 26. `reports backend` - COMPLETE
-27. `system settings backend`
+27. `system settings backend` - COMPLETE
 28. `rejected uploads cleanup backend`
 29. `frontend navigation shell from allowed_module_keys`
 30. `phase acceptance review for completed modules`
@@ -824,7 +845,7 @@ Do not skip ahead unless the current task is blocked and that blocker is recorde
 ## Current Task Reference Docs
 
 Read only the docs needed for the current scoped task.
-For the current `system settings backend` task, start with:
+For the current `rejected uploads cleanup backend` task, start with:
 
 - `docs/11_build_specs/01_RBAC_PERMISSION_GROUP_SPEC.md`
 - `docs/11_build_specs/02_CANONICAL_SCHEMA_ROADMAP.md`

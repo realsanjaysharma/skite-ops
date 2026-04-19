@@ -623,5 +623,22 @@ return [
         'module_key' => 'advertisement.campaign_management',
         'capability' => 'manage',
     ],
+
+    // =========================================
+    // SYSTEM SETTINGS
+    // =========================================
+
+    'settings/list' => [
+        'controller' => 'SystemSettingsController',
+        'method' => 'list',
+        'module_key' => 'settings.system',
+        'capability' => 'manage',
+    ],
+    'settings/update' => [
+        'controller' => 'SystemSettingsController',
+        'method' => 'update',
+        'module_key' => 'settings.system',
+        'capability' => 'manage',
+    ],
 ];
 
