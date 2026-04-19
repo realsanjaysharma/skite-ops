@@ -13,6 +13,7 @@ require_once __DIR__ . '/AuditService.php';
 require_once __DIR__ . '/UploadStorageService.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../config/constants.php';
+require_once __DIR__ . '/SystemSettingsService.php';
 
 class UploadService
 {
@@ -454,5 +455,80 @@ class UploadService
         }
 
         return (string) $value;
+    }
+
+    public function getCleanupList(array $filters, int $page = 1, int $limit = 50): array
+    {
+        $threshold = $this->getCleanupThreshold();
+
+        return [
+            'total' => $this->uploadRepository->countEligibleForCleanup($threshold, $filters),
+            'items' => $this->uploadRepository->findEligibleForCleanup($threshold, $filters, $page, $limit),
+        ];
+    }
+
+    public function purgeUploads(array $uploadIds, int $actorUserId): void
+    {
+        if (empty($uploadIds)) {
+            throw new InvalidArgumentException('No uploads provided for purge.');
+        }
+
+        $threshold = $this->getCleanupThreshold();
+
+        $this->uploadRepository->beginTransaction();
+
+        try {
+            // Unlink files first (in production, might be queued, but we do it synchronously here)
+            // Need to fetch file_paths to unlink them
+            $placeholders = implode(',', array_fill(0, count($uploadIds), '?'));
+            $rows = $this->uploadRepository->fetchAll(
+                 "SELECT id, file_path FROM uploads WHERE id IN ($placeholders) AND authority_visibility = 'REJECTED' AND is_purged = 0 AND DATEDIFF(NOW(), COALESCE(reviewed_at, created_at)) >= ?",
+                 array_merge($uploadIds, [$threshold])
+            );
+
+            $eligibleIds = [];
+            foreach ($rows as $row) {
+                 $eligibleIds[] = (int)$row['id'];
+            }
+
+            if (empty($eligibleIds)) {
+                 $this->uploadRepository->rollBack();
+                 throw new DomainException('None of the provided uploads are eligible for purge.');
+            }
+
+            $this->uploadRepository->purge($eligibleIds, $actorUserId);
+
+            foreach ($rows as $row) {
+                 if ($row['file_path']) {
+                     @unlink($row['file_path']);
+                 }
+            }
+
+            $this->auditService->log(
+                $actorUserId,
+                'UPLOAD',
+                null,
+                'PURGE_UPLOADS',
+                ['purged_count' => count($eligibleIds)]
+            );
+
+            $this->uploadRepository->commit();
+        } catch (Exception $e) {
+            $this->uploadRepository->rollBack();
+            throw $e;
+        }
+    }
+
+    private function getCleanupThreshold(): int
+    {
+        $settingsService = new SystemSettingsService();
+        $settings = $settingsService->listSettings();
+        
+        foreach ($settings as $setting) {
+             if ($setting['setting_key'] === 'rejected_upload_cleanup_days') {
+                 return (int)$setting['setting_value'];
+             }
+        }
+        return 30; // Fallback default
     }
 }

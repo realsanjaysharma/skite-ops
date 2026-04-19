@@ -174,4 +174,76 @@ class UploadController
                 return null;
         }
     }
+
+    /**
+     * GET upload/cleanup-list
+     */
+    public function cleanupList(): void
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+            Response::error('Method not allowed', 405);
+            return;
+        }
+
+        if (!in_array($_SESSION['role_key'] ?? '', ['OPS_MANAGER', 'MANAGEMENT'])) {
+            Response::error('Access denied', 403);
+            return;
+        }
+
+        $page = max(1, (int) ($_GET['page'] ?? 1));
+        $limit = max(1, min(100, (int) ($_GET['limit'] ?? DEFAULT_PAGE_LIMIT)));
+
+        $filters = [];
+        if (!empty($_GET['date_from'])) {
+            $filters['date_from'] = $_GET['date_from'];
+        }
+        if (!empty($_GET['date_to'])) {
+            $filters['date_to'] = $_GET['date_to'];
+        }
+        if (!empty($_GET['belt_id'])) {
+            $filters['belt_id'] = (int)$_GET['belt_id'];
+        }
+        if (!empty($_GET['supervisor_user_id'])) {
+            $filters['supervisor_user_id'] = (int)$_GET['supervisor_user_id'];
+        }
+
+        try {
+            $result = $this->uploadService->getCleanupList($filters, $page, $limit);
+            Response::success($result);
+        } catch (Throwable $e) {
+            Response::error($e->getMessage(), 400);
+        }
+    }
+
+    /**
+     * POST upload/purge
+     */
+    public function purge(): void
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            Response::error('Method not allowed', 405);
+            return;
+        }
+
+        if (!in_array($_SESSION['role_key'] ?? '', ['OPS_MANAGER', 'MANAGEMENT'])) {
+            Response::error('Access denied', 403);
+            return;
+        }
+
+        $input = json_decode(file_get_contents('php://input'), true) ?? $_POST;
+        
+        if (empty($input['upload_ids']) || !is_array($input['upload_ids'])) {
+            Response::error('upload_ids array is required', 400);
+            return;
+        }
+
+        try {
+            $this->uploadService->purgeUploads($input['upload_ids'], (int)$_SESSION['user_id']);
+            Response::success(['message' => 'Uploads purged successfully']);
+        } catch (DomainException $e) {
+             Response::error($e->getMessage(), 403);
+        } catch (Throwable $e) {
+            Response::error($e->getMessage(), 400);
+        }
+    }
 }

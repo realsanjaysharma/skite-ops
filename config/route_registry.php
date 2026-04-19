@@ -640,5 +640,22 @@ return [
         'module_key' => 'settings.system',
         'capability' => 'manage',
     ],
+
+    // =========================================
+    // REJECTED UPLOAD CLEANUP
+    // =========================================
+
+    'upload/cleanup-list' => [
+        'controller' => 'UploadController',
+        'method' => 'cleanupList',
+        'module_key' => 'governance.rejected_upload_cleanup',
+        'capability' => 'read',
+    ],
+    'upload/purge' => [
+        'controller' => 'UploadController',
+        'method' => 'purge',
+        'module_key' => 'governance.rejected_upload_cleanup',
+        'capability' => 'manage',
+    ],
 ];
 

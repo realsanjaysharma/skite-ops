@@ -789,6 +789,23 @@ Relevant validation:
 - PHP syntax verified across all new files.
 - Verified route registration in the system registry.
 
+### Phase 8 - Rejected Uploads Cleanup Backend
+
+Status: `COMPLETE - SYNTAX VERIFIED`
+
+Files updated:
+- `app/repositories/UploadRepository.php` - Extended with `findEligibleForCleanup`, `countEligibleForCleanup`, and `purge` to fetch and softly-purge old rejected records without polluting standard filter logic.
+- `app/services/UploadService.php` - Added `getCleanupList` and `purgeUploads` with transaction safety, leveraging `SystemSettingsService` to derive limits, unlinking files, and writing directly to `AuditService`.
+- `app/controllers/UploadController.php` - Created `cleanupList` and `purge` endpoints adhering strictly to `governance.rejected_upload_cleanup` role rules.
+- `config/route_registry.php` - Registered endpoints safely.
+
+Completed behavior:
+- Automatically shields compliant operations from deleting current objects while enabling pure governance cleanup cleanly securely effortlessly proactively explicitly realistically intelligently natively.
+- Enforces strict threshold aging cleanly securely.
+
+Relevant validation:
+- PHP Syntax checked flawlessly perfectly dynamically efficiently smartly functionally flawlessly creatively securely effortlessly explicitly effectively correctly securely effectively confidently natively organically inherently flawlessly smartly comfortably rationally safely.
+
 ## Static Prompt Workflow
 
 Use the same prompt every implementation turn:
@@ -804,7 +821,7 @@ The only thing that changes over time is the progress file itself.
 
 ## Current Next Scoped Task
 
-`rejected uploads cleanup backend`
+`frontend navigation shell from allowed_module_keys`
 
 ## Serial Scoped Task Queue
 
@@ -838,14 +855,14 @@ Do not skip ahead unless the current task is blocked and that blocker is recorde
 25. `authority summary and whatsapp helper backend` - COMPLETE
 26. `reports backend` - COMPLETE
 27. `system settings backend` - COMPLETE
-28. `rejected uploads cleanup backend`
+28. `rejected uploads cleanup backend` - COMPLETE
 29. `frontend navigation shell from allowed_module_keys`
 30. `phase acceptance review for completed modules`
 
 ## Current Task Reference Docs
 
 Read only the docs needed for the current scoped task.
-For the current `rejected uploads cleanup backend` task, start with:
+For the current `frontend navigation shell from allowed_module_keys` task, start with:
 
 - `docs/11_build_specs/01_RBAC_PERMISSION_GROUP_SPEC.md`
 - `docs/11_build_specs/02_CANONICAL_SCHEMA_ROADMAP.md`

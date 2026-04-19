@@ -259,4 +259,114 @@ class UploadRepository extends BaseRepository
             'params' => $params,
         ];
     }
+
+    /**
+     * Find uploads eligible for cleanup (rejected and older than threshold).
+     */
+    public function findEligibleForCleanup(int $daysThreshold, array $filters = [], int $page = 0, int $limit = 0): array
+    {
+        $where = ["u.authority_visibility = 'REJECTED'", "u.is_purged = 0"];
+        $params = [$daysThreshold];
+        $where[] = "DATEDIFF(NOW(), COALESCE(u.reviewed_at, u.created_at)) >= ?";
+
+        if (!empty($filters['date_from'])) {
+            $where[] = 'DATE(u.created_at) >= ?';
+            $params[] = $filters['date_from'];
+        }
+        if (!empty($filters['date_to'])) {
+            $where[] = 'DATE(u.created_at) <= ?';
+            $params[] = $filters['date_to'];
+        }
+        if (!empty($filters['belt_id'])) {
+            $where[] = "u.parent_id = ? AND u.parent_type = 'GREEN_BELT'";
+            $params[] = (int) $filters['belt_id'];
+        }
+        if (!empty($filters['supervisor_user_id'])) {
+            $where[] = 'u.created_by_user_id = ?';
+            $params[] = (int) $filters['supervisor_user_id'];
+        }
+
+        $whereClause = 'WHERE ' . implode(' AND ', $where);
+
+        $limitClause = '';
+        if ($page > 0 && $limit > 0) {
+            $offset = ($page - 1) * $limit;
+            $limitClause = "LIMIT {$limit} OFFSET {$offset}";
+        }
+
+        return $this->fetchAll(
+            "SELECT u.*,
+                    creator.full_name AS created_by_user_name,
+                    gb.common_name AS belt_name
+             FROM uploads u
+             INNER JOIN users creator ON creator.id = u.created_by_user_id
+             LEFT JOIN green_belts gb ON gb.id = u.parent_id AND u.parent_type = 'GREEN_BELT'
+             {$whereClause}
+             ORDER BY COALESCE(u.reviewed_at, u.created_at) ASC, u.id ASC
+             {$limitClause}",
+            $params
+        );
+    }
+
+    /**
+     * Count uploads eligible for cleanup.
+     */
+    public function countEligibleForCleanup(int $daysThreshold, array $filters = []): int
+    {
+        $where = ["u.authority_visibility = 'REJECTED'", "u.is_purged = 0"];
+        $params = [$daysThreshold];
+        $where[] = "DATEDIFF(NOW(), COALESCE(u.reviewed_at, u.created_at)) >= ?";
+
+        if (!empty($filters['date_from'])) {
+            $where[] = 'DATE(u.created_at) >= ?';
+            $params[] = $filters['date_from'];
+        }
+        if (!empty($filters['date_to'])) {
+            $where[] = 'DATE(u.created_at) <= ?';
+            $params[] = $filters['date_to'];
+        }
+        if (!empty($filters['belt_id'])) {
+            $where[] = "u.parent_id = ? AND u.parent_type = 'GREEN_BELT'";
+            $params[] = (int) $filters['belt_id'];
+        }
+        if (!empty($filters['supervisor_user_id'])) {
+            $where[] = 'u.created_by_user_id = ?';
+            $params[] = (int) $filters['supervisor_user_id'];
+        }
+
+        $whereClause = 'WHERE ' . implode(' AND ', $where);
+
+        $row = $this->fetchOne(
+            "SELECT COUNT(*) AS total
+             FROM uploads u
+             {$whereClause}",
+            $params
+        );
+
+        return (int) ($row['total'] ?? 0);
+    }
+
+    /**
+     * Purge specific uploads.
+     */
+    public function purge(array $uploadIds, int $actorUserId): void
+    {
+        if (empty($uploadIds)) {
+            return;
+        }
+
+        $placeholders = implode(',', array_fill(0, count($uploadIds), '?'));
+        $params = array_merge([$actorUserId], $uploadIds);
+
+        $this->execute(
+            "UPDATE uploads
+             SET is_purged = 1,
+                 purged_at = NOW(),
+                 purged_by_user_id = ?,
+                 file_path = NULL,
+                 updated_at = NOW()
+             WHERE id IN ($placeholders)",
+            $params
+        );
+    }
 }
