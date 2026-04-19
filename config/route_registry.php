@@ -542,5 +542,40 @@ return [
         'module_key' => 'advertisement.campaign_management',
         'capability' => 'manage',
     ],
+    'campaign/confirm-free-media' => [
+        'controller' => 'CampaignController',
+        'method' => 'confirmFreeMedia',
+        'module_key' => 'advertisement.free_media',
+        'capability' => 'manage',
+    ],
+
+    // =========================================
+    // FREE MEDIA
+    // =========================================
+
+    'freemedia/list' => [
+        'controller' => 'FreeMediaController',
+        'method' => 'listFreeMedia',
+        'module_key' => 'advertisement.free_media',
+        'capability' => 'read',
+    ],
+    'freemedia/confirm' => [
+        'controller' => 'FreeMediaController',
+        'method' => 'confirmRecord',
+        'module_key' => 'advertisement.free_media',
+        'capability' => 'manage',
+    ],
+    'freemedia/resolve' => [
+        'controller' => 'FreeMediaController',
+        'method' => 'resolveRecord',
+        'module_key' => 'advertisement.free_media',
+        'capability' => 'manage',
+    ],
+    'freemedia/mark-invalid' => [
+        'controller' => 'FreeMediaController',
+        'method' => 'markInvalid',
+        'module_key' => 'advertisement.free_media',
+        'capability' => 'manage',
+    ],
 ];
 
