@@ -1,7 +1,25 @@
 <?php
 
-class AuthorityViewRepository extends BaseRepository {
-    public function getList(array $filters, int $page, int $limit, ?array $allowedBeltIds): array {
+require_once __DIR__ . '/BaseRepository.php';
+
+/**
+ * AuthorityViewRepository
+ *
+ * Purpose:
+ * Data access for authority-facing upload views.
+ * Queries uploads (approved work photos) and belt_authority_assignments.
+ *
+ * Schema Reference:
+ * - belt_authority_assignments: belt_id, authority_user_id, start_date, end_date
+ * - uploads: parent_type, parent_id, authority_visibility, etc.
+ */
+class AuthorityViewRepository extends BaseRepository
+{
+    /**
+     * List approved work uploads visible to authority, with optional scope filtering.
+     */
+    public function getList(array $filters, int $page, int $limit, ?array $allowedBeltIds): array
+    {
         $where = [
             "u.parent_type = 'GREEN_BELT'",
             "u.upload_type = 'WORK'",
@@ -10,7 +28,7 @@ class AuthorityViewRepository extends BaseRepository {
             "u.is_purged = 0"
         ];
         $params = [];
-        
+
         if ($allowedBeltIds !== null) {
             if (empty($allowedBeltIds)) {
                 return [];
@@ -19,7 +37,7 @@ class AuthorityViewRepository extends BaseRepository {
             $where[] = "u.parent_id IN ($placeholders)";
             $params = array_merge($params, $allowedBeltIds);
         }
-        
+
         if (!empty($filters['date'])) {
             $where[] = "DATE(u.created_at) = ?";
             $params[] = $filters['date'];
@@ -39,8 +57,8 @@ class AuthorityViewRepository extends BaseRepository {
 
         $whereClause = implode(' AND ', $where);
         $offset = ($page - 1) * $limit;
-        
-        $query = "SELECT u.id as upload_id, u.file_path, u.created_at as timestamp, 
+
+        $query = "SELECT u.id as upload_id, u.file_path, u.created_at as timestamp,
                          u.work_type, u.photo_label, u.gps_latitude, u.gps_longitude,
                          creator.full_name as supervisor_name
                   FROM uploads u
@@ -51,8 +69,12 @@ class AuthorityViewRepository extends BaseRepository {
 
         return $this->fetchAll($query, $params);
     }
-    
-    public function countList(array $filters, ?array $allowedBeltIds): int {
+
+    /**
+     * Count approved work uploads matching filters.
+     */
+    public function countList(array $filters, ?array $allowedBeltIds): int
+    {
         $where = [
             "u.parent_type = 'GREEN_BELT'",
             "u.upload_type = 'WORK'",
@@ -61,14 +83,14 @@ class AuthorityViewRepository extends BaseRepository {
             "u.is_purged = 0"
         ];
         $params = [];
-        
+
         if ($allowedBeltIds !== null) {
             if (empty($allowedBeltIds)) return 0;
             $placeholders = implode(',', array_fill(0, count($allowedBeltIds), '?'));
             $where[] = "u.parent_id IN ($placeholders)";
             $params = array_merge($params, $allowedBeltIds);
         }
-        
+
         if (!empty($filters['date'])) {
             $where[] = "DATE(u.created_at) = ?";
             $params[] = $filters['date'];
@@ -85,13 +107,17 @@ class AuthorityViewRepository extends BaseRepository {
             $where[] = "u.work_type = ?";
             $params[] = $filters['work_type'];
         }
-        
+
         $whereClause = implode(' AND ', $where);
         $row = $this->fetchOne("SELECT COUNT(*) as total FROM uploads u WHERE {$whereClause}", $params);
         return (int)($row['total'] ?? 0);
     }
 
-    public function getSummaryStats(array $filters, ?array $allowedBeltIds): array {
+    /**
+     * Summary statistics for authority dashboard.
+     */
+    public function getSummaryStats(array $filters, ?array $allowedBeltIds): array
+    {
         $where = [
             "u.parent_type = 'GREEN_BELT'",
             "u.upload_type = 'WORK'",
@@ -100,7 +126,7 @@ class AuthorityViewRepository extends BaseRepository {
             "u.is_purged = 0"
         ];
         $params = [];
-        
+
         if ($allowedBeltIds !== null) {
             if (empty($allowedBeltIds)) return [
                 'total_belts' => 0,
@@ -112,7 +138,7 @@ class AuthorityViewRepository extends BaseRepository {
             $where[] = "u.parent_id IN ($placeholders)";
             $params = array_merge($params, $allowedBeltIds);
         }
-        
+
         if (!empty($filters['date'])) {
             $where[] = "DATE(u.created_at) = ?";
             $params[] = $filters['date'];
@@ -129,17 +155,17 @@ class AuthorityViewRepository extends BaseRepository {
             $where[] = "u.work_type = ?";
             $params[] = $filters['work_type'];
         }
-        
+
         $whereClause = implode(' AND ', $where);
-        
-        $sql = "SELECT 
+
+        $sql = "SELECT
                     COUNT(DISTINCT u.parent_id) as total_belts,
                     SUM(CASE WHEN HOUR(u.created_at) < 12 THEN 1 ELSE 0 END) as total_morning_photos,
                     SUM(CASE WHEN HOUR(u.created_at) >= 12 THEN 1 ELSE 0 END) as total_evening_photos,
                     COUNT(u.id) as total_photos
                 FROM uploads u
                 WHERE {$whereClause}";
-                
+
         $row = $this->fetchOne($sql, $params);
         return [
             'total_belts' => (int)($row['total_belts'] ?? 0),
@@ -149,11 +175,17 @@ class AuthorityViewRepository extends BaseRepository {
         ];
     }
 
-    public function getAssignedBeltIdsForAuthority(int $userId): array {
+    /**
+     * Get belt IDs assigned to an authority user (active assignments only).
+     *
+     * Schema: belt_authority_assignments has belt_id and end_date (NOT green_belt_id, NOT released_date).
+     */
+    public function getAssignedBeltIdsForAuthority(int $userId): array
+    {
         return array_column($this->fetchAll(
-            "SELECT green_belt_id FROM belt_authority_assignments 
-             WHERE authority_user_id = ? AND released_date IS NULL", 
+            "SELECT belt_id FROM belt_authority_assignments
+             WHERE authority_user_id = ? AND end_date IS NULL",
             [$userId]
-        ), 'green_belt_id');
+        ), 'belt_id');
     }
 }

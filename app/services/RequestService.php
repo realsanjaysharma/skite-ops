@@ -2,6 +2,14 @@
 
 require_once __DIR__ . '/../repositories/RequestRepository.php';
 
+/**
+ * RequestService
+ *
+ * Purpose:
+ * Business logic for task_requests intake, approval, and rejection.
+ *
+ * Schema status enum: SUBMITTED, APPROVED, REJECTED, CONVERTED
+ */
 class RequestService
 {
     private RequestRepository $requestRepo;
@@ -36,15 +44,15 @@ class RequestService
         }
 
         $insertData = [
-            'request_number' => $this->requestRepo->getNextRequestNumber(),
-            'request_type' => $data['request_type'],
-            'client_name' => $data['client_name'] ?? null,
-            'campaign_id' => $data['campaign_id'] ?? null,
-            'site_id' => $data['site_id'] ?? null,
-            'belt_id' => $data['belt_id'] ?? null,
-            'description' => $data['description'],
-            'status' => 'PENDING',
-            'requester_user_id' => $actorUserId,
+            'request_type'       => $data['request_type'],
+            'request_source_role'=> $actorRoleKey,
+            'client_name'        => $data['client_name'] ?? null,
+            'campaign_id'        => $data['campaign_id'] ?? null,
+            'site_id'            => $data['site_id'] ?? null,
+            'belt_id'            => $data['belt_id'] ?? null,
+            'description'        => $data['description'],
+            'status'             => 'SUBMITTED',
+            'requester_user_id'  => $actorUserId,
         ];
 
         $newId = $this->requestRepo->create($insertData);
@@ -65,14 +73,15 @@ class RequestService
             throw new InvalidArgumentException("Request not found.");
         }
 
-        if ($request['status'] !== 'PENDING') {
-            throw new DomainException("Only PENDING requests can be approved.");
+        if ($request['status'] !== 'SUBMITTED') {
+            throw new DomainException("Only SUBMITTED requests can be approved.");
         }
 
         $this->requestRepo->update([
-            'id' => $requestId,
-            'status' => 'APPROVED',
-            'reviewer_user_id' => $actorUserId
+            'id'                  => $requestId,
+            'status'              => 'APPROVED',
+            'reviewed_by_user_id' => $actorUserId,
+            'reviewed_at'         => date('Y-m-d H:i:s'),
         ]);
 
         return $this->requestRepo->findById($requestId);
@@ -96,15 +105,16 @@ class RequestService
             throw new InvalidArgumentException("Request not found.");
         }
 
-        if ($request['status'] !== 'PENDING') {
-            throw new DomainException("Only PENDING requests can be rejected.");
+        if ($request['status'] !== 'SUBMITTED') {
+            throw new DomainException("Only SUBMITTED requests can be rejected.");
         }
 
         $this->requestRepo->update([
-            'id' => $requestId,
-            'status' => 'REJECTED',
-            'reviewer_user_id' => $actorUserId,
-            'review_notes' => $rejectionReason
+            'id'                  => $requestId,
+            'status'              => 'REJECTED',
+            'reviewed_by_user_id' => $actorUserId,
+            'reviewed_at'         => date('Y-m-d H:i:s'),
+            'rejection_reason'    => $rejectionReason,
         ]);
 
         return $this->requestRepo->findById($requestId);
@@ -129,9 +139,8 @@ class RequestService
     public function getRequest(int $requestId, int $actorUserId, string $actorRoleKey): ?array
     {
         $request = $this->requestRepo->findById($requestId);
-        
+
         if ($request && $actorRoleKey !== 'OPS_MANAGER') {
-            // Scope limit check
             if ($request['requester_user_id'] != $actorUserId) {
                 return null;
             }

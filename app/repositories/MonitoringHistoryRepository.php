@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/BaseRepository.php';
+
 class MonitoringHistoryRepository extends BaseRepository {
     public function getHistory(array $filters, int $page, int $limit): array {
         $filterResult = $this->buildFilterClause($filters);

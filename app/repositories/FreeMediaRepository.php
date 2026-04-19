@@ -1,10 +1,31 @@
 <?php
 
-class FreeMediaRepository extends BaseRepository {
-    public function getList(array $filters, int $page, int $limit): array {
+require_once __DIR__ . '/BaseRepository.php';
+
+/**
+ * FreeMediaRepository
+ *
+ * Purpose:
+ * Data access for `free_media_records` table.
+ *
+ * Schema Reference: docs/06_schema/schema_v1_full.sql — free_media_records
+ *
+ * Columns: id, site_id, source_type (MONITORING_DISCOVERY|CAMPAIGN_END),
+ *          source_reference_id, discovered_date,
+ *          confirmed_by_user_id, confirmed_date,
+ *          status (DISCOVERED|CONFIRMED_ACTIVE|EXPIRED|CONSUMED),
+ *          expiry_date, created_at, updated_at
+ */
+class FreeMediaRepository extends BaseRepository
+{
+    /**
+     * List free media records with filters and pagination.
+     */
+    public function getList(array $filters, int $page, int $limit): array
+    {
         $where = ["1=1"];
         $params = [];
-        
+
         if (!empty($filters['status'])) {
             $where[] = "fm.status = ?";
             $params[] = $filters['status'];
@@ -20,20 +41,24 @@ class FreeMediaRepository extends BaseRepository {
 
         $whereClause = implode(' AND ', $where);
         $offset = ($page - 1) * $limit;
-        
+
         $query = "SELECT fm.*, s.site_code, s.location_text, s.site_category, s.route_or_group,
-                  creator.full_name as created_by_user_name
+                  confirmer.full_name AS confirmed_by_user_name
                   FROM free_media_records fm
                   INNER JOIN sites s ON s.id = fm.site_id
-                  LEFT JOIN users creator ON creator.id = fm.created_by_user_id
+                  LEFT JOIN users confirmer ON confirmer.id = fm.confirmed_by_user_id
                   WHERE {$whereClause}
                   ORDER BY fm.id DESC
                   LIMIT {$limit} OFFSET {$offset}";
 
         return $this->fetchAll($query, $params);
     }
-    
-    public function countList(array $filters): int {
+
+    /**
+     * Count free media records matching filters.
+     */
+    public function countList(array $filters): int
+    {
         $where = ["1=1"];
         $params = [];
         if (!empty($filters['status'])) {
@@ -51,7 +76,7 @@ class FreeMediaRepository extends BaseRepository {
 
         $whereClause = implode(' AND ', $where);
         $row = $this->fetchOne("
-            SELECT COUNT(*) as total 
+            SELECT COUNT(*) as total
             FROM free_media_records fm
             INNER JOIN sites s ON s.id = fm.site_id
             WHERE {$whereClause}
@@ -59,36 +84,73 @@ class FreeMediaRepository extends BaseRepository {
         return (int)($row['total'] ?? 0);
     }
 
-    public function findById(int $recordId): ?array {
+    /**
+     * Find a record by ID.
+     */
+    public function findById(int $recordId): ?array
+    {
         return $this->fetchOne("SELECT * FROM free_media_records WHERE id = ?", [$recordId]);
     }
-    
-    public function updateStatus(int $recordId, string $status, string $dateField, string $dateValue, ?string $notes): void {
-        $sql = "UPDATE free_media_records SET status = ?, {$dateField} = ?, updated_at = NOW()";
-        $params = [$status, $dateValue];
-        if ($notes !== null) {
-            $sql .= ", notes = ?";
-            $params[] = $notes;
-        }
-        $sql .= " WHERE id = ?";
-        $params[] = $recordId;
-        
-        $this->execute($sql, $params);
-    }
-    
-    public function createConfirmedRecord(array $data): int {
+
+    /**
+     * Confirm a DISCOVERED record → CONFIRMED_ACTIVE.
+     */
+    public function confirmRecord(int $recordId, int $confirmedByUserId, string $confirmedDate, ?string $expiryDate): void
+    {
         $this->execute(
-            "INSERT INTO free_media_records (site_id, source_type, source_reference_id, discovered_date, confirmed_date, status, notes, created_by_user_id, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, 'CONFIRMED', ?, ?, NOW(), NOW())",
-             [
-                 $data['site_id'],
-                 $data['source_type'],
-                 $data['source_reference_id'] ?? null,
-                 $data['discovered_date'],
-                 $data['confirmed_date'],
-                 $data['notes'] ?? null,
-                 $data['created_by_user_id']
-             ]
+            "UPDATE free_media_records
+             SET status = 'CONFIRMED_ACTIVE',
+                 confirmed_by_user_id = ?,
+                 confirmed_date = ?,
+                 expiry_date = ?,
+                 updated_at = NOW()
+             WHERE id = ?",
+            [$confirmedByUserId, $confirmedDate, $expiryDate, $recordId]
+        );
+    }
+
+    /**
+     * Mark a record as EXPIRED.
+     */
+    public function markExpired(int $recordId): void
+    {
+        $this->execute(
+            "UPDATE free_media_records SET status = 'EXPIRED', updated_at = NOW() WHERE id = ?",
+            [$recordId]
+        );
+    }
+
+    /**
+     * Mark a record as CONSUMED.
+     */
+    public function markConsumed(int $recordId): void
+    {
+        $this->execute(
+            "UPDATE free_media_records SET status = 'CONSUMED', updated_at = NOW() WHERE id = ?",
+            [$recordId]
+        );
+    }
+
+    /**
+     * Create a CONFIRMED_ACTIVE record (e.g. from campaign end).
+     */
+    public function createConfirmedRecord(array $data): int
+    {
+        $this->execute(
+            "INSERT INTO free_media_records
+                (site_id, source_type, source_reference_id, discovered_date,
+                 confirmed_by_user_id, confirmed_date, status, expiry_date,
+                 created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, 'CONFIRMED_ACTIVE', ?, NOW(), NOW())",
+            [
+                $data['site_id'],
+                $data['source_type'],
+                $data['source_reference_id'] ?? null,
+                $data['discovered_date'],
+                $data['confirmed_by_user_id'],
+                $data['confirmed_date'],
+                $data['expiry_date'] ?? null,
+            ]
         );
         return (int)$this->lastInsertId();
     }

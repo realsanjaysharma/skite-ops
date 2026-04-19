@@ -179,6 +179,19 @@ class UploadStorageService
         }
     }
 
+    /**
+     * Resolve a relative file_path (from DB) to an absolute filesystem path.
+     */
+    public function getAbsolutePath(?string $relativePath): ?string
+    {
+        if ($relativePath === null || trim($relativePath) === '') {
+            return null;
+        }
+
+        return $this->getStorageRootPath() . DIRECTORY_SEPARATOR
+            . str_replace('/', DIRECTORY_SEPARATOR, ltrim($relativePath, '/\\'));
+    }
+
     private function getStorageRootPath(): string
     {
         return dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'storage';

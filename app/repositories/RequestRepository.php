@@ -2,6 +2,20 @@
 
 require_once __DIR__ . '/BaseRepository.php';
 
+/**
+ * RequestRepository
+ *
+ * Purpose:
+ * Data access for `task_requests` table.
+ *
+ * Schema Reference: docs/06_schema/schema_v1_full.sql — task_requests
+ *
+ * Columns: id, requester_user_id, request_source_role, request_type,
+ *          client_name, campaign_id, site_id, belt_id, description,
+ *          status (SUBMITTED|APPROVED|REJECTED|CONVERTED),
+ *          reviewed_by_user_id, reviewed_at, rejection_reason,
+ *          created_at, updated_at
+ */
 class RequestRepository extends BaseRepository
 {
     /**
@@ -10,7 +24,7 @@ class RequestRepository extends BaseRepository
     public function findById(int $id): ?array
     {
         return $this->fetchOne(
-            "SELECT r.*, 
+            "SELECT r.*,
                     creator.full_name AS requester_name,
                     reviewer.full_name AS reviewer_name,
                     gb.belt_code,
@@ -18,9 +32,9 @@ class RequestRepository extends BaseRepository
                     s.site_code,
                     s.location_text AS site_location,
                     c.campaign_name
-             FROM requests r
+             FROM task_requests r
              LEFT JOIN users creator ON creator.id = r.requester_user_id
-             LEFT JOIN users reviewer ON reviewer.id = r.reviewer_user_id
+             LEFT JOIN users reviewer ON reviewer.id = r.reviewed_by_user_id
              LEFT JOIN green_belts gb ON gb.id = r.belt_id
              LEFT JOIN sites s ON s.id = r.site_id
              LEFT JOIN campaigns c ON c.id = r.campaign_id
@@ -55,7 +69,7 @@ class RequestRepository extends BaseRepository
         $whereClause = count($where) > 0 ? 'WHERE ' . implode(' AND ', $where) : '';
 
         return $this->fetchAll(
-            "SELECT r.*, 
+            "SELECT r.*,
                     creator.full_name AS requester_name,
                     reviewer.full_name AS reviewer_name,
                     gb.belt_code,
@@ -63,15 +77,15 @@ class RequestRepository extends BaseRepository
                     s.site_code,
                     s.location_text AS site_location,
                     c.campaign_name
-             FROM requests r
+             FROM task_requests r
              LEFT JOIN users creator ON creator.id = r.requester_user_id
-             LEFT JOIN users reviewer ON reviewer.id = r.reviewer_user_id
+             LEFT JOIN users reviewer ON reviewer.id = r.reviewed_by_user_id
              LEFT JOIN green_belts gb ON gb.id = r.belt_id
              LEFT JOIN sites s ON s.id = r.site_id
              LEFT JOIN campaigns c ON c.id = r.campaign_id
              {$whereClause}
              ORDER BY CASE r.status
-                WHEN 'PENDING' THEN 1
+                WHEN 'SUBMITTED' THEN 1
                 WHEN 'APPROVED' THEN 2
                 WHEN 'CONVERTED' THEN 3
                 WHEN 'REJECTED' THEN 4
@@ -87,19 +101,20 @@ class RequestRepository extends BaseRepository
     public function create(array $data): int
     {
         $this->execute(
-            "INSERT INTO requests (
-                request_number,
+            "INSERT INTO task_requests (
+                requester_user_id,
+                request_source_role,
                 request_type,
                 client_name,
                 campaign_id,
                 site_id,
                 belt_id,
                 description,
-                status,
-                requester_user_id
+                status
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [
-                $data['request_number'],
+                $data['requester_user_id'],
+                $data['request_source_role'],
                 $data['request_type'],
                 $data['client_name'] ?? null,
                 $data['campaign_id'] ?? null,
@@ -107,7 +122,6 @@ class RequestRepository extends BaseRepository
                 $data['belt_id'] ?? null,
                 $data['description'],
                 $data['status'],
-                $data['requester_user_id']
             ]
         );
 
@@ -115,22 +129,22 @@ class RequestRepository extends BaseRepository
     }
 
     /**
-     * Update an existing request.
+     * Update an existing request (for approve/reject flows).
      */
     public function update(array $data): bool
     {
         $fields = [];
         $params = [];
-        
-        $allowed = ['status', 'reviewer_user_id', 'review_notes'];
-        
+
+        $allowed = ['status', 'reviewed_by_user_id', 'reviewed_at', 'rejection_reason'];
+
         foreach ($allowed as $field) {
             if (array_key_exists($field, $data)) {
                 $fields[] = "{$field} = ?";
                 $params[] = $data[$field];
             }
         }
-        
+
         if (empty($fields)) {
             return false;
         }
@@ -141,18 +155,8 @@ class RequestRepository extends BaseRepository
         $setClause = implode(', ', $fields);
 
         return $this->execute(
-            "UPDATE requests SET {$setClause} WHERE id = ?",
+            "UPDATE task_requests SET {$setClause} WHERE id = ?",
             $params
         );
-    }
-    
-    /**
-     * Generate the next sequence number for a request.
-     */
-    public function getNextRequestNumber(): string
-    {
-        $result = $this->fetchOne("SELECT MAX(id) as max_id FROM requests");
-        $nextId = ($result['max_id'] ?? 0) + 1;
-        return 'RQ-' . str_pad((string)$nextId, 5, '0', STR_PAD_LEFT);
     }
 }

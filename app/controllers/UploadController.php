@@ -2,6 +2,8 @@
 
 require_once __DIR__ . '/../helpers/Response.php';
 require_once __DIR__ . '/../services/UploadService.php';
+require_once __DIR__ . '/../services/UploadStorageService.php';
+require_once __DIR__ . '/../repositories/UploadRepository.php';
 require_once __DIR__ . '/../../config/constants.php';
 
 class UploadController
@@ -11,6 +13,69 @@ class UploadController
     public function __construct()
     {
         $this->uploadService = new UploadService();
+    }
+
+    /**
+     * GET upload/serve?id={upload_id}
+     *
+     * Streams the stored file to the browser with correct Content-Type.
+     * Requires valid session. Blocks access to purged/deleted files.
+     */
+    public function serve(): void
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+            Response::error('Method not allowed', 405);
+            return;
+        }
+
+        $uploadId = (int) ($_GET['id'] ?? 0);
+        if ($uploadId <= 0) {
+            Response::error('upload id is required', 400);
+            return;
+        }
+
+        // Must be authenticated
+        if (empty($_SESSION['user_id'])) {
+            Response::error('Unauthorized', 401);
+            return;
+        }
+
+        try {
+            $repo = new UploadRepository();
+            $upload = $repo->findById($uploadId);
+
+            if (!$upload) {
+                Response::error('Upload not found', 404);
+                return;
+            }
+
+            if (!empty($upload['is_purged']) || !empty($upload['is_deleted'])) {
+                Response::error('File has been removed', 410);
+                return;
+            }
+
+            $storageService = new UploadStorageService();
+            $absolutePath = $storageService->getAbsolutePath($upload['file_path']);
+
+            if (!$absolutePath || !is_file($absolutePath)) {
+                Response::error('File not found on disk', 404);
+                return;
+            }
+
+            // Stream the file
+            $mimeType = $upload['mime_type'] ?? 'application/octet-stream';
+            $originalName = $upload['original_file_name'] ?? basename($absolutePath);
+
+            header('Content-Type: ' . $mimeType);
+            header('Content-Disposition: inline; filename="' . $originalName . '"');
+            header('Content-Length: ' . filesize($absolutePath));
+            header('Cache-Control: private, max-age=3600');
+
+            readfile($absolutePath);
+            exit;
+        } catch (Throwable $e) {
+            Response::error('Failed to serve file', 500);
+        }
     }
 
     /**

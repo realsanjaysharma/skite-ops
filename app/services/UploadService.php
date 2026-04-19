@@ -500,16 +500,20 @@ class UploadService
 
             foreach ($rows as $row) {
                  if ($row['file_path']) {
-                     @unlink($row['file_path']);
+                     $absolutePath = $this->storageService->getAbsolutePath($row['file_path']);
+                     if ($absolutePath && file_exists($absolutePath)) {
+                         @unlink($absolutePath);
+                     }
                  }
             }
 
-            $this->auditService->log(
+            $this->auditService->logAction(
                 $actorUserId,
-                'UPLOAD',
-                null,
                 'PURGE_UPLOADS',
-                ['purged_count' => count($eligibleIds)]
+                'upload',
+                $eligibleIds[0],
+                null,
+                ['purged_ids' => $eligibleIds, 'purged_count' => count($eligibleIds)]
             );
 
             $this->uploadRepository->commit();

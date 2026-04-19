@@ -430,6 +430,12 @@ return [
         // Shared endpoint: upload creator self-delete within time window
     ],
 
+    'upload/serve' => [
+        'controller' => 'UploadController',
+        'method' => 'serve',
+        // Auth-required but not module-gated: any authenticated user may view uploads
+    ],
+
     // =========================================
     // REPORTS
     // =========================================
@@ -545,7 +551,7 @@ return [
     'campaign/confirm-free-media' => [
         'controller' => 'CampaignController',
         'method' => 'confirmFreeMedia',
-        'module_key' => 'advertisement.free_media',
+        'module_key' => 'media.free_media_inventory',
         'capability' => 'manage',
     ],
 
@@ -556,25 +562,25 @@ return [
     'freemedia/list' => [
         'controller' => 'FreeMediaController',
         'method' => 'listFreeMedia',
-        'module_key' => 'advertisement.free_media',
+        'module_key' => 'media.free_media_inventory',
         'capability' => 'read',
     ],
     'freemedia/confirm' => [
         'controller' => 'FreeMediaController',
         'method' => 'confirmRecord',
-        'module_key' => 'advertisement.free_media',
+        'module_key' => 'media.free_media_inventory',
         'capability' => 'manage',
     ],
-    'freemedia/resolve' => [
+    'freemedia/expire' => [
         'controller' => 'FreeMediaController',
-        'method' => 'resolveRecord',
-        'module_key' => 'advertisement.free_media',
+        'method' => 'expireRecord',
+        'module_key' => 'media.free_media_inventory',
         'capability' => 'manage',
     ],
-    'freemedia/mark-invalid' => [
+    'freemedia/consume' => [
         'controller' => 'FreeMediaController',
-        'method' => 'markInvalid',
-        'module_key' => 'advertisement.free_media',
+        'method' => 'consumeRecord',
+        'module_key' => 'media.free_media_inventory',
         'capability' => 'manage',
     ],
 

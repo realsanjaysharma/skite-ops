@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/BaseRepository.php';
+
 class SiteRepository extends BaseRepository {
     public function findById(int $id): ?array {
         $sql = "SELECT s.*, gb.belt_code as green_belt_reference 

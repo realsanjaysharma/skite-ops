@@ -14,21 +14,20 @@ class ReportController
 
     /**
      * GET report/worker-activity
-     * 
+     *
      * Auth: Ops, Management
      * Query Params: month, worker_id, worker_skill_tag, format
      */
     public function getWorkerActivity()
     {
-        // Require specific roles as per the contract (Ops and Management)
         if (!in_array($_SESSION['role_key'] ?? '', ['OPS_MANAGER', 'MANAGEMENT'])) {
-            Response::json(false, [], 'Access denied', 403);
+            Response::error('Access denied', 403);
             return;
         }
 
         $month = $_GET['month'] ?? null;
         if (!$month) {
-            Response::json(false, [], 'Missing required field: month', 400);
+            Response::error('Missing required field: month', 400);
             return;
         }
 
@@ -45,24 +44,24 @@ class ReportController
                 return;
             }
 
-            Response::json(true, ['items' => $data]);
+            Response::success(['items' => $data]);
         } catch (InvalidArgumentException $e) {
-            Response::json(false, [], $e->getMessage(), 400);
+            Response::error($e->getMessage(), 400);
         } catch (Exception $e) {
-            Response::json(false, [], 'An error occurred while generating the report', 500);
+            Response::error('An error occurred while generating the report', 500);
         }
     }
 
     public function getBeltHealth()
     {
         if (!in_array($_SESSION['role_key'] ?? '', ['OPS_MANAGER', 'MANAGEMENT'])) {
-            Response::json(false, [], 'Access denied', 403);
+            Response::error('Access denied', 403);
             return;
         }
 
         $month = $_GET['month'] ?? null;
         if (!$month) {
-            Response::json(false, [], 'Missing required field: month', 400);
+            Response::error('Missing required field: month', 400);
             return;
         }
 
@@ -79,24 +78,24 @@ class ReportController
                 return;
             }
 
-            Response::json(true, ['items' => $data]);
+            Response::success(['items' => $data]);
         } catch (InvalidArgumentException $e) {
-            Response::json(false, [], $e->getMessage(), 400);
+            Response::error($e->getMessage(), 400);
         } catch (Exception $e) {
-            Response::json(false, [], 'An error occurred while generating the report', 500);
+            Response::error('An error occurred while generating the report', 500);
         }
     }
 
     public function getSupervisorActivity()
     {
         if (!in_array($_SESSION['role_key'] ?? '', ['OPS_MANAGER', 'MANAGEMENT'])) {
-            Response::json(false, [], 'Access denied', 403);
+            Response::error('Access denied', 403);
             return;
         }
 
         $month = $_GET['month'] ?? null;
         if (!$month) {
-            Response::json(false, [], 'Missing required field: month', 400);
+            Response::error('Missing required field: month', 400);
             return;
         }
 
@@ -112,24 +111,24 @@ class ReportController
                 return;
             }
 
-            Response::json(true, ['items' => $data]);
+            Response::success(['items' => $data]);
         } catch (InvalidArgumentException $e) {
-            Response::json(false, [], $e->getMessage(), 400);
+            Response::error($e->getMessage(), 400);
         } catch (Exception $e) {
-            Response::json(false, [], 'An error occurred while generating the report', 500);
+            Response::error('An error occurred while generating the report', 500);
         }
     }
 
     public function getAdvertisementOperations()
     {
         if (!in_array($_SESSION['role_key'] ?? '', ['OPS_MANAGER', 'MANAGEMENT'])) {
-            Response::json(false, [], 'Access denied', 403);
+            Response::error('Access denied', 403);
             return;
         }
 
         $month = $_GET['month'] ?? null;
         if (!$month) {
-            Response::json(false, [], 'Missing required field: month', 400);
+            Response::error('Missing required field: month', 400);
             return;
         }
 
@@ -145,12 +144,11 @@ class ReportController
                 return;
             }
 
-            Response::json(true, ['items' => $data]);
+            Response::success(['items' => $data]);
         } catch (InvalidArgumentException $e) {
-            Response::json(false, [], $e->getMessage(), 400);
+            Response::error($e->getMessage(), 400);
         } catch (Exception $e) {
-            Response::json(false, [], 'An error occurred while generating the report', 500);
+            Response::error('An error occurred while generating the report', 500);
         }
     }
 }
-

@@ -160,9 +160,10 @@ class IssueController
         }
 
         $actorRoleKey = $_SESSION['role_key'] ?? '';
+        $actorUserId = (int) $_SESSION['user_id'];
 
         try {
-            $result = $this->issueService->closeIssue((int) $input['issue_id'], $actorRoleKey);
+            $result = $this->issueService->closeIssue((int) $input['issue_id'], $actorUserId, $actorRoleKey);
             Response::success($result);
         } catch (DomainException $e) {
             Response::error($e->getMessage(), 403);

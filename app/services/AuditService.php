@@ -52,4 +52,22 @@ class AuditService
             throw new RuntimeException('Failed to write audit log.');
         }
     }
+
+    /**
+     * Alias for logAction().
+     *
+     * Some services call ->log() instead of ->logAction().
+     * This alias ensures both calling conventions work identically.
+     */
+    public function log(
+        int $userId,
+        string $action,
+        string $entityType,
+        int $entityId,
+        ?array $oldValues = null,
+        ?array $newValues = null,
+        ?string $overrideReason = null
+    ): void {
+        $this->logAction($userId, $action, $entityType, $entityId, $oldValues, $newValues, $overrideReason);
+    }
 }

@@ -1,15 +1,29 @@
 <?php
 
-class FreeMediaService {
+require_once __DIR__ . '/../repositories/FreeMediaRepository.php';
+require_once __DIR__ . '/AuditService.php';
+
+/**
+ * FreeMediaService
+ *
+ * Purpose:
+ * Business logic for free_media_records lifecycle.
+ *
+ * Schema status enum: DISCOVERED, CONFIRMED_ACTIVE, EXPIRED, CONSUMED
+ */
+class FreeMediaService
+{
     private FreeMediaRepository $repo;
     private AuditService $auditService;
 
-    public function __construct() {
+    public function __construct()
+    {
         $this->repo = new FreeMediaRepository();
         $this->auditService = new AuditService();
     }
 
-    public function listFreeMedia(array $params): array {
+    public function listFreeMedia(array $params): array
+    {
         $page = max(1, (int)($params['page'] ?? 1));
         $limit = max(1, min(100, (int)($params['limit'] ?? 50)));
 
@@ -31,60 +45,104 @@ class FreeMediaService {
         ];
     }
 
-    public function confirmRecord(int $recordId, string $confirmedDate, ?string $notes, int $actorId): array {
+    /**
+     * Confirm a DISCOVERED record → CONFIRMED_ACTIVE.
+     */
+    public function confirmRecord(int $recordId, string $confirmedDate, ?string $expiryDate, int $actorId): array
+    {
         $record = $this->repo->findById($recordId);
-        if (!$record) throw new Exception("Record not found");
-        if ($record['status'] !== 'DISCOVERED') throw new Exception("Only DISCOVERED records can be confirmed");
+        if (!$record) throw new InvalidArgumentException("Record not found.");
+        if ($record['status'] !== 'DISCOVERED') throw new DomainException("Only DISCOVERED records can be confirmed.");
 
-        $this->repo->updateStatus($recordId, 'CONFIRMED', 'confirmed_date', $confirmedDate, $notes);
-        
+        $this->repo->confirmRecord($recordId, $actorId, $confirmedDate, $expiryDate);
+
         $newState = $this->repo->findById($recordId);
-        $this->auditService->log($actorId, 'FREE_MEDIA_CONFIRMED', 'free_media_records', $recordId, $record, $newState, null);
+        $this->auditService->logAction(
+            $actorId,
+            'FREE_MEDIA_CONFIRMED',
+            'free_media_records',
+            $recordId,
+            ['status' => $record['status']],
+            ['status' => $newState['status']]
+        );
         return $newState;
     }
 
-    public function resolveRecord(int $recordId, string $resolvedDate, ?string $notes, int $actorId): array {
+    /**
+     * Expire a CONFIRMED_ACTIVE record → EXPIRED.
+     */
+    public function expireRecord(int $recordId, int $actorId): array
+    {
         $record = $this->repo->findById($recordId);
-        if (!$record) throw new Exception("Record not found");
-        if (!in_array($record['status'], ['DISCOVERED', 'CONFIRMED'])) {
-            throw new Exception("Record cannot be resolved from its current status");
+        if (!$record) throw new InvalidArgumentException("Record not found.");
+        if ($record['status'] !== 'CONFIRMED_ACTIVE') {
+            throw new DomainException("Only CONFIRMED_ACTIVE records can be expired.");
         }
 
-        $this->repo->updateStatus($recordId, 'RESOLVED', 'resolved_date', $resolvedDate, $notes);
-        
+        $this->repo->markExpired($recordId);
+
         $newState = $this->repo->findById($recordId);
-        $this->auditService->log($actorId, 'FREE_MEDIA_RESOLVED', 'free_media_records', $recordId, $record, $newState, null);
+        $this->auditService->logAction(
+            $actorId,
+            'FREE_MEDIA_EXPIRED',
+            'free_media_records',
+            $recordId,
+            ['status' => $record['status']],
+            ['status' => $newState['status']]
+        );
         return $newState;
     }
 
-    public function markInvalid(int $recordId, ?string $notes, int $actorId): array {
+    /**
+     * Mark a CONFIRMED_ACTIVE record as CONSUMED (when assigned to a campaign).
+     */
+    public function consumeRecord(int $recordId, int $actorId): array
+    {
         $record = $this->repo->findById($recordId);
-        if (!$record) throw new Exception("Record not found");
-        if ($record['status'] !== 'DISCOVERED') {
-            throw new Exception("Only DISCOVERED records can be marked invalid");
+        if (!$record) throw new InvalidArgumentException("Record not found.");
+        if ($record['status'] !== 'CONFIRMED_ACTIVE') {
+            throw new DomainException("Only CONFIRMED_ACTIVE records can be consumed.");
         }
 
-        $this->repo->updateStatus($recordId, 'INVALID', 'resolved_date', date('Y-m-d'), $notes);
-        
+        $this->repo->markConsumed($recordId);
+
         $newState = $this->repo->findById($recordId);
-        $this->auditService->log($actorId, 'FREE_MEDIA_INVALIDATED', 'free_media_records', $recordId, $record, $newState, null);
+        $this->auditService->logAction(
+            $actorId,
+            'FREE_MEDIA_CONSUMED',
+            'free_media_records',
+            $recordId,
+            ['status' => $record['status']],
+            ['status' => $newState['status']]
+        );
         return $newState;
     }
 
-    public function createFromCampaignEnd(int $campaignId, int $siteId, string $expiryDate, int $actorId): array {
+    /**
+     * Create a CONFIRMED_ACTIVE record from campaign end.
+     */
+    public function createFromCampaignEnd(int $campaignId, int $siteId, string $expiryDate, int $actorId): array
+    {
         $data = [
-            'site_id' => $siteId,
-            'source_type' => 'CAMPAIGN_END',
-            'source_reference_id' => $campaignId,
-            'discovered_date' => date('Y-m-d'),
-            'confirmed_date' => date('Y-m-d'),
-            'notes' => 'Confirmed from campaign end. Expected Expiry: ' . $expiryDate,
-            'created_by_user_id' => $actorId
+            'site_id'              => $siteId,
+            'source_type'          => 'CAMPAIGN_END',
+            'source_reference_id'  => $campaignId,
+            'discovered_date'      => date('Y-m-d'),
+            'confirmed_by_user_id' => $actorId,
+            'confirmed_date'       => date('Y-m-d'),
+            'expiry_date'          => $expiryDate,
         ];
-        
+
         $id = $this->repo->createConfirmedRecord($data);
         $newState = $this->repo->findById($id);
-        $this->auditService->log($actorId, 'FREE_MEDIA_CONFIRMED_FROM_CAMPAIGN', 'free_media_records', $id, null, $newState, null);
+        $this->auditService->logAction(
+            $actorId,
+            'FREE_MEDIA_CONFIRMED_FROM_CAMPAIGN',
+            'free_media_records',
+            $id,
+            null,
+            ['status' => $newState['status'], 'source_type' => 'CAMPAIGN_END']
+        );
         return $newState;
     }
 }

@@ -72,12 +72,13 @@ class SystemSettingsService
             
             // Log update
             $auditService = new AuditService();
-            $auditService->log(
+            $auditService->logAction(
                 $actorId,
-                'SYSTEM_SETTING',
-                null,
                 'UPDATE_SETTING',
-                ['setting_key' => $key, 'old_value' => $existing['setting_value'], 'new_value' => $stringValue]
+                'system_settings',
+                (int)$existing['id'],
+                ['setting_key' => $key, 'old_value' => $existing['setting_value']],
+                ['setting_key' => $key, 'new_value' => $stringValue]
             );
 
             $this->repository->commit();

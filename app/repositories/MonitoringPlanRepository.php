@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/BaseRepository.php';
+
 class MonitoringPlanRepository extends BaseRepository {
     public function getPlanList(array $filters, string $month): array {
         $query = "SELECT s.id as site_id, s.site_code, s.location_text, s.site_category, 

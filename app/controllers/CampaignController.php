@@ -1,5 +1,9 @@
 <?php
 
+require_once __DIR__ . '/../helpers/Response.php';
+require_once __DIR__ . '/../services/CampaignService.php';
+require_once __DIR__ . '/../services/FreeMediaService.php';
+
 class CampaignController {
     public function listCampaigns(): void {
         if ($_SERVER['REQUEST_METHOD'] !== 'GET') {

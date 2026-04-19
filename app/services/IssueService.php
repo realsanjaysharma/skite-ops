@@ -31,7 +31,6 @@ class IssueService
         }
 
         $insertData = [
-            'issue_number' => $this->issueRepo->getNextIssueNumber(),
             'source_type' => $data['source_type'] ?? 'MANUAL_OPS',
             'source_reference_id' => $data['source_reference_id'] ?? null,
             'belt_id' => $data['belt_id'] ?? null,
@@ -40,7 +39,7 @@ class IssueService
             'description' => $data['description'] ?? null,
             'priority' => $data['priority'],
             'status' => 'OPEN',
-            'created_by_user_id' => $actorUserId,
+            'raised_by_user_id' => $actorUserId,
         ];
 
         $newId = $this->issueRepo->create($insertData);
@@ -81,7 +80,7 @@ class IssueService
     /**
      * Transition issue to CLOSED. Only Ops can close.
      */
-    public function closeIssue(int $issueId, string $actorRoleKey): array
+    public function closeIssue(int $issueId, int $actorUserId, string $actorRoleKey): array
     {
         if ($actorRoleKey !== 'OPS_MANAGER') {
             throw new DomainException("Only Ops can close an issue.");
@@ -94,7 +93,9 @@ class IssueService
 
         $this->issueRepo->update([
             'id' => $issueId,
-            'status' => 'CLOSED'
+            'status' => 'CLOSED',
+            'closed_by_user_id' => $actorUserId,
+            'closed_at' => date('Y-m-d H:i:s'),
         ]);
 
         return $this->issueRepo->findById($issueId);
@@ -114,9 +115,17 @@ class IssueService
             throw new InvalidArgumentException("Issue not found.");
         }
 
-        $this->issueRepo->update([
-            'id' => $issueId,
-            'linked_task_id' => $taskId
+        // Issue-to-task linking is via tasks.linked_issue_id, not on the issues table
+        require_once __DIR__ . '/../repositories/TaskRepository.php';
+        $taskRepo = new TaskRepository();
+        $task = $taskRepo->findById($taskId);
+        if (!$task) {
+            throw new InvalidArgumentException("Task not found.");
+        }
+
+        $taskRepo->update([
+            'id' => $taskId,
+            'linked_issue_id' => $issueId,
         ]);
 
         return $this->issueRepo->findById($issueId);

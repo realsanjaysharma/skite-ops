@@ -2,6 +2,23 @@
 
 require_once __DIR__ . '/BaseRepository.php';
 
+/**
+ * IssueRepository
+ *
+ * Purpose:
+ * Data access for `issues` table.
+ *
+ * Schema Reference: docs/06_schema/schema_v1_full.sql — issues
+ *
+ * Columns: id, source_type, source_reference_id, belt_id, site_id,
+ *          title, description, priority (LOW|MEDIUM|HIGH|CRITICAL),
+ *          status (OPEN|IN_PROGRESS|CLOSED),
+ *          raised_by_user_id, closed_by_user_id, closed_at,
+ *          created_at, updated_at
+ *
+ * Note: Issue-to-task linking is done via tasks.linked_issue_id (on the tasks table),
+ *       NOT via a column on the issues table.
+ */
 class IssueRepository extends BaseRepository
 {
     /**
@@ -10,14 +27,16 @@ class IssueRepository extends BaseRepository
     public function findById(int $id): ?array
     {
         return $this->fetchOne(
-            "SELECT i.*, 
-                    creator.full_name AS created_by_user_name,
+            "SELECT i.*,
+                    creator.full_name AS raised_by_user_name,
+                    closer.full_name AS closed_by_user_name,
                     gb.belt_code,
                     gb.common_name AS belt_name,
                     s.site_code,
                     s.location_text AS site_location
              FROM issues i
-             LEFT JOIN users creator ON creator.id = i.created_by_user_id
+             LEFT JOIN users creator ON creator.id = i.raised_by_user_id
+             LEFT JOIN users closer ON closer.id = i.closed_by_user_id
              LEFT JOIN green_belts gb ON gb.id = i.belt_id
              LEFT JOIN sites s ON s.id = i.site_id
              WHERE i.id = ?",
@@ -52,7 +71,7 @@ class IssueRepository extends BaseRepository
             $where[] = 'i.site_id = ?';
             $params[] = (int) $filters['site_id'];
         }
-        
+
         // Scope limit for Head Supervisor
         if (!empty($filters['restrict_to_belts']) && $filters['restrict_to_belts'] === true) {
             $where[] = 'i.belt_id IS NOT NULL';
@@ -61,7 +80,7 @@ class IssueRepository extends BaseRepository
         $whereClause = count($where) > 0 ? 'WHERE ' . implode(' AND ', $where) : '';
 
         return $this->fetchAll(
-            "SELECT i.*, 
+            "SELECT i.*,
                     gb.belt_code,
                     gb.common_name AS belt_name,
                     s.site_code,
@@ -87,7 +106,6 @@ class IssueRepository extends BaseRepository
     {
         $this->execute(
             "INSERT INTO issues (
-                issue_number,
                 source_type,
                 source_reference_id,
                 belt_id,
@@ -96,10 +114,9 @@ class IssueRepository extends BaseRepository
                 description,
                 priority,
                 status,
-                created_by_user_id
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                raised_by_user_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [
-                $data['issue_number'],
                 $data['source_type'],
                 $data['source_reference_id'] ?? null,
                 $data['belt_id'] ?? null,
@@ -108,7 +125,7 @@ class IssueRepository extends BaseRepository
                 $data['description'] ?? null,
                 $data['priority'],
                 $data['status'],
-                $data['created_by_user_id'],
+                $data['raised_by_user_id'],
             ]
         );
 
@@ -117,21 +134,23 @@ class IssueRepository extends BaseRepository
 
     /**
      * Update an existing issue.
+     *
+     * Note: Issue-to-task linking is done via tasks.linked_issue_id, not here.
      */
     public function update(array $data): bool
     {
         $fields = [];
         $params = [];
-        
-        $allowed = ['status', 'linked_task_id', 'priority', 'title', 'description'];
-        
+
+        $allowed = ['status', 'priority', 'title', 'description', 'closed_by_user_id', 'closed_at'];
+
         foreach ($allowed as $field) {
             if (array_key_exists($field, $data)) {
                 $fields[] = "{$field} = ?";
                 $params[] = $data[$field];
             }
         }
-        
+
         if (empty($fields)) {
             return false;
         }
@@ -145,16 +164,5 @@ class IssueRepository extends BaseRepository
             "UPDATE issues SET {$setClause} WHERE id = ?",
             $params
         );
-    }
-    
-    /**
-     * Generate the next sequence number for an issue.
-     * This is a simple implementation assuming no high-concurrency race conditions.
-     */
-    public function getNextIssueNumber(): string
-    {
-        $result = $this->fetchOne("SELECT MAX(id) as max_id FROM issues");
-        $nextId = ($result['max_id'] ?? 0) + 1;
-        return 'IS-' . str_pad((string)$nextId, 5, '0', STR_PAD_LEFT);
     }
 }
