@@ -52,4 +52,105 @@ class ReportController
             Response::json(false, [], 'An error occurred while generating the report', 500);
         }
     }
+
+    public function getBeltHealth()
+    {
+        if (!in_array($_SESSION['role_key'] ?? '', ['OPS_MANAGER', 'MANAGEMENT'])) {
+            Response::json(false, [], 'Access denied', 403);
+            return;
+        }
+
+        $month = $_GET['month'] ?? null;
+        if (!$month) {
+            Response::json(false, [], 'Missing required field: month', 400);
+            return;
+        }
+
+        $zone = isset($_GET['zone']) ? (int)$_GET['zone'] : null;
+        $supervisorId = isset($_GET['supervisor_user_id']) ? (int)$_GET['supervisor_user_id'] : null;
+        $format = $_GET['format'] ?? null;
+
+        try {
+            $data = $this->reportService->getBeltHealthReport($month, $zone, $supervisorId);
+
+            if ($format === 'csv') {
+                $filename = 'belt_health_summary_' . str_replace('-', '_', $month) . '.csv';
+                $this->reportService->exportCsv($data, $filename);
+                return;
+            }
+
+            Response::json(true, ['items' => $data]);
+        } catch (InvalidArgumentException $e) {
+            Response::json(false, [], $e->getMessage(), 400);
+        } catch (Exception $e) {
+            Response::json(false, [], 'An error occurred while generating the report', 500);
+        }
+    }
+
+    public function getSupervisorActivity()
+    {
+        if (!in_array($_SESSION['role_key'] ?? '', ['OPS_MANAGER', 'MANAGEMENT'])) {
+            Response::json(false, [], 'Access denied', 403);
+            return;
+        }
+
+        $month = $_GET['month'] ?? null;
+        if (!$month) {
+            Response::json(false, [], 'Missing required field: month', 400);
+            return;
+        }
+
+        $supervisorId = isset($_GET['supervisor_user_id']) ? (int)$_GET['supervisor_user_id'] : null;
+        $format = $_GET['format'] ?? null;
+
+        try {
+            $data = $this->reportService->getSupervisorActivityReport($month, $supervisorId);
+
+            if ($format === 'csv') {
+                $filename = 'supervisor_activity_' . str_replace('-', '_', $month) . '.csv';
+                $this->reportService->exportCsv($data, $filename);
+                return;
+            }
+
+            Response::json(true, ['items' => $data]);
+        } catch (InvalidArgumentException $e) {
+            Response::json(false, [], $e->getMessage(), 400);
+        } catch (Exception $e) {
+            Response::json(false, [], 'An error occurred while generating the report', 500);
+        }
+    }
+
+    public function getAdvertisementOperations()
+    {
+        if (!in_array($_SESSION['role_key'] ?? '', ['OPS_MANAGER', 'MANAGEMENT'])) {
+            Response::json(false, [], 'Access denied', 403);
+            return;
+        }
+
+        $month = $_GET['month'] ?? null;
+        if (!$month) {
+            Response::json(false, [], 'Missing required field: month', 400);
+            return;
+        }
+
+        $siteCategory = $_GET['site_category'] ?? null;
+        $format = $_GET['format'] ?? null;
+
+        try {
+            $data = $this->reportService->getAdvertisementOperationsReport($month, $siteCategory);
+
+            if ($format === 'csv') {
+                $filename = 'advertisement_operations_' . str_replace('-', '_', $month) . '.csv';
+                $this->reportService->exportCsv($data, $filename);
+                return;
+            }
+
+            Response::json(true, ['items' => $data]);
+        } catch (InvalidArgumentException $e) {
+            Response::json(false, [], $e->getMessage(), 400);
+        } catch (Exception $e) {
+            Response::json(false, [], 'An error occurred while generating the report', 500);
+        }
+    }
 }
+

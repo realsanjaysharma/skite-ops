@@ -600,5 +600,28 @@ return [
         'module_key' => 'green_belt.authority_view',
         'capability' => 'read',
     ],
+
+    // =========================================
+    // REPORTS
+    // =========================================
+
+    'report/belt-health' => [
+        'controller' => 'ReportController',
+        'method' => 'getBeltHealth',
+        'module_key' => 'green_belt.master',
+        'capability' => 'manage',
+    ],
+    'report/supervisor-activity' => [
+        'controller' => 'ReportController',
+        'method' => 'getSupervisorActivity',
+        'module_key' => 'green_belt.attendance',
+        'capability' => 'manage',
+    ],
+    'report/advertisement-operations' => [
+        'controller' => 'ReportController',
+        'method' => 'getAdvertisementOperations',
+        'module_key' => 'advertisement.campaign_management',
+        'capability' => 'manage',
+    ],
 ];
 
