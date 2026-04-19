@@ -67,68 +67,51 @@ class UploadRepository extends BaseRepository
     }
 
     /**
-     * Generic filtered upload list.
+     * Generic filtered upload list with optional pagination.
      */
-    public function findAll(array $filters = []): array
+    public function findAll(array $filters = [], int $page = 0, int $limit = 0): array
     {
-        $where = ['u.is_purged = 0'];
-        $params = [];
+        $filterResult = $this->buildFilterClause($filters);
+        $whereClause = $filterResult['clause'];
+        $params = $filterResult['params'];
 
-        if (empty($filters['include_deleted'])) {
-            $where[] = 'u.is_deleted = 0';
+        $limitClause = '';
+        if ($page > 0 && $limit > 0) {
+            $offset = ($page - 1) * $limit;
+            $limitClause = "LIMIT {$limit} OFFSET {$offset}";
         }
-
-        if (!empty($filters['parent_type'])) {
-            $where[] = 'u.parent_type = ?';
-            $params[] = $filters['parent_type'];
-        }
-
-        if (!empty($filters['parent_id'])) {
-            $where[] = 'u.parent_id = ?';
-            $params[] = (int) $filters['parent_id'];
-        }
-
-        if (!empty($filters['upload_type'])) {
-            $where[] = 'u.upload_type = ?';
-            $params[] = $filters['upload_type'];
-        }
-
-        if (isset($filters['discovery_mode']) && $filters['discovery_mode'] !== null && $filters['discovery_mode'] !== '') {
-            $where[] = 'u.is_discovery_mode = ?';
-            $params[] = (int) $filters['discovery_mode'];
-        }
-
-        if (!empty($filters['authority_visibility'])) {
-            $where[] = 'u.authority_visibility = ?';
-            $params[] = $filters['authority_visibility'];
-        }
-
-        if (!empty($filters['created_by_user_id'])) {
-            $where[] = 'u.created_by_user_id = ?';
-            $params[] = (int) $filters['created_by_user_id'];
-        }
-
-        if (!empty($filters['date_from'])) {
-            $where[] = 'DATE(u.created_at) >= ?';
-            $params[] = $filters['date_from'];
-        }
-
-        if (!empty($filters['date_to'])) {
-            $where[] = 'DATE(u.created_at) <= ?';
-            $params[] = $filters['date_to'];
-        }
-
-        $whereClause = 'WHERE ' . implode(' AND ', $where);
 
         return $this->fetchAll(
             "SELECT u.*,
-                    creator.full_name AS created_by_user_name
+                    creator.full_name AS created_by_user_name,
+                    gb.common_name AS belt_name
              FROM uploads u
              INNER JOIN users creator ON creator.id = u.created_by_user_id
+             LEFT JOIN green_belts gb ON gb.id = u.parent_id AND u.parent_type = 'GREEN_BELT'
              {$whereClause}
-             ORDER BY u.created_at DESC, u.id DESC",
+             ORDER BY u.created_at DESC, u.id DESC
+             {$limitClause}",
             $params
         );
+    }
+
+    /**
+     * Count filtered uploads for pagination.
+     */
+    public function countAll(array $filters = []): int
+    {
+        $filterResult = $this->buildFilterClause($filters);
+        $whereClause = $filterResult['clause'];
+        $params = $filterResult['params'];
+
+        $row = $this->fetchOne(
+            "SELECT COUNT(*) AS total
+             FROM uploads u
+             {$whereClause}",
+            $params
+        );
+
+        return (int) ($row['total'] ?? 0);
     }
 
     /**
@@ -215,5 +198,63 @@ class UploadRepository extends BaseRepository
         );
 
         return $row !== null;
+    }
+
+    /**
+     * Build shared WHERE clause and params from filter array.
+     */
+    private function buildFilterClause(array $filters): array
+    {
+        $where = ['u.is_purged = 0'];
+        $params = [];
+
+        if (empty($filters['include_deleted'])) {
+            $where[] = 'u.is_deleted = 0';
+        }
+
+        if (!empty($filters['parent_type'])) {
+            $where[] = 'u.parent_type = ?';
+            $params[] = $filters['parent_type'];
+        }
+
+        if (!empty($filters['parent_id'])) {
+            $where[] = 'u.parent_id = ?';
+            $params[] = (int) $filters['parent_id'];
+        }
+
+        if (!empty($filters['upload_type'])) {
+            $where[] = 'u.upload_type = ?';
+            $params[] = $filters['upload_type'];
+        }
+
+        if (isset($filters['discovery_mode']) && $filters['discovery_mode'] !== null && $filters['discovery_mode'] !== '') {
+            $where[] = 'u.is_discovery_mode = ?';
+            $params[] = (int) $filters['discovery_mode'];
+        }
+
+        if (!empty($filters['authority_visibility'])) {
+            $where[] = 'u.authority_visibility = ?';
+            $params[] = $filters['authority_visibility'];
+        }
+
+        if (!empty($filters['created_by_user_id'])) {
+            $where[] = 'u.created_by_user_id = ?';
+            $params[] = (int) $filters['created_by_user_id'];
+        }
+
+        if (!empty($filters['date_from'])) {
+            $where[] = 'DATE(u.created_at) >= ?';
+            $params[] = $filters['date_from'];
+        }
+
+        if (!empty($filters['date_to'])) {
+            $where[] = 'DATE(u.created_at) <= ?';
+            $params[] = $filters['date_to'];
+        }
+
+        return [
+            'clause' => 'WHERE ' . implode(' AND ', $where),
+            'params' => $params,
+        ];
     }
 }

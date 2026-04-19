@@ -1,0 +1,119 @@
+<?php
+
+require_once __DIR__ . '/../helpers/Response.php';
+require_once __DIR__ . '/../services/TaskService.php';
+
+class TaskProgressController
+{
+    private TaskService $taskService;
+
+    public function __construct()
+    {
+        $this->taskService = new TaskService();
+    }
+
+    /**
+     * GET taskprogress/list
+     */
+    public function listTaskProgress(): void
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+            Response::error('Method not allowed', 405);
+            return;
+        }
+
+        try {
+            $actorUserId = (int) $_SESSION['user_id'];
+            $actorRoleKey = $_SESSION['role_key'] ?? '';
+
+            $filters = [
+                'status' => $_GET['status'] ?? null,
+                'client_name' => $_GET['client_name'] ?? null,
+                'campaign_id' => $_GET['campaign_id'] ?? null,
+                'site_id' => $_GET['site_id'] ?? null,
+                'date_from' => $_GET['date_from'] ?? null,
+                'date_to' => $_GET['date_to'] ?? null,
+            ];
+
+            $items = $this->taskService->listTaskProgress($filters, $actorUserId, $actorRoleKey);
+
+            Response::success([
+                'items' => $items,
+                'pagination' => [
+                    'page' => 1,
+                    'limit' => count($items),
+                    'total' => count($items)
+                ]
+            ]);
+        } catch (DomainException $e) {
+            Response::error($e->getMessage(), 403);
+        } catch (Throwable $e) {
+            Response::error($e->getMessage(), 400);
+        }
+    }
+
+    /**
+     * GET taskprogress/get
+     */
+    public function getTaskProgress(): void
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+            Response::error('Method not allowed', 405);
+            return;
+        }
+
+        if (empty($_GET['task_id'])) {
+            Response::error('Missing task_id param', 400);
+            return;
+        }
+
+        try {
+            $actorUserId = (int) $_SESSION['user_id'];
+            $actorRoleKey = $_SESSION['role_key'] ?? '';
+
+            $progress = $this->taskService->getTaskProgress((int) $_GET['task_id'], $actorUserId, $actorRoleKey);
+            
+            if (!$progress) {
+                Response::error('Task progress not found or out of scope', 404);
+                return;
+            }
+
+            Response::success($progress);
+            
+        } catch (DomainException $e) {
+            Response::error($e->getMessage(), 403);
+        } catch (Throwable $e) {
+            Response::error($e->getMessage(), 400);
+        }
+    }
+
+    /**
+     * POST task/progress
+     */
+    public function updateProgress(): void
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            Response::error('Method not allowed', 405);
+            return;
+        }
+
+        $input = json_decode(file_get_contents('php://input'), true) ?? $_POST;
+        
+        if (empty($input['task_id'])) {
+            Response::error('Missing task_id param', 400);
+            return;
+        }
+
+        $actorUserId = (int) $_SESSION['user_id'];
+        $actorRoleKey = $_SESSION['role_key'] ?? '';
+
+        try {
+            $result = $this->taskService->updateTaskProgress($input, $actorUserId, $actorRoleKey);
+            Response::success($result);
+        } catch (DomainException $e) {
+            Response::error($e->getMessage(), 403);
+        } catch (Throwable $e) {
+            Response::error($e->getMessage(), 400);
+        }
+    }
+}

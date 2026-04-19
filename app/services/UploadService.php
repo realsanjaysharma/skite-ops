@@ -194,14 +194,24 @@ class UploadService
     }
 
     /**
-     * Creator-scoped upload list foundation for My Uploads pages.
+     * Creator-scoped upload list with pagination for My Uploads pages.
      */
-    public function listCreatorUploads(int $actorUserId, array $filters = []): array
+    public function listCreatorUploads(int $actorUserId, array $filters = [], int $page = 1, int $limit = DEFAULT_PAGE_LIMIT): array
     {
         $normalized = $this->normalizeListFilters($filters);
         $normalized['created_by_user_id'] = $actorUserId;
 
-        return $this->uploadRepository->findAll($normalized);
+        $items = $this->uploadRepository->findAll($normalized, $page, $limit);
+        $total = $this->uploadRepository->countAll($normalized);
+
+        return [
+            'items' => $items,
+            'pagination' => [
+                'page' => $page,
+                'limit' => $limit,
+                'total' => $total,
+            ],
+        ];
     }
 
     /**

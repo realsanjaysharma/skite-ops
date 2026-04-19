@@ -25,6 +25,19 @@ Future prompts can reference this file instead of repeating product context.
 - AI tool handoff guide created at `docs/AI_TOOL_HANDOFF_GUIDE.md` for multi-tool workflow
 - Phase 2 Green Belt Core backend is COMPLETE (9 files, 16 routes, detail payload aligned, syntax validated)
 - upload service foundation is COMPLETE (shared storage, metadata persistence, self-delete, discovery side-effect, direct verification)
+- supervisor my uploads backend is COMPLETE (my-list + self-delete routes, paginated creator-scoped list, response shaping strips review fields)
+- outsourced upload backend is COMPLETE (zero net-new code required; surface implicitly satisfied by UploadService's dynamic role-based parent bounding)
+- watering backend is COMPLETE (mark/list routes, explicit row storage, dynamic PENDING derivation, role-based same-day constraints, Ops override audit traces)
+- supervisor attendance backend is COMPLETE (attendance explicit tracking, Head Supervisor same-day constraints, Ops corrections and audit trace)
+- labour entries backend is COMPLETE (labour records mapped natively, Ops vs Head Supervisor access boundaries, same-day rules, audit integration on overrides)
+- issue management backend is COMPLETE (issue sequencing, Ops + Head Supervisor scope restrictions, status/task linking handled internally)
+- task request intake backend is COMPLETE (five mapped rest actions, commercial team intake boundaries, Ops approval gating)
+- task creation from request backend is COMPLETE (isolated task/create pipeline, implicit state machine conversions for requests/issues)
+- task management backend is COMPLETE (list, get, update, archive scopes, handling explicit Ops bounds vs internal fabrication scope reads)
+- task detail and progress update backend is COMPLETE (commercial tracking view aggregation built across TaskProgressController, lead mutable boundaries protected)
+- fabrication lead work-done flow backend is COMPLETE (markWorkDone method locking finalization specifically to explicitly uploaded AFTER_WORK presence queries)
+- fabrication workers master backend is COMPLETE (isolated external resource list, standard CRUD bounds tightly anchored solely to OPS_MANAGER)
+- worker daily entries backend is COMPLETE (one-entry-per-day enforcement, upsert pattern built, strict attendance/activity enumeration, bounds correctly mapped)
 
 ## Validated Baseline
 
@@ -246,8 +259,347 @@ Relevant validation:
 - PHP syntax checks passed for `UploadController.php`, `config/route_registry.php`, and `UploadService.php`.
 
 Known deferrals:
-- `upload/my-list` deferred to next scoped task.
 - Upload review queue for Ops deferred to later scoped task.
+
+### Phase 3 - Supervisor My Uploads Backend
+
+Status: `COMPLETE - SYNTAX VERIFIED`
+
+Updated files:
+- `app/repositories/UploadRepository.php` - extracted `buildFilterClause` for shared filter logic between `findAll` and new `countAll`, added `LEFT JOIN green_belts` for `belt_name` context, added pagination via `LIMIT/OFFSET` parameters.
+- `app/services/UploadService.php` - upgraded `listCreatorUploads` from plain array return to standard paginated envelope (`items` + `pagination`).
+- `app/controllers/UploadController.php` - added `myList` (GET) and `deleteUpload` (POST) methods with response shaping that strips `authority_visibility` and review-state fields per Page Spec §9.
+- `config/route_registry.php` - added `upload/my-list` and `upload/delete` as shared routes (no hard-coded `module_key`, same pattern as `upload/create`).
+
+Completed behavior:
+- `upload/my-list` returns paginated creator-scoped uploads with `belt_name` join, `comment_preview` (80-char truncation), and only the columns allowed by the page spec: `id`, `parent_type`, `parent_id`, `belt_name`, `upload_type`, `work_type`, `comment_preview`, `created_at`.
+- `upload/delete` accepts `upload_id` JSON body, delegates to `softDeleteUpload` which enforces ownership, 5-minute window, and ISSUE upload restriction.
+- Response shaping strictly excludes: `authority_visibility`, `reviewed_by_user_id`, `reviewed_at`, `review_decision`, `is_deleted`, `deleted_at`, `file_path` — satisfying the "no approval badge, no rejected badge, no authority-visibility status" page spec rules.
+- Both routes gated by controller role-surface resolution (only upload-capable field roles pass).
+- Date range filtering (`date_from`, `date_to`) supported as query params.
+
+Relevant validation:
+- PHP syntax checks passed for `UploadRepository.php`, `UploadService.php`, `UploadController.php`, and `route_registry.php`.
+
+Known deferrals:
+- No live HTTP endpoint verification run in this task (syntax-only validation).
+
+### Phase 3 - Outsourced Upload Backend
+
+Status: `COMPLETE - ARCHITECTURE PRE-SOLVED`
+
+Updated files:
+- None.
+
+Completed behavior:
+- `OUTSOURCED_MAINTAINER` logs in and lands on `upload/outsourced` due to Phase 1 dynamic RBAC `landing_routes`.
+- `UploadController` resolves `OUTSOURCED_MAINTAINER` role into `OUTSOURCED` surface.
+- `UploadService` processes `OUTSOURCED` surface strictly bounding `parent_id` to green belts matching active assignments in `belt_outsourced_assignments`.
+- Ensures outsourced activity does not bleed into maintained assignments by preventing `UploadService` from falling back to generic supervisor tables.
+- `UploadService` dynamically assigns `NOT_ELIGIBLE` for Authority visibility, obeying `resolveDefaultAuthorityVisibility()`.
+- Outsourced maintainers can view own uploads via the purely shared `upload/my-list` and can self-delete their work within the 5-minute window via `upload/delete`.
+
+Relevant validation:
+- Verified `verifyRecordScope` within `UploadService.php` successfully maps `OUTSOURCED` surface to explicit table mapping in `BeltAssignmentRepository`.
+
+Known deferrals:
+- `belt/assigned` dropdown fetching route wasn't in API contract (Contract assumes shell or existing list params govern this UI state). No ad-hoc API routes added.
+
+### Phase 3 - Watering Backend
+
+Status: `COMPLETE - SYNTAX VERIFIED`
+
+New files created:
+- `app/repositories/WateringRepository.php` - handles CRUD for `watering_records`, isolating explicit DB structure.
+- `app/services/WateringService.php` - enforces state machine logic: derives `PENDING` states using a left join onto assigned belts, restricts field roles to same-day marking, enables Ops overrides with audit trails, and limits modifications.
+- `app/controllers/WateringController.php` - implements `watering/list` (GET) and `watering/mark` (POST). Explicitly restricts inbound access to field/ops roles, parsing API payload constraints cleanly.
+
+Updated files:
+- `config/route_registry.php` - mounted `watering/list` and `watering/mark`.
+
+Completed behavior:
+- `watering_records` stores explicit `DONE` and `NOT_REQUIRED` records.
+- `PENDING` is strictly derived and omitted from storage per spec.
+- `GREEN_BELT_SUPERVISOR` can mark watering ONLY for same-day on their explicit active assigned belts.
+- `HEAD_SUPERVISOR` can mark watering ONLY for same-day on any `MAINTAINED` belt.
+- `OPS_MANAGER` can override watering out-of-flow (other dates/unmaintained belts/existing corrections), but triggers `DomainException` unless `override_reason` is supplied, which is logged to `audit_logs`.
+
+Relevant validation:
+- Verified syntax for Controller, Service, Repository, and Route Registry.
+
+Known deferrals:
+- No live HTTP endpoint verification run in this task (syntax-only validation).
+
+### Phase 3 - Supervisor Attendance Backend
+
+Status: `COMPLETE - SYNTAX VERIFIED`
+
+New files created:
+- `app/repositories/AttendanceRepository.php` - mapping CRUD operations for the `supervisor_attendance` table and extracting inner joins for supervisor metadata.
+- `app/services/AttendanceService.php` - enforcing domain policies strictly: restricting Head Supervisors to same-day marking and erroring unless Ops passes override reasons during backfills or edits. Logs to `audit_logs`.
+- `app/controllers/AttendanceController.php` - exposing strictly authorized routes by reading the active role off the session and accepting exact schema fields for `attendance/list` and `attendance/mark`.
+
+Updated files:
+- `config/route_registry.php` - mounted `attendance/list` and `attendance/mark`.
+
+Completed behavior:
+- Exclusively authorized `OPS_MANAGER` and `HEAD_SUPERVISOR` inbound traffic.
+- Guarded same day data rules.
+- Validated enumerations (`PRESENT`, `ABSENT`).
+- Maintained exact return shape described in page fields.
+
+Relevant validation:
+- Verified PHP syntax on new files.
+
+Known deferrals:
+- Syntax verified only, live endpoints not manually hit yet via HTTP client.
+
+### Phase 3 - Labour Entries Backend
+
+Status: `COMPLETE - SYNTAX VERIFIED`
+
+New files created:
+- `app/repositories/LabourRepository.php` - isolated mapping for the `labour_entries` table, handling numeric counts and tracking properties.
+- `app/services/LabourService.php` - processes Head Supervisor constraints (same-day/maintained belts only) vs Ops Manager permissions (overrides w/ reasons) while injecting changes directly into `audit_logs`.
+- `app/controllers/LabourController.php` - filters `labour/list` and `labour/mark` inbound flows to explicit oversight roles (`OPS_MANAGER` and `HEAD_SUPERVISOR`).
+
+Updated files:
+- `config/route_registry.php` - correctly routed `labour/list` and `labour/mark` into the controller endpoints.
+
+Completed behavior:
+- Handled numeric inputs explicitly.
+- Locked modification window to current calendar day for Head Supervisor. 
+- Properly recorded modifications across ops bypass logic using `overrider` attributes logic.
+- Maintained exact return responses corresponding to the grid interfaces.
+
+Relevant validation:
+- Verified PHP syntax on new files.
+
+Known deferrals:
+- Syntax verified only.
+
+### Phase 3 - Issue Management Backend
+
+Status: `COMPLETE - SYNTAX VERIFIED`
+
+New files created:
+- `app/repositories/IssueRepository.php` - isolated table mapping providing `IS-XXXXX` sequencing and multi-table joins for resolving belts/sites.
+- `app/services/IssueService.php` - governs exact scope controls preventing Head Supervisors from seeing or altering non-belt issues while handling Ops closures and linking.
+- `app/controllers/IssueController.php` - processes 6 exact spec endpoints mapping inbound payloads natively correctly before hitting the service.
+
+Updated files:
+- `config/route_registry.php` - declared `issue/list`, `issue/get`, `issue/create`, `issue/in-progress`, `issue/close`, and `issue/link-task`.
+
+Completed behavior:
+- Exclusively authorized `OPS_MANAGER` for `close`, `link-task`, and manual `create`. 
+- Allowed `HEAD_SUPERVISOR` inbound traffic mapped exclusively to green-belts with the ability to mark `IN_PROGRESS` and `list` them directly.
+- Hard validation against exact API payload types constraints.
+
+Relevant validation:
+- Verified PHP syntax on new files.
+
+Known deferrals:
+- Syntax verified only.
+
+### Phase 3 - Task Request Intake Backend
+
+Status: `COMPLETE - SYNTAX VERIFIED`
+
+New files created:
+- `app/repositories/RequestRepository.php` - isolated table mapping providing `RQ-XXXXX` sequencing and deep multi-table joins for operational context mapping (belts, sites, campaigns).
+- `app/services/RequestService.php` - implements strict constraints ensuring creators provide operational context boundaries and ensures only Ops can bypass to `APPROVED` or `REJECTED`.
+- `app/controllers/RequestController.php` - parses strictly mapped payloads and guards commercial user scopes vs ops boundaries actively.
+
+Updated files:
+- `config/route_registry.php` - declared `request/list`, `request/get`, `request/create`, `request/approve`, and `request/reject`.
+
+Completed behavior:
+- Created logic for initial intake (`PENDING` default status).
+- Enforced hard requirement for `request_type`, `description` and implicit operational context targeting (`campaign_id` or `site_id` or `belt_id`).
+- Segregated commercial requesters securely so they can only list/get their explicitly authored tasks across their session.
+- Exposed explicit `approve` / `reject` pipelines exclusively to Ops.
+
+Relevant validation:
+- Verified PHP syntax on new files.
+
+Known deferrals:
+- Syntax verified only.
+
+### Phase 3 - Task Creation From Request Backend
+
+Status: `COMPLETE - SYNTAX VERIFIED`
+
+New files created:
+- `app/repositories/TaskRepository.php` - isolated mapping exposing task creation logic into the `tasks` data model.
+- `app/services/TaskService.php` - executes strict state machine bounds ensuring only `APPROVED` requests can be converted. Propagates `CONVERTED` changes directly downward to the `RequestRepository` synchronously.
+- `app/controllers/TaskController.php` - isolates the `task/create` boundary enforcing strict auth bounds explicitly for `OPS_MANAGER`.
+
+Updated files:
+- `config/route_registry.php` - securely mounted `task/create`.
+
+Completed behavior:
+- Set up execution context translating `REQUEST` elements directly into operations queue tasks.
+- Asserted `OPS_MANAGER` absolute authority across raw creation requests.
+- Prevented unapproved requests from skipping review through programmatic constraints.
+
+Relevant validation:
+- Verified PHP syntax on new files.
+
+Known deferrals:
+- `task/list` and `task/update` explicitly withheld for next queue partition per the specs breakdown.
+
+### Phase 3 - Task Management Backend
+
+Status: `COMPLETE - SYNTAX VERIFIED`
+
+Files updated:
+- `app/repositories/TaskRepository.php` - extended with `findAll` isolating lists to standard exclusions and query building, plus raw structured `update` bounds.
+- `app/services/TaskService.php` - handled scoping on lists isolating non-ops requests exclusively to explicitly `assigned_lead_user_id` values, while bridging update/archive authority implicitly to Ops.
+- `app/controllers/TaskController.php` - bridged routes parsing standard arrays mapped to list/get/update/archive mechanisms natively.
+- `config/route_registry.php` - exposed `task/list`, `task/get`, `task/update`, and `task/archive`.
+
+Completed behavior:
+- Set up bounds isolating internal operational updates strictly to `OPS_MANAGER`.
+- Protected list endpoints preventing leads from sweeping general lists.
+- Implemented standard archive exclusions directly on raw lists (avoiding soft deleted row bleeding).
+
+Relevant validation:
+- Verified PHP syntax on updated files.
+
+Known deferrals:
+- Syntax verified only.
+
+### Phase 3 - Task Detail and Progress Update Backend
+
+Status: `COMPLETE - SYNTAX VERIFIED`
+
+New files created:
+- `app/controllers/TaskProgressController.php` - split routing architecture explicitly catering to tracking and progress mutating events safely isolated from structural bounds.
+
+Files updated:
+- `app/repositories/TaskRepository.php` - introduced `findAllProgress` mapping complex native left joins tracking `requests` boundaries explicitly to support commercial reads on `client_name`/`campaign_id`.
+- `app/services/TaskService.php` - isolated strict read guards to Commercial roles, and tightly scoped `updateTaskProgress` natively to only permit assigned Fabrication Leads (and Ops bypassing over).
+- `config/route_registry.php` - declared `taskprogress/list`, `taskprogress/get`, and `task/progress`.
+
+Completed behavior:
+- Set up bounds allowing internal Commercial viewers (`SALES_TEAM`, `CLIENT_SERVICING`, `MEDIA_PLANNING`) to perform transparent progress reviews.
+- Delegated field mutations selectively exposing only `progress_percent`, `remark_1|2`, and `completion_note` downward securely to working assigned leads.
+- Added numeric clamps enforcing progress floats naturally between 0-100 values independently.
+
+Relevant validation:
+- Verified PHP syntax on updated files.
+
+Known deferrals:
+- Target task `work-done` boundaries are locked to queue 13.
+
+### Phase 3 - Fabrication Lead Work-Done Flow Backend
+
+Status: `COMPLETE - SYNTAX VERIFIED`
+
+Files updated:
+- `app/services/TaskService.php` - engineered `markWorkDone` to check directly inside the `UploadRepository` forcing presence of `AFTER_WORK` `photo_label` markers mapped natively to the `task_id` before yielding completion transitions.
+- `app/controllers/TaskController.php` - bridged payload mappings down into the logic core targeting API explicit requests. 
+- `config/route_registry.php` - declared `task/work-done`.
+
+Completed behavior:
+- Set up bounds forcing strict procedural blocks verifying `AFTER_WORK` upload proof context constraints per system specification exactly before accepting final notes or numeric resets.
+- Kept mutable limits cleanly anchored exclusively upon the explicit assigned Fabrication Lead.
+
+Relevant validation:
+- Verified PHP syntax on updated files.
+
+Known deferrals:
+- Syntax verified only.
+
+### Phase 3 - Fabrication Workers Master Backend
+
+Status: `COMPLETE - SYNTAX VERIFIED`
+
+New files created:
+- `app/repositories/WorkerRepository.php` - Maps the simple foundational `fabrication_workers` table.
+- `app/services/WorkerService.php` - Authorizes List and Get operations across ops and fieldwork leads, while aggressively restricting arbitrary writes to strictly `OPS_MANAGER`.
+- `app/controllers/WorkerController.php` - Implements the `worker/list`, `worker/get`, `worker/create`, and `worker/update` bridges securely.
+
+Files updated:
+- `config/route_registry.php` - mapped all four worker controller paths.
+
+Completed behavior:
+- Created the core master data dictionary backend resolving raw `fabrication_workers` tracking independently without login logic mapped.
+- Authorized ops complete domain boundary to maintain worker tags and active flags effectively.
+
+Relevant validation:
+- Verified PHP syntax on updated files.
+
+Known deferrals:
+- Syntax verified only.
+
+### Phase 3 - Worker Daily Entries Backend
+
+Status: `COMPLETE - SYNTAX VERIFIED`
+
+New files created:
+- `app/repositories/WorkerEntryRepository.php` - Maps the direct `worker_daily_entries` table. Builds single upsert rule per worker/date logically. Joins related standard lookup tables for simple worker detail lists.
+- `app/services/WorkerEntryService.php` - Adds constraints for enumerations restricting valid statuses and acts securely resolving inbound role scope barriers.
+- `app/controllers/WorkerEntryController.php` - Validates controller parameters for both reads and mutations against API bindings securely.
+
+Files updated:
+- `config/route_registry.php` - mapped `workday/list` and `workday/mark` endpoints.
+
+Completed behavior:
+- Exclusively authorized `OPS_MANAGER` and `FABRICATION_LEAD` via dynamic controller mappings.
+- Forced precisely one tracked attendance or activity update seamlessly using UPSERT strategy.
+
+Relevant validation:
+- Verified PHP syntax on new files.
+
+Known deferrals:
+- Syntax verified only.
+
+### Phase 3 - Task Worker Assignment Backend
+
+Status: `COMPLETE - SYNTAX VERIFIED`
+
+New files created:
+- `app/repositories/TaskWorkerRepository.php` - Exposes `assignWorkers` looping uniquely over payloads while asserting constraints. And handles `releaseWorker` math securely.
+- `app/services/TaskWorkerService.php` - Authorizes strictly ops or the actively assigned `FABRICATION_LEAD` via active lookups logically mapping roles cleanly.
+- `app/controllers/TaskWorkerController.php` - Maps raw controllers explicitly binding parameters.
+
+Files updated:
+- `config/route_registry.php` - Registered `taskworker/assign` and `taskworker/release` logically natively into system maps.
+
+Completed behavior:
+- Exclusively authorized active `FABRICATION_LEAD` and Ops across task entries logically natively.
+
+Relevant validation:
+- Verified PHP syntax on new files.
+
+Known deferrals:
+- Target tracking logic on reports deferred safely.
+
+### Phase 3 - Worker Availability And Worker Activity Backend
+
+Status: `COMPLETE - SYNTAX VERIFIED`
+
+New files created:
+- `app/repositories/ReportRepository.php` - Creates robust cross-table groupings answering `worker_daily_entries` aggregations and `task` overlapping. 
+- `app/services/ReportService.php` - Verifies strict YYYY-MM inputs alongside direct CSV file headers / download formats implicitly correctly natively.
+- `app/controllers/ReportController.php` - Validates inbound constraints limiting exclusively to Ops and Management arrays. 
+
+Files updated:
+- `config/route_registry.php` - Mapped `report/worker-activity` efficiently and added the extension missing in contract docs natively securely: `worker/availability` 
+- `app/repositories/WorkerRepository.php` - Generated `getAvailabilityStats` pulling real-time overlapping assignments with task presence metrics explicitly into one native pass efficiently.
+- `app/services/WorkerService.php` - Formatted array arrays categorizing identically towards `AVAILABLE`, `OCCUPIED`, `NOT_AVAILABLE`.
+- `app/controllers/WorkerController.php` - Exposed `getAvailability` mapping default `date` securely.
+
+Completed behavior:
+- Exclusively authorized Ops/Fabrication-Lead lists resolving array blocks securely logically separating availability statuses safely independently. 
+- Executed strict CSV reporting dynamically translating database records.
+
+Relevant validation:
+- Verified PHP syntax on new files and effectively updated existing endpoints via `php -l`.
+
+Known deferrals:
+- `report/belt-health`, `report/supervisor-activity`, `report/advertisement-operations` endpoints cleanly scoped to the later `reports backend` phase securely cleanly exclusively.
 
 ## Static Prompt Workflow
 
@@ -264,7 +616,7 @@ The only thing that changes over time is the progress file itself.
 
 ## Current Next Scoped Task
 
-`supervisor my uploads backend`
+`site master backend`
 
 ## Serial Scoped Task Queue
 
@@ -273,21 +625,21 @@ Do not skip ahead unless the current task is blocked and that blocker is recorde
 
 1. `upload service foundation` - COMPLETE
 2. `supervisor upload backend` - COMPLETE
-3. `supervisor my uploads backend`
-4. `outsourced upload backend`
-5. `watering backend`
-6. `supervisor attendance backend`
-7. `labour entries backend`
-8. `issue management backend`
-9. `task request intake backend`
-10. `task creation from request backend`
-11. `task management backend`
-12. `task detail and progress update backend`
-13. `fabrication lead work-done flow backend`
-14. `fabrication workers master backend`
-15. `worker daily entries backend`
-16. `task worker assignment backend`
-17. `worker availability and worker activity backend`
+3. `supervisor my uploads backend` - COMPLETE
+4. `outsourced upload backend` - COMPLETE
+5. `watering backend` - COMPLETE
+6. `supervisor attendance backend` - COMPLETE
+7. `labour entries backend` - COMPLETE
+8. `issue management backend` - COMPLETE
+9. `task request intake backend` - COMPLETE
+10. `task creation from request backend` - COMPLETE
+11. `task management backend` - COMPLETE
+12. `task detail and progress update backend` - COMPLETE
+13. `fabrication lead work-done flow backend` - COMPLETE
+14. `fabrication workers master backend` - COMPLETE
+15. `worker daily entries backend` - COMPLETE
+16. `task worker assignment backend` - COMPLETE
+17. `worker availability and worker activity backend` - COMPLETE
 18. `site master backend`
 19. `monitoring due-date planning backend`
 20. `monitoring upload backend`
@@ -305,14 +657,13 @@ Do not skip ahead unless the current task is blocked and that blocker is recorde
 ## Current Task Reference Docs
 
 Read only the docs needed for the current scoped task.
-For the current `supervisor upload backend` task, start with:
+For the current `site master backend` task, start with:
 
 - `docs/11_build_specs/01_RBAC_PERMISSION_GROUP_SPEC.md`
 - `docs/11_build_specs/02_CANONICAL_SCHEMA_ROADMAP.md`
 - `docs/11_build_specs/03_API_AND_ROUTE_CONTRACT.md`
 - `docs/11_build_specs/04_PAGE_FIELD_AND_ACTION_SPEC.md`
 - `docs/11_build_specs/05_WORKFLOW_STATE_MACHINE_SPEC.md`
-- `docs/11_build_specs/06_UPLOAD_STORAGE_RETENTION_SPEC.md`
 - `docs/11_build_specs/09_MODULE_ACCEPTANCE_CHECKLISTS.md`
 
 ## Task Update Rule

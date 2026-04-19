@@ -219,6 +219,196 @@ return [
     ],
 
     // =========================================
+    // ISSUES
+    // =========================================
+
+    'issue/list' => [
+        'controller' => 'IssueController',
+        'method' => 'listIssues',
+    ],
+    'issue/get' => [
+        'controller' => 'IssueController',
+        'method' => 'getIssue',
+    ],
+    'issue/create' => [
+        'controller' => 'IssueController',
+        'method' => 'createIssue',
+    ],
+    'issue/in-progress' => [
+        'controller' => 'IssueController',
+        'method' => 'markInProgress',
+    ],
+    'issue/close' => [
+        'controller' => 'IssueController',
+        'method' => 'closeIssue',
+    ],
+    'issue/link-task' => [
+        'controller' => 'IssueController',
+        'method' => 'linkTask',
+    ],
+
+    // =========================================
+    // REQUEST INTAKE
+    // =========================================
+
+    'request/list' => [
+        'controller' => 'RequestController',
+        'method' => 'listRequests',
+    ],
+    'request/get' => [
+        'controller' => 'RequestController',
+        'method' => 'getRequest',
+    ],
+    'request/create' => [
+        'controller' => 'RequestController',
+        'method' => 'createRequest',
+    ],
+    'request/approve' => [
+        'controller' => 'RequestController',
+        'method' => 'approveRequest',
+    ],
+    'request/reject' => [
+        'controller' => 'RequestController',
+        'method' => 'rejectRequest',
+    ],
+
+    // =========================================
+    // TASKS
+    // =========================================
+
+    'task/create' => [
+        'controller' => 'TaskController',
+        'method' => 'createTask',
+    ],
+    'task/list' => [
+        'controller' => 'TaskController',
+        'method' => 'listTasks',
+    ],
+    'task/get' => [
+        'controller' => 'TaskController',
+        'method' => 'getTask',
+    ],
+    'task/update' => [
+        'controller' => 'TaskController',
+        'method' => 'updateTask',
+    ],
+    'task/archive' => [
+        'controller' => 'TaskController',
+        'method' => 'archiveTask',
+    ],
+    'task/progress' => [
+        'controller' => 'TaskProgressController',
+        'method' => 'updateProgress',
+    ],
+    'task/work-done' => [
+        'controller' => 'TaskController',
+        'method' => 'markWorkDone',
+    ],
+
+    // =========================================
+    // TASK WORKER ASSIGNMENTS
+    // =========================================
+
+    'taskworker/assign' => [
+        'controller' => 'TaskWorkerController',
+        'method' => 'assignWorkers',
+    ],
+    'taskworker/release' => [
+        'controller' => 'TaskWorkerController',
+        'method' => 'releaseWorker',
+    ],
+
+    // =========================================
+    // TASK PROGRESS (COMMERCIAL VIEWS)
+    // =========================================
+
+    'taskprogress/list' => [
+        'controller' => 'TaskProgressController',
+        'method' => 'listTaskProgress',
+    ],
+    'taskprogress/get' => [
+        'controller' => 'TaskProgressController',
+        'method' => 'getTaskProgress',
+    ],
+
+    // =========================================
+    // FABRICATION WORKERS
+    // =========================================
+
+    'worker/list' => [
+        'controller' => 'WorkerController',
+        'method' => 'listWorkers',
+    ],
+    'worker/get' => [
+        'controller' => 'WorkerController',
+        'method' => 'getWorker',
+    ],
+    'worker/create' => [
+        'controller' => 'WorkerController',
+        'method' => 'createWorker',
+    ],
+    'worker/update' => [
+        'controller' => 'WorkerController',
+        'method' => 'updateWorker',
+    ],
+    'worker/availability' => [
+        'controller' => 'WorkerController',
+        'method' => 'getAvailability',
+    ],
+
+    // =========================================
+    // WORKER DAILY ENTRIES
+    // =========================================
+
+    'workday/list' => [
+        'controller' => 'WorkerEntryController',
+        'method' => 'listEntries',
+    ],
+    'workday/mark' => [
+        'controller' => 'WorkerEntryController',
+        'method' => 'markEntry',
+    ],
+
+    // =========================================
+    // LABOUR ENTRIES
+    // =========================================
+
+    'labour/list' => [
+        'controller' => 'LabourController',
+        'method' => 'listLabourEntries',
+    ],
+    'labour/mark' => [
+        'controller' => 'LabourController',
+        'method' => 'markLabourCounts',
+    ],
+
+    // =========================================
+    // SUPERVISOR ATTENDANCE
+    // =========================================
+
+    'attendance/list' => [
+        'controller' => 'AttendanceController',
+        'method' => 'listAttendanceRecords',
+    ],
+    'attendance/mark' => [
+        'controller' => 'AttendanceController',
+        'method' => 'markAttendance',
+    ],
+
+    // =========================================
+    // WATERING LOGS
+    // =========================================
+
+    'watering/list' => [
+        'controller' => 'WateringController',
+        'method' => 'listWateringRecords',
+    ],
+    'watering/mark' => [
+        'controller' => 'WateringController',
+        'method' => 'markWatering',
+    ],
+
+    // =========================================
     // UPLOADS
     // =========================================
 
@@ -226,5 +416,26 @@ return [
         'controller' => 'UploadController',
         'method' => 'createUpload',
         // Shared endpoint: module access is governed by UploadController surface resolution
+    ],
+
+    'upload/my-list' => [
+        'controller' => 'UploadController',
+        'method' => 'myList',
+        // Shared endpoint: any upload-capable field role may list own uploads
+    ],
+
+    'upload/delete' => [
+        'controller' => 'UploadController',
+        'method' => 'deleteUpload',
+        // Shared endpoint: upload creator self-delete within time window
+    ],
+
+    // =========================================
+    // REPORTS
+    // =========================================
+
+    'report/worker-activity' => [
+        'controller' => 'ReportController',
+        'method' => 'getWorkerActivity',
     ],
 ];
