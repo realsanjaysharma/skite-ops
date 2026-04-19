@@ -438,4 +438,109 @@ return [
         'controller' => 'ReportController',
         'method' => 'getWorkerActivity',
     ],
+
+    // =========================================
+    // SITE MASTER
+    // =========================================
+
+    'site/list' => [
+        'controller' => 'SiteController',
+        'method' => 'listSites',
+        'module_key' => 'advertisement.site_master',
+        'capability' => 'read',
+    ],
+    'site/get' => [
+        'controller' => 'SiteController',
+        'method' => 'getSite',
+        'module_key' => 'advertisement.site_master',
+        'capability' => 'read',
+    ],
+    'site/create' => [
+        'controller' => 'SiteController',
+        'method' => 'createSite',
+        'module_key' => 'advertisement.site_master',
+        'capability' => 'manage',
+    ],
+    'site/update' => [
+        'controller' => 'SiteController',
+        'method' => 'updateSite',
+        'module_key' => 'advertisement.site_master',
+        'capability' => 'manage',
+    ],
+
+    // =========================================
+    // MONITORING PLAN
+    // =========================================
+
+    'monitoringplan/list' => [
+        'controller' => 'MonitoringPlanController',
+        'method' => 'listPlan',
+        'module_key' => 'monitoring.plan',
+        'capability' => 'read',
+    ],
+    'monitoringplan/save' => [
+        'controller' => 'MonitoringPlanController',
+        'method' => 'savePlan',
+        'module_key' => 'monitoring.plan',
+        'capability' => 'manage',
+    ],
+    'monitoringplan/copy-next-month' => [
+        'controller' => 'MonitoringPlanController',
+        'method' => 'copyNextMonth',
+        'module_key' => 'monitoring.plan',
+        'capability' => 'manage',
+    ],
+    'monitoringplan/bulk-copy' => [
+        'controller' => 'MonitoringPlanController',
+        'method' => 'bulkCopy',
+        'module_key' => 'monitoring.plan',
+        'capability' => 'manage',
+    ],
+
+    // =========================================
+    // MONITORING HISTORY
+    // =========================================
+
+    'monitoring/history' => [
+        'controller' => 'MonitoringHistoryController',
+        'method' => 'getHistory',
+        'module_key' => 'monitoring.history',
+        'capability' => 'read',
+    ],
+
+    // =========================================
+    // CAMPAIGN MANAGEMENT
+    // =========================================
+
+    'campaign/list' => [
+        'controller' => 'CampaignController',
+        'method' => 'listCampaigns',
+        'module_key' => 'advertisement.campaign_management',
+        'capability' => 'read',
+    ],
+    'campaign/get' => [
+        'controller' => 'CampaignController',
+        'method' => 'getCampaign',
+        'module_key' => 'advertisement.campaign_management',
+        'capability' => 'read',
+    ],
+    'campaign/create' => [
+        'controller' => 'CampaignController',
+        'method' => 'createCampaign',
+        'module_key' => 'advertisement.campaign_management',
+        'capability' => 'manage',
+    ],
+    'campaign/update' => [
+        'controller' => 'CampaignController',
+        'method' => 'updateCampaign',
+        'module_key' => 'advertisement.campaign_management',
+        'capability' => 'manage',
+    ],
+    'campaign/end' => [
+        'controller' => 'CampaignController',
+        'method' => 'endCampaign',
+        'module_key' => 'advertisement.campaign_management',
+        'capability' => 'manage',
+    ],
 ];
+

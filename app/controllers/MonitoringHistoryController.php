@@ -1,0 +1,18 @@
+<?php
+
+class MonitoringHistoryController {
+    public function getHistory(): void {
+        if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+            Response::error('Method not allowed', 405);
+            return;
+        }
+
+        try {
+            $service = new MonitoringHistoryService();
+            $result = $service->getHistory($_GET);
+            Response::success($result);
+        } catch (Throwable $e) {
+            Response::error($e->getMessage(), 400);
+        }
+    }
+}

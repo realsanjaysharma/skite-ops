@@ -84,10 +84,12 @@ class UploadRepository extends BaseRepository
         return $this->fetchAll(
             "SELECT u.*,
                     creator.full_name AS created_by_user_name,
-                    gb.common_name AS belt_name
+                    gb.common_name AS belt_name,
+                    s.site_code AS site_name
              FROM uploads u
              INNER JOIN users creator ON creator.id = u.created_by_user_id
              LEFT JOIN green_belts gb ON gb.id = u.parent_id AND u.parent_type = 'GREEN_BELT'
+             LEFT JOIN sites s ON s.id = u.parent_id AND u.parent_type = 'SITE'
              {$whereClause}
              ORDER BY u.created_at DESC, u.id DESC
              {$limitClause}",

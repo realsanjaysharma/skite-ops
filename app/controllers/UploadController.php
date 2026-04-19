@@ -98,9 +98,12 @@ class UploadController
                         'id'              => (int) $upload['id'],
                         'parent_type'     => $upload['parent_type'],
                         'parent_id'       => (int) $upload['parent_id'],
-                        'belt_name'       => $upload['belt_name'] ?? null,
+                        'parent_name'     => $upload['parent_type'] === 'SITE' 
+                                                ? ($upload['site_name'] ?? null)
+                                                : ($upload['belt_name'] ?? null),
                         'upload_type'     => $upload['upload_type'],
                         'work_type'       => $upload['work_type'],
+                        'is_discovery_mode' => (int) ($upload['is_discovery_mode'] ?? 0),
                         'comment_preview' => !empty($upload['comment_text'])
                             ? mb_substr($upload['comment_text'], 0, 80)
                             : null,
