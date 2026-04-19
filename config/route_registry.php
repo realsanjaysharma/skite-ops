@@ -588,5 +588,17 @@ return [
         'module_key' => 'green_belt.authority_view',
         'capability' => 'read',
     ],
+    'authority/summary' => [
+        'controller' => 'AuthorityViewController',
+        'method' => 'summary',
+        'module_key' => 'green_belt.authority_view',
+        'capability' => 'read',
+    ],
+    'authority/share-helper' => [
+        'controller' => 'AuthorityViewController',
+        'method' => 'shareHelper',
+        'module_key' => 'green_belt.authority_view',
+        'capability' => 'read',
+    ],
 ];
 
