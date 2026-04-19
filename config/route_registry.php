@@ -577,5 +577,16 @@ return [
         'module_key' => 'advertisement.free_media',
         'capability' => 'manage',
     ],
+
+    // =========================================
+    // AUTHORITY VIEW
+    // =========================================
+
+    'authority/view' => [
+        'controller' => 'AuthorityViewController',
+        'method' => 'view',
+        'module_key' => 'green_belt.authority_view',
+        'capability' => 'read',
+    ],
 ];
 
