@@ -284,6 +284,65 @@ class UploadService
         }
     }
 
+    /**
+     * Review uploads (Approve, Reject, Hidden).
+     */
+    public function reviewUploads(array $uploadIds, string $decision, int $actorUserId, ?string $comment = null): void
+    {
+        if (empty($uploadIds)) {
+            throw new InvalidArgumentException('No uploads provided for review.');
+        }
+
+        $validDecisions = ['APPROVED', 'REJECTED', 'HIDDEN'];
+        if (!in_array($decision, $validDecisions, true)) {
+            throw new InvalidArgumentException('Invalid review decision.');
+        }
+
+        // Must be Ops role to review
+        if (!isset($_SESSION['role_key']) || $_SESSION['role_key'] !== 'OPS_MANAGER') {
+            throw new DomainException('Only Ops can review uploads.');
+        }
+
+        $this->uploadRepository->beginTransaction();
+
+        try {
+            // Store old state for audit
+            $placeholders = implode(',', array_fill(0, count($uploadIds), '?'));
+            $oldUploads = $this->uploadRepository->fetchAll(
+                "SELECT id, authority_visibility FROM uploads WHERE id IN ($placeholders) AND is_deleted = 0 AND is_purged = 0",
+                $uploadIds
+            );
+
+            if (empty($oldUploads)) {
+                $this->uploadRepository->rollBack();
+                throw new InvalidArgumentException('None of the provided uploads are eligible for review.');
+            }
+
+            $this->uploadRepository->review($uploadIds, $decision, $actorUserId, $comment);
+
+            foreach ($oldUploads as $old) {
+                // If it was already the same state, skip audit spam
+                if ($old['authority_visibility'] === $decision) {
+                    continue;
+                }
+                
+                $this->auditService->logAction(
+                    $actorUserId,
+                    'UPLOAD_REVIEWED',
+                    'upload',
+                    (int) $old['id'],
+                    ['authority_visibility' => $old['authority_visibility']],
+                    ['authority_visibility' => $decision]
+                );
+            }
+
+            $this->uploadRepository->commit();
+        } catch (Throwable $e) {
+            $this->uploadRepository->rollBack();
+            throw $e;
+        }
+    }
+
     private function normalizeCreateData(string $surface, array $surfaceConfig, array $data): array
     {
         $parentType = strtoupper(trim((string) ($data['parent_type'] ?? '')));

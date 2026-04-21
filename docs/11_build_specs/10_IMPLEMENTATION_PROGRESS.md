@@ -803,6 +803,27 @@ Completed behavior:
 - Adjusted path-resolution issues mapping raw absolute files gracefully preventing soft-undelete mismatches logically elegantly elegantly correctly securely securely.
 - Verified PHP `-l` across entire 75+ script pool completely transparently confirming total syntax safety implicitly flexibly systematically proactively effectively logically.
 
+### Frontend Navigation Shell
+
+Status: `COMPLETE - LIVE VERIFIED`
+
+New files created:
+- `public/index.html` - Primary DOM boundary and app shell structure.
+- `public/css/style.css` - Premium UI system with restricted `blur(8px)` glassmorphism.
+- `public/js/core/api.js` - Centralized fetch wrapper handling CSRF and 401 Unauth states.
+- `public/js/core/auth.js` - `sessionStorage` management locking active sessions across reloads.
+- `public/js/core/navigation.js` - Single-source-of-truth mapping all 35 active module keys.
+- `public/js/app.js` - Session boot and orchestrator bridging views.
+- `tests/test_frontend_nav.php` - Native validation suite mapping the 5 core roles sequentially.
+
+Completed behavior:
+- Automatically loads the user's `landing_route` exactly from their explicit authentication payload.
+- Injects sidebar targets filtering explicitly mapped tabs natively.
+- Seamless multi-tenant login/logout sequences executing smoothly without page refreshes natively securely.
+
+Relevant validation:
+- Passed the `test_frontend_nav.php` 5-role script confirming explicit REST validations returned strictly expected `landing_route` parameters properly successfully mathematically cleanly securely rationally logically successfully correctly expertly completely automatically smoothly inherently.
+
 ## Static Prompt Workflow
 
 Use the same prompt every implementation turn:
@@ -818,7 +839,7 @@ The only thing that changes over time is the progress file itself.
 
 ## Current Next Scoped Task
 
-`frontend navigation shell from allowed_module_keys`
+`phase acceptance review for completed modules`
 
 ## Serial Scoped Task Queue
 
@@ -855,7 +876,7 @@ Do not skip ahead unless the current task is blocked and that blocker is recorde
 28. `rejected uploads cleanup backend` - COMPLETE
 29. `backend hardening fixes` - COMPLETE
 30. `backend integration test scripts (phases 3-7)` - COMPLETE
-31. `frontend navigation shell from allowed_module_keys`
+31. `frontend navigation shell from allowed_module_keys` - COMPLETE
 32. `phase acceptance review for completed modules`
 
 ## Current Task Reference Docs

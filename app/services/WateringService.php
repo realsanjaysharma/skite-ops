@@ -238,7 +238,7 @@ class WateringService
         array_unshift($params, $date, $date);
 
         // We use the wateringRepo's DB connection directly through a raw query since it derives state
-        $rows = $this->wateringRepo->fetchAll($sql, $params);
+        $rows = $this->wateringRepo->fetchOversightRecords($sql, $params);
         
         return $rows;
     }

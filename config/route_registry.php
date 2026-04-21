@@ -663,5 +663,51 @@ return [
         'module_key' => 'governance.rejected_upload_cleanup',
         'capability' => 'manage',
     ],
+
+    // =========================================
+    // DASHBOARDS & OVERSIGHT
+    // =========================================
+
+    'dashboard/master' => [
+        'controller' => 'DashboardController',
+        'method' => 'master',
+        'module_key' => 'dashboard.master_ops',
+        'capability' => 'read',
+    ],
+    'dashboard/management' => [
+        'controller' => 'DashboardController',
+        'method' => 'management',
+        'module_key' => 'dashboard.management',
+        'capability' => 'read',
+    ],
+    'oversight/watering' => [
+        'controller' => 'OversightController',
+        'method' => 'watering',
+        'module_key' => 'green_belt.watering_oversight',
+        'capability' => 'read',
+    ],
+
+    // =========================================
+    // AUDIT LOGS
+    // =========================================
+
+    'audit/list' => [
+        'controller' => 'AuditController',
+        'method' => 'list',
+        // Implicitly accessible by Ops/Management (all) or self-scoped via controller logic
+    ],
+
+    // =========================================
+    // UPLOAD REVIEW
+    // =========================================
+
+    'upload/list' => [
+        'controller' => 'UploadController',
+        'method' => 'list',
+    ],
+    'upload/review' => [
+        'controller' => 'UploadController',
+        'method' => 'review',
+    ],
 ];
 

@@ -133,4 +133,12 @@ class WateringRepository extends BaseRepository
             ]
         );
     }
+
+    /**
+     * Executes a raw oversight records query, passing the parameters securely.
+     */
+    public function fetchOversightRecords(string $sql, array $params): array
+    {
+        return $this->fetchAll($sql, $params);
+    }
 }

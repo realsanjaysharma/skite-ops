@@ -70,4 +70,20 @@ class AuditService
     ): void {
         $this->logAction($userId, $action, $entityType, $entityId, $oldValues, $newValues, $overrideReason);
     }
+
+    /**
+     * Get a paginated list of audits.
+     */
+    public function listAudits(array $filters, int $page = 1, int $limit = 50): array
+    {
+        return [
+            'total' => $this->auditRepository->countAll($filters),
+            'items' => $this->auditRepository->findAll($filters, $page, $limit),
+            'pagination' => [
+                'page' => $page,
+                'limit' => $limit,
+                'total' => $this->auditRepository->countAll($filters),
+            ]
+        ];
+    }
 }

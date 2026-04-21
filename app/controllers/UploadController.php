@@ -241,6 +241,109 @@ class UploadController
     }
 
     /**
+     * GET upload/list
+     */
+    public function list(): void
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+            Response::error('Method not allowed', 405);
+            return;
+        }
+
+        // Access boundary loosely enforced here; role-scoped UI pulls what it needs.
+        // Ops/Management pull everything, Head Supervisor may pull filtered lists.
+        if (empty($_SESSION['user_id'])) {
+            Response::error('Access denied', 403);
+            return;
+        }
+
+        $page = max(1, (int) ($_GET['page'] ?? 1));
+        $limit = max(1, min(100, (int) ($_GET['limit'] ?? DEFAULT_PAGE_LIMIT)));
+
+        $filters = [];
+        if (!empty($_GET['parent_type'])) {
+            $filters['parent_type'] = $_GET['parent_type'];
+        }
+        if (!empty($_GET['parent_id'])) {
+            $filters['parent_id'] = (int) $_GET['parent_id'];
+        }
+        if (!empty($_GET['date_from'])) {
+            $filters['date_from'] = $_GET['date_from'];
+        }
+        if (!empty($_GET['date_to'])) {
+            $filters['date_to'] = $_GET['date_to'];
+        }
+        if (!empty($_GET['upload_type'])) {
+            $filters['upload_type'] = $_GET['upload_type'];
+        }
+        if (array_key_exists('discovery_mode', $_GET)) {
+            $filters['discovery_mode'] = filter_var($_GET['discovery_mode'], FILTER_VALIDATE_BOOLEAN);
+        }
+        if (!empty($_GET['authority_visibility'])) {
+            $filters['authority_visibility'] = $_GET['authority_visibility'];
+        }
+
+        try {
+            // Reusing the same underlying list mechanism but framing with pagination
+            $results = $this->uploadService->listUploads($filters);
+            
+            // Slice for simple memory-level pagination to match listCreatorUploads shape
+            $total = count($results);
+            $offset = ($page - 1) * $limit;
+            $items = array_slice($results, $offset, $limit);
+
+            Response::success([
+                'items' => $items,
+                'pagination' => [
+                    'page' => $page,
+                    'limit' => $limit,
+                    'total' => $total,
+                ],
+            ]);
+        } catch (Throwable $e) {
+            Response::error($e->getMessage(), 400);
+        }
+    }
+
+    /**
+     * POST upload/review
+     */
+    public function review(): void
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            Response::error('Method not allowed', 405);
+            return;
+        }
+
+        $input = json_decode(file_get_contents('php://input'), true) ?? $_POST;
+
+        if (empty($input['upload_ids']) || !is_array($input['upload_ids'])) {
+            Response::error('upload_ids array is required', 400);
+            return;
+        }
+
+        if (empty($input['decision'])) {
+            Response::error('decision is required', 400);
+            return;
+        }
+
+        try {
+            $this->uploadService->reviewUploads(
+                $input['upload_ids'],
+                $input['decision'],
+                (int) $_SESSION['user_id'],
+                $input['comment'] ?? null
+            );
+            
+            Response::success(['message' => 'Uploads reviewed successfully']);
+        } catch (DomainException $e) {
+            Response::error($e->getMessage(), 403);
+        } catch (Throwable $e) {
+            Response::error($e->getMessage(), 400);
+        }
+    }
+
+    /**
      * GET upload/cleanup-list
      */
     public function cleanupList(): void
