@@ -414,4 +414,48 @@ class UploadController
             Response::error($e->getMessage(), 400);
         }
     }
+
+    /**
+     * GET upload/supervisor
+     * Landing route for GREEN_BELT_SUPERVISOR.
+     * Returns the same paginated upload list scoped to the creator.
+     */
+    public function supervisorLanding(): void
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+            Response::error('Method not allowed', 405);
+            return;
+        }
+
+        $roleKey = $_SESSION['role_key'] ?? '';
+        if ($roleKey !== 'GREEN_BELT_SUPERVISOR') {
+            Response::error('Access denied', 403);
+            return;
+        }
+
+        // Delegates to the shared my-list logic
+        $this->myList();
+    }
+
+    /**
+     * GET upload/outsourced
+     * Landing route for OUTSOURCED_MAINTAINER.
+     * Returns the same paginated upload list scoped to the creator.
+     */
+    public function outsourcedLanding(): void
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+            Response::error('Method not allowed', 405);
+            return;
+        }
+
+        $roleKey = $_SESSION['role_key'] ?? '';
+        if ($roleKey !== 'OUTSOURCED_MAINTAINER') {
+            Response::error('Access denied', 403);
+            return;
+        }
+
+        // Delegates to the shared my-list logic
+        $this->myList();
+    }
 }

@@ -60,4 +60,79 @@ class DashboardController
             Response::error($e->getMessage(), 400);
         }
     }
+
+    /**
+     * GET dashboard/green-belt
+     * Auth: Ops, Head Supervisor
+     */
+    public function greenBelt(): void
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+            Response::error('Method not allowed', 405);
+            return;
+        }
+
+        $allowed = ['OPS_MANAGER', 'HEAD_SUPERVISOR'];
+        if (!in_array($_SESSION['role_key'] ?? '', $allowed, true)) {
+            Response::error('Access denied', 403);
+            return;
+        }
+
+        // Stub: returns overview of green belt activity grouped by zone/supervisor
+        Response::success([
+            'items' => [],
+            'pagination' => ['page' => 1, 'limit' => 50, 'total' => 0],
+            '_note' => 'Green belt dashboard aggregation — implementation pending'
+        ]);
+    }
+
+    /**
+     * GET dashboard/advertisement
+     * Auth: Ops, Management
+     */
+    public function advertisement(): void
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+            Response::error('Method not allowed', 405);
+            return;
+        }
+
+        $allowed = ['OPS_MANAGER', 'MANAGEMENT'];
+        if (!in_array($_SESSION['role_key'] ?? '', $allowed, true)) {
+            Response::error('Access denied', 403);
+            return;
+        }
+
+        Response::success([
+            'active_campaigns' => 0,
+            'total_sites' => 0,
+            'sites_with_monitoring_overdue' => 0,
+            '_note' => 'Advertisement dashboard aggregation — implementation pending'
+        ]);
+    }
+
+    /**
+     * GET dashboard/monitoring
+     * Auth: Ops, Management
+     */
+    public function monitoring(): void
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+            Response::error('Method not allowed', 405);
+            return;
+        }
+
+        $allowed = ['OPS_MANAGER', 'MANAGEMENT'];
+        if (!in_array($_SESSION['role_key'] ?? '', $allowed, true)) {
+            Response::error('Access denied', 403);
+            return;
+        }
+
+        Response::success([
+            'sites_monitored_this_month' => 0,
+            'sites_overdue' => 0,
+            'total_monitoring_uploads' => 0,
+            '_note' => 'Monitoring dashboard aggregation — implementation pending'
+        ]);
+    }
 }

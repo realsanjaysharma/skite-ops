@@ -76,13 +76,14 @@ class AuditService
      */
     public function listAudits(array $filters, int $page = 1, int $limit = 50): array
     {
+        $total = $this->auditRepository->countAll($filters);
         return [
-            'total' => $this->auditRepository->countAll($filters),
+            'total' => $total,
             'items' => $this->auditRepository->findAll($filters, $page, $limit),
             'pagination' => [
                 'page' => $page,
                 'limit' => $limit,
-                'total' => $this->auditRepository->countAll($filters),
+                'total' => $total,
             ]
         ];
     }

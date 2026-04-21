@@ -1,5 +1,8 @@
 <?php
 
+require_once __DIR__ . '/../services/MonitoringHistoryService.php';
+require_once __DIR__ . '/../helpers/Response.php';
+
 class MonitoringHistoryController {
     public function getHistory(): void {
         if ($_SERVER['REQUEST_METHOD'] !== 'GET') {

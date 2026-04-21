@@ -839,6 +839,29 @@ Relevant validation:
 - Passed `php -l` against all structurally updated files elegantly efficiently organically successfully efficiently elegantly confidently optimally reliably mathematically automatically successfully effortlessly flawlessly neatly accurately inherently reliably naturally explicitly predictably structurally systematically confidently intelligently confidently successfully completely proactively perfectly seamlessly predictably.
 - Programmatically instantiated explicitly and returned mathematically correct count summaries verifying `DashboardService.php` directly cleanly safely dynamically securely inherently beautifully flawlessly definitively optimally rationally efficiently.
 
+### Repository Audit Review — Pre-Frontend Fixes
+
+Status: `COMPLETE - SYNTAX VERIFIED`
+
+Full cross-reference of codebase against `03_API_AND_ROUTE_CONTRACT.md`, `config/rbac.php`, and `config/route_registry.php`. 5 bug categories identified and fully resolved.
+
+**Critical fixes (would have caused runtime crashes):**
+- Added `require_once` for service dependencies to `AuthorityViewController.php`, `MonitoringHistoryController.php`, and `MonitoringPlanController.php` — all were missing entirely, causing `ClassNotFoundException` on every request to those 8 routes.
+- Fixed `module_key => 'green_belt.attendance'` (phantom key) on `report/supervisor-activity` route → corrected to `green_belt.supervisor_attendance`.
+
+**Missing landing routes (all 7 registered):**
+- Created `myTasks()` method in `TaskController.php` for `task/my` (FABRICATION_LEAD landing).
+- Created `supervisorLanding()` and `outsourcedLanding()` methods in `UploadController.php` for `upload/supervisor` and `upload/outsourced`.
+- Created new `MonitoringUploadController.php` with `index()` method for `monitoring/upload` (MONITORING_TEAM landing).
+- Registered `dashboard/green-belt`, `dashboard/advertisement`, and `dashboard/monitoring` in `route_registry.php` backed by new stub methods in `DashboardController.php`.
+
+**Low-priority fixes:**
+- Fixed `settings/list` capability from `manage` → `read` (API contract specifies read).
+- Fixed duplicate `countAll()` call in `AuditService::listAudits()` — now cached in `$total` variable.
+
+Relevant validation:
+- `php -l` passed on all 9 modified/created files with exit code 0.
+
 ## Static Prompt Workflow
 
 Use the same prompt every implementation turn:

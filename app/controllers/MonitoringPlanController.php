@@ -1,5 +1,8 @@
 <?php
 
+require_once __DIR__ . '/../services/MonitoringPlanService.php';
+require_once __DIR__ . '/../helpers/Response.php';
+
 class MonitoringPlanController {
     public function listPlan(): void {
         if ($_SERVER['REQUEST_METHOD'] !== 'GET') {

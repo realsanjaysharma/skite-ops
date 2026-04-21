@@ -1,5 +1,8 @@
 <?php
 
+require_once __DIR__ . '/../services/AuthorityViewService.php';
+require_once __DIR__ . '/../helpers/Response.php';
+
 class AuthorityViewController {
     public function view(): void {
         if ($_SERVER['REQUEST_METHOD'] !== 'GET') {

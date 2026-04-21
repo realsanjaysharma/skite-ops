@@ -620,8 +620,8 @@ return [
     'report/supervisor-activity' => [
         'controller' => 'ReportController',
         'method' => 'getSupervisorActivity',
-        'module_key' => 'green_belt.attendance',
-        'capability' => 'manage',
+        'module_key' => 'green_belt.supervisor_attendance',
+        'capability' => 'read',
     ],
     'report/advertisement-operations' => [
         'controller' => 'ReportController',
@@ -638,7 +638,7 @@ return [
         'controller' => 'SystemSettingsController',
         'method' => 'list',
         'module_key' => 'settings.system',
-        'capability' => 'manage',
+        'capability' => 'read',
     ],
     'settings/update' => [
         'controller' => 'SystemSettingsController',
@@ -676,10 +676,54 @@ return [
     ],
     'dashboard/management' => [
         'controller' => 'DashboardController',
-        'method' => 'management',
+        'method'     => 'management',
         'module_key' => 'dashboard.management',
         'capability' => 'read',
     ],
+    'dashboard/green-belt' => [
+        'controller' => 'DashboardController',
+        'method'     => 'greenBelt',
+        'module_key' => 'dashboard.green_belt',
+        'capability' => 'read',
+    ],
+    'dashboard/advertisement' => [
+        'controller' => 'DashboardController',
+        'method'     => 'advertisement',
+        'module_key' => 'dashboard.advertisement',
+        'capability' => 'read',
+    ],
+    'dashboard/monitoring' => [
+        'controller' => 'DashboardController',
+        'method'     => 'monitoring',
+        'module_key' => 'dashboard.monitoring',
+        'capability' => 'read',
+    ],
+
+    // =========================================
+    // FIELD ROLE LANDING ROUTES
+    // =========================================
+
+    'task/my' => [
+        'controller' => 'TaskController',
+        'method'     => 'myTasks',
+        // Scoped to FABRICATION_LEAD only — enforced inside controller
+    ],
+    'upload/supervisor' => [
+        'controller' => 'UploadController',
+        'method'     => 'supervisorLanding',
+        // Scoped to GREEN_BELT_SUPERVISOR only — enforced inside controller
+    ],
+    'upload/outsourced' => [
+        'controller' => 'UploadController',
+        'method'     => 'outsourcedLanding',
+        // Scoped to OUTSOURCED_MAINTAINER only — enforced inside controller
+    ],
+    'monitoring/upload' => [
+        'controller' => 'MonitoringUploadController',
+        'method'     => 'index',
+        // Scoped to MONITORING_TEAM only — enforced inside controller
+    ],
+
     'oversight/watering' => [
         'controller' => 'OversightController',
         'method' => 'watering',

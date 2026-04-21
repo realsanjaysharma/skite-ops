@@ -197,4 +197,44 @@ class TaskController
             Response::error($e->getMessage(), 400);
         }
     }
+
+    /**
+     * GET task/my
+     * Landing route for FABRICATION_LEAD — returns their assigned task list.
+     */
+    public function myTasks(): void
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+            Response::error('Method not allowed', 405);
+            return;
+        }
+
+        $actorUserId = (int) $_SESSION['user_id'];
+        $actorRoleKey = $_SESSION['role_key'] ?? '';
+
+        if ($actorRoleKey !== 'FABRICATION_LEAD') {
+            Response::error('Access denied', 403);
+            return;
+        }
+
+        try {
+            $filters = [
+                'status'                => $_GET['status'] ?? null,
+                'assigned_lead_user_id' => $actorUserId,
+            ];
+
+            $items = $this->taskService->listTasks($filters, $actorUserId, $actorRoleKey);
+
+            Response::success([
+                'items'      => $items,
+                'pagination' => [
+                    'page'  => 1,
+                    'limit' => count($items),
+                    'total' => count($items)
+                ]
+            ]);
+        } catch (Throwable $e) {
+            Response::error($e->getMessage(), 400);
+        }
+    }
 }
