@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/../repositories/MonitoringPlanRepository.php';
+require_once __DIR__ . '/AuditService.php';
 
 class MonitoringPlanService {
     private MonitoringPlanRepository $repo;

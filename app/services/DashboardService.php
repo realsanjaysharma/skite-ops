@@ -80,7 +80,7 @@ class DashboardService
         $stmt = $this->db->query("SELECT COUNT(*) FROM green_belts");
         $summary['total_belts'] = (int) $stmt->fetchColumn();
 
-        $stmt = $this->db->query("SELECT COUNT(*) FROM issues WHERE status = 'CLOSED' AND MONTH(resolved_at) = MONTH(CURRENT_DATE()) AND YEAR(resolved_at) = YEAR(CURRENT_DATE())");
+        $stmt = $this->db->query("SELECT COUNT(*) FROM issues WHERE status = 'CLOSED' AND MONTH(closed_at) = MONTH(CURRENT_DATE()) AND YEAR(closed_at) = YEAR(CURRENT_DATE())");
         $summary['resolved_issues_this_month'] = (int) $stmt->fetchColumn();
 
         return $summary;

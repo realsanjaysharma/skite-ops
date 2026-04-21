@@ -10,7 +10,7 @@ session_set_cookie_params([
     'lifetime' => 0,
     'path'     => '/',
     'domain'   => '',
-    'secure'   => false, // set true only when HTTPS
+    'secure'   => isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on', // dynamic prod-safety
     'httponly' => true,
     'samesite' => 'Strict'
 ]);

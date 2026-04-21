@@ -134,7 +134,7 @@ class TaskRepository extends BaseRepository
              FROM tasks t
              LEFT JOIN users assigner ON assigner.id = t.assigned_by_user_id
              LEFT JOIN users lead ON lead.id = t.assigned_lead_user_id
-             LEFT JOIN requests req ON req.id = t.request_id
+             LEFT JOIN task_requests req ON req.id = t.request_id
              WHERE t.id = ?",
             [$id]
         );
@@ -192,7 +192,7 @@ class TaskRepository extends BaseRepository
              FROM tasks t
              LEFT JOIN users assigner ON assigner.id = t.assigned_by_user_id
              LEFT JOIN users lead ON lead.id = t.assigned_lead_user_id
-             LEFT JOIN requests req ON req.id = t.request_id
+             LEFT JOIN task_requests req ON req.id = t.request_id
              {$whereClause}
              ORDER BY t.start_date DESC",
             $params

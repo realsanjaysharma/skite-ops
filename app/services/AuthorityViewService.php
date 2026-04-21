@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../repositories/AuthorityViewRepository.php';
 
 class AuthorityViewService {
     private AuthorityViewRepository $repo;
