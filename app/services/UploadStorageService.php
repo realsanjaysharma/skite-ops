@@ -113,6 +113,15 @@ class UploadStorageService
             ];
         }
 
+        // Total payload size guard — cap at MAX_UPLOAD_SIZE_MB × max files
+        $totalBytes = array_sum(array_column($validated, 'size_bytes'));
+        $maxTotalBytes = MAX_UPLOAD_SIZE_MB * MAX_UPLOAD_FILES_PER_SUBMISSION * 1024 * 1024;
+        if ($totalBytes > $maxTotalBytes) {
+            throw new InvalidArgumentException(
+                'Total upload size exceeds the ' . (MAX_UPLOAD_SIZE_MB * MAX_UPLOAD_FILES_PER_SUBMISSION) . ' MB limit.'
+            );
+        }
+
         return $validated;
     }
 

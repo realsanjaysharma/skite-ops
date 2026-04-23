@@ -22,6 +22,7 @@ class AuthMiddleware
         $userId = $_SESSION['user_id'] ?? null;
         // Requests without an authenticated session must never reach controllers.
         if (!$userId) {
+            error_log('[SKITE AUTH] Unauthenticated request to: ' . $route);
             Response::error('Unauthorized', 401);
             exit;
         }
@@ -72,6 +73,7 @@ class AuthMiddleware
                 $routeConfig['capability'] ?? 'read'
             );
         } catch (Throwable $exception) {
+            error_log('[SKITE RBAC] Forbidden: user=' . $userId . ' route=' . $route . ' module=' . $moduleKey . ' cap=' . ($routeConfig['capability'] ?? 'read'));
             Response::error('Forbidden', 403);
             exit;
         }

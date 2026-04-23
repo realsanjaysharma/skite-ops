@@ -138,4 +138,14 @@ class BaseRepository
     {
         return $this->db->rollBack();
     }
+
+    /**
+     * CHECK TRANSACTION STATE
+     *
+     * Returns true if a transaction is currently active.
+     */
+    public function inTransaction(): bool
+    {
+        return $this->db->inTransaction();
+    }
 }

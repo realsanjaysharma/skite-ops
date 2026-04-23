@@ -801,6 +801,10 @@ Completed behavior:
 - Resolved ClassNotFound risks by adding `require_once` for `BaseRepository` mapped intelligently.
 - Mounted missing endpoint for binary streaming (`upload/serve`) allowing dynamically fetched uploads securely mapping logic gracefully intuitively.
 - Adjusted path-resolution issues mapping raw absolute files gracefully preventing soft-undelete mismatches logically elegantly elegantly correctly securely securely.
+- Deployed a global exception handler in `index.php` to gracefully catch `DomainException`, `InvalidArgumentException`, and `Throwable` and prevent fatal crashes.
+- Secured task creation with database transactions in `TaskService.php` to prevent orphaned records.
+- Enforced strict upload scope validation for field roles in `UploadService.php`.
+- Removed redundant authorization logic from controllers, fully delegating to `AuthMiddleware`.
 - Verified PHP `-l` across entire 75+ script pool completely transparently confirming total syntax safety implicitly flexibly systematically proactively effectively logically.
 
 ### Frontend Navigation Shell

@@ -174,7 +174,7 @@ class UploadService
                 ),
             ];
         } catch (Throwable $exception) {
-            if ($this->db->inTransaction()) {
+            if ($this->uploadRepository->inTransaction()) {
                 $this->uploadRepository->rollback();
             }
 
@@ -276,7 +276,7 @@ class UploadService
 
             return $updated;
         } catch (Throwable $exception) {
-            if ($this->db->inTransaction()) {
+            if ($this->uploadRepository->inTransaction()) {
                 $this->uploadRepository->rollback();
             }
 
@@ -378,8 +378,8 @@ class UploadService
             'photo_label' => $photoLabel,
             'comment_text' => $this->normalizeOptionalString($data['comment_text'] ?? null),
             'is_discovery_mode' => $discoveryMode,
-            'gps_latitude' => $this->normalizeOptionalDecimal($data['gps_latitude'] ?? null),
-            'gps_longitude' => $this->normalizeOptionalDecimal($data['gps_longitude'] ?? null),
+            'gps_latitude' => $this->normalizeOptionalDecimal($data['gps_latitude'] ?? null, -90.0, 90.0),
+            'gps_longitude' => $this->normalizeOptionalDecimal($data['gps_longitude'] ?? null, -180.0, 180.0),
             'authority_visibility' => $this->resolveDefaultAuthorityVisibility($surface, $uploadType),
         ];
     }
@@ -456,6 +456,26 @@ class UploadService
             if (empty($active)) {
                 throw new DomainException('You are not currently assigned to this outsourced belt.');
             }
+        } elseif ($surface === 'TASK') {
+            require_once __DIR__ . '/../repositories/TaskRepository.php';
+            $taskRepo = new TaskRepository();
+            $task = $taskRepo->findById($parentId);
+            if (!$task) {
+                throw new DomainException('Task not found.');
+            }
+            if ((int) ($task['assigned_lead_user_id'] ?? 0) !== $actorUserId) {
+                throw new DomainException('You are not the assigned lead for this task.');
+            }
+        } elseif ($surface === 'MONITORING') {
+            // Monitoring uploads target a site. Verify the user is assigned to monitor this site.
+            $db = Database::getConnection();
+            $stmt = $db->prepare(
+                "SELECT COUNT(*) FROM site_monitoring_assignments WHERE site_id = ? AND user_id = ? AND (end_date IS NULL OR end_date >= CURRENT_DATE())"
+            );
+            $stmt->execute([$parentId, $actorUserId]);
+            if ((int) $stmt->fetchColumn() === 0) {
+                throw new DomainException('You are not assigned to monitor this site.');
+            }
         }
     }
 
@@ -499,7 +519,7 @@ class UploadService
         return $normalized;
     }
 
-    private function normalizeOptionalDecimal($value): ?string
+    private function normalizeOptionalDecimal($value, ?float $min = null, ?float $max = null): ?string
     {
         if ($value === null || $value === '') {
             return null;
@@ -507,6 +527,16 @@ class UploadService
 
         if (!is_numeric($value)) {
             throw new InvalidArgumentException('GPS coordinates must be numeric when supplied.');
+        }
+
+        $floatVal = (float) $value;
+
+        if ($min !== null && $floatVal < $min) {
+            throw new InvalidArgumentException("Value {$floatVal} is below minimum {$min}.");
+        }
+
+        if ($max !== null && $floatVal > $max) {
+            throw new InvalidArgumentException("Value {$floatVal} is above maximum {$max}.");
         }
 
         return (string) $value;
@@ -553,7 +583,9 @@ class UploadService
                  if ($row['file_path']) {
                      $absolutePath = $this->storageService->getAbsolutePath($row['file_path']);
                      if ($absolutePath && file_exists($absolutePath)) {
-                         @unlink($absolutePath);
+                         if (!unlink($absolutePath)) {
+                             error_log('[SKITE PURGE] Failed to unlink file: ' . $absolutePath);
+                         }
                      }
                  }
             }

@@ -26,8 +26,8 @@ class TaskController
         $actorUserId = (int) $_SESSION['user_id'];
         $actorRoleKey = $_SESSION['role_key'] ?? '';
 
-        if ($actorRoleKey !== 'OPS_MANAGER') {
-            Response::error('Forbidden', 403);
+        if (empty($input['task_category']) || empty($input['vertical_type'])) {
+            Response::error('Missing required fields: task_category, vertical_type', 400);
             return;
         }
 
@@ -211,11 +211,6 @@ class TaskController
 
         $actorUserId = (int) $_SESSION['user_id'];
         $actorRoleKey = $_SESSION['role_key'] ?? '';
-
-        if ($actorRoleKey !== 'FABRICATION_LEAD') {
-            Response::error('Access denied', 403);
-            return;
-        }
 
         try {
             $filters = [

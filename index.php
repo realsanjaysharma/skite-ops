@@ -81,6 +81,19 @@ if (!(bool) ($routeConfig['public'] ?? false)) {
     $authMiddleware->authorize($route, $routeConfig);
 }
 
+// Enforce HTTP method if declared in route config (optional, enables gradual migration)
+if (isset($routeConfig['http_method'])) {
+    $expectedMethod = strtoupper($routeConfig['http_method']);
+    if ($_SERVER['REQUEST_METHOD'] !== $expectedMethod) {
+        http_response_code(405);
+        echo json_encode([
+            'success' => false,
+            'error' => 'Method not allowed'
+        ]);
+        return;
+    }
+}
+
 $controllerName = $routeConfig['controller'] ?? null;
 $controllerMethod = $routeConfig['method'] ?? null;
 
@@ -126,5 +139,17 @@ if (!method_exists($controller, $controllerMethod)) {
     return;
 }
 
-$controller->{$controllerMethod}();
+try {
+    $controller->{$controllerMethod}();
+} catch (DomainException $e) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+} catch (InvalidArgumentException $e) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+} catch (Throwable $e) {
+    error_log('[SKITE FATAL] ' . $route . ' — ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+    http_response_code(500);
+    echo json_encode(['success' => false, 'error' => 'Internal server error']);
+}
 return;

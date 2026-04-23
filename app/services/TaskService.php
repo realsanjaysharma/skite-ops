@@ -61,24 +61,33 @@ class TaskService
             'status' => 'OPEN'
         ];
 
-        $newTaskId = $this->taskRepo->create($insertData);
+        $this->taskRepo->beginTransaction();
 
-        // State Machine side effects
-        if ($sourceType === 'REQUEST' && $requestId) {
-            $this->requestRepo->update([
-                'id' => $requestId,
-                'status' => 'CONVERTED'
-            ]);
-        }
-        
-        if ($linkedIssueId) {
-            // Implicitly link the issue to the newly created task
-            $this->issueRepo->update([
-                'id' => $linkedIssueId,
-                'linked_task_id' => $newTaskId
-                // We do not change issue status here automatically according to specs, 
-                // but we securely establish the tie.
-            ]);
+        try {
+            $newTaskId = $this->taskRepo->create($insertData);
+
+            // State Machine side effects
+            if ($sourceType === 'REQUEST' && $requestId) {
+                $this->requestRepo->update([
+                    'id' => $requestId,
+                    'status' => 'CONVERTED'
+                ]);
+            }
+            
+            if ($linkedIssueId) {
+                // Implicitly link the issue to the newly created task
+                $this->issueRepo->update([
+                    'id' => $linkedIssueId,
+                    'linked_task_id' => $newTaskId
+                    // We do not change issue status here automatically according to specs, 
+                    // but we securely establish the tie.
+                ]);
+            }
+
+            $this->taskRepo->commit();
+        } catch (Throwable $e) {
+            $this->taskRepo->rollback();
+            throw $e;
         }
 
         return $this->taskRepo->findById($newTaskId);
