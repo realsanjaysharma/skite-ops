@@ -3,6 +3,12 @@
 require_once __DIR__ . '/../helpers/Response.php';
 require_once __DIR__ . '/../services/WateringService.php';
 
+/**
+ * WateringController
+ *
+ * Architecture: HTTP shape only. Role enforcement is in AuthMiddleware.
+ * Same-day rules, belt assignment scope, and override paths live in WateringService.
+ */
 class WateringController
 {
     private WateringService $wateringService;
@@ -14,7 +20,6 @@ class WateringController
 
     /**
      * GET watering/list
-     * Query params: date, belt_id, supervisor_user_id
      */
     public function listWateringRecords(): void
     {
@@ -24,29 +29,21 @@ class WateringController
         }
 
         try {
-            $actorUserId = (int) $_SESSION['user_id'];
-            $actorRoleKey = $_SESSION['role_key'] ?? '';
-
-            if (!in_array($actorRoleKey, ['OPS_MANAGER', 'HEAD_SUPERVISOR', 'GREEN_BELT_SUPERVISOR'])) {
-                Response::error('Forbidden', 403);
-                return;
-            }
-
             $filters = [
-                'date' => $_GET['date'] ?? date('Y-m-d'),
-                'belt_id' => $_GET['belt_id'] ?? null,
+                'date'               => $_GET['date'] ?? date('Y-m-d'),
+                'belt_id'            => $_GET['belt_id'] ?? null,
                 'supervisor_user_id' => $_GET['supervisor_user_id'] ?? null,
             ];
 
-            $items = $this->wateringService->listWateringRecords($filters, $actorUserId, $actorRoleKey);
+            $items = $this->wateringService->listWateringRecords(
+                $filters,
+                (int) $_SESSION['user_id'],
+                (string) ($_SESSION['role_key'] ?? '')
+            );
 
             Response::success([
-                'items' => $items,
-                'pagination' => [
-                    'page' => 1,
-                    'limit' => count($items),
-                    'total' => count($items)
-                ]
+                'items'      => $items,
+                'pagination' => ['page' => 1, 'limit' => count($items), 'total' => count($items)],
             ]);
         } catch (Throwable $e) {
             Response::error($e->getMessage(), 400);
@@ -55,7 +52,6 @@ class WateringController
 
     /**
      * POST watering/mark
-     * JSON body: belt_id, watering_date, status, reason_text, override_reason
      */
     public function markWatering(): void
     {
@@ -71,16 +67,12 @@ class WateringController
             return;
         }
 
-        $actorUserId = (int) $_SESSION['user_id'];
-        $actorRoleKey = $_SESSION['role_key'] ?? '';
-
-        if (!in_array($actorRoleKey, ['OPS_MANAGER', 'HEAD_SUPERVISOR', 'GREEN_BELT_SUPERVISOR'])) {
-            Response::error('Forbidden', 403);
-            return;
-        }
-
         try {
-            $result = $this->wateringService->markWatering($input, $actorUserId, $actorRoleKey);
+            $result = $this->wateringService->markWatering(
+                $input,
+                (int) $_SESSION['user_id'],
+                (string) ($_SESSION['role_key'] ?? '')
+            );
             Response::success($result);
         } catch (DomainException $e) {
             Response::error($e->getMessage(), 403);

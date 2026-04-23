@@ -229,6 +229,11 @@ class UploadRepository extends BaseRepository
             $params[] = $filters['upload_type'];
         }
 
+        if (!empty($filters['photo_label'])) {
+            $where[] = 'u.photo_label = ?';
+            $params[] = $filters['photo_label'];
+        }
+
         if (isset($filters['discovery_mode']) && $filters['discovery_mode'] !== null && $filters['discovery_mode'] !== '') {
             $where[] = 'u.is_discovery_mode = ?';
             $params[] = (int) $filters['discovery_mode'];
@@ -391,6 +396,30 @@ class UploadRepository extends BaseRepository
                  updated_at = NOW()
              WHERE id IN ($placeholders)",
             $params
+        );
+    }
+
+    public function getUploadsForReview(array $uploadIds): array
+    {
+        if (empty($uploadIds)) {
+            return [];
+        }
+        $placeholders = implode(',', array_fill(0, count($uploadIds), '?'));
+        return $this->fetchAll(
+            "SELECT id, authority_visibility FROM uploads WHERE id IN ($placeholders) AND is_deleted = 0 AND is_purged = 0",
+            $uploadIds
+        );
+    }
+
+    public function getUploadsForPurge(array $uploadIds, int $threshold): array
+    {
+        if (empty($uploadIds)) {
+            return [];
+        }
+        $placeholders = implode(',', array_fill(0, count($uploadIds), '?'));
+        return $this->fetchAll(
+             "SELECT id, file_path FROM uploads WHERE id IN ($placeholders) AND authority_visibility = 'REJECTED' AND is_purged = 0 AND DATEDIFF(NOW(), COALESCE(reviewed_at, created_at)) >= ?",
+             array_merge($uploadIds, [$threshold])
         );
     }
 }

@@ -33,7 +33,7 @@ class AttendanceService
             throw new InvalidArgumentException("Invalid status. Must be PRESENT or ABSENT.");
         }
 
-        $supervisor = $this->userRepo->findById($supervisorUserId);
+        $supervisor = $this->userRepo->getUserById($supervisorUserId);
         if (!$supervisor) {
             throw new InvalidArgumentException("Supervisor not found.");
         }

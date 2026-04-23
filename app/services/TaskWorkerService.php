@@ -76,7 +76,7 @@ class TaskWorkerService
         }
 
         if ($actorRoleKey === 'FABRICATION_LEAD') {
-            $task = $this->taskRepo->getTaskById($taskId);
+            $task = $this->taskRepo->findById($taskId);
             if (!$task) {
                 throw new DomainException("Task not found");
             }

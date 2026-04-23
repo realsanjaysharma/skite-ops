@@ -3,6 +3,13 @@
 require_once __DIR__ . '/../helpers/Response.php';
 require_once __DIR__ . '/../services/AttendanceService.php';
 
+/**
+ * AttendanceController
+ *
+ * Architecture: Controller handles HTTP shape only.
+ * Role/capability access is enforced by AuthMiddleware (module_key + capability).
+ * Same-day constraints, override rules, and record scope are enforced in AttendanceService.
+ */
 class AttendanceController
 {
     private AttendanceService $attendanceService;
@@ -14,7 +21,6 @@ class AttendanceController
 
     /**
      * GET attendance/list
-     * Query params: date, supervisor_user_id
      */
     public function listAttendanceRecords(): void
     {
@@ -24,27 +30,16 @@ class AttendanceController
         }
 
         try {
-            $actorRoleKey = $_SESSION['role_key'] ?? '';
-
-            if (!in_array($actorRoleKey, ['OPS_MANAGER', 'HEAD_SUPERVISOR'])) {
-                Response::error('Forbidden', 403);
-                return;
-            }
-
             $filters = [
-                'date' => $_GET['date'] ?? null,
-                'supervisor_user_id' => $_GET['supervisor_user_id'] ?? null,
+                'date'                => $_GET['date'] ?? null,
+                'supervisor_user_id'  => $_GET['supervisor_user_id'] ?? null,
             ];
 
             $items = $this->attendanceService->listAttendanceRecords($filters);
 
             Response::success([
-                'items' => $items,
-                'pagination' => [
-                    'page' => 1,
-                    'limit' => count($items),
-                    'total' => count($items)
-                ]
+                'items'      => $items,
+                'pagination' => ['page' => 1, 'limit' => count($items), 'total' => count($items)],
             ]);
         } catch (Throwable $e) {
             Response::error($e->getMessage(), 400);
@@ -53,7 +48,6 @@ class AttendanceController
 
     /**
      * POST attendance/mark
-     * JSON body: supervisor_user_id, attendance_date, status, override_reason
      */
     public function markAttendance(): void
     {
@@ -69,16 +63,12 @@ class AttendanceController
             return;
         }
 
-        $actorUserId = (int) $_SESSION['user_id'];
-        $actorRoleKey = $_SESSION['role_key'] ?? '';
-
-        if (!in_array($actorRoleKey, ['OPS_MANAGER', 'HEAD_SUPERVISOR'])) {
-            Response::error('Forbidden', 403);
-            return;
-        }
-
         try {
-            $result = $this->attendanceService->markAttendance($input, $actorUserId, $actorRoleKey);
+            $result = $this->attendanceService->markAttendance(
+                $input,
+                (int) $_SESSION['user_id'],
+                (string) ($_SESSION['role_key'] ?? '')
+            );
             Response::success($result);
         } catch (DomainException $e) {
             Response::error($e->getMessage(), 403);

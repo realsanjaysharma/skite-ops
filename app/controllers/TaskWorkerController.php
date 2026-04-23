@@ -3,6 +3,12 @@
 require_once __DIR__ . '/../helpers/Response.php';
 require_once __DIR__ . '/../services/TaskWorkerService.php';
 
+/**
+ * TaskWorkerController
+ *
+ * Architecture: HTTP shape only. Role enforcement is in AuthMiddleware.
+ * Task ownership scope (lead must own the task) lives in TaskWorkerService.
+ */
 class TaskWorkerController
 {
     private TaskWorkerService $taskWorkerService;
@@ -23,11 +29,13 @@ class TaskWorkerController
         }
 
         $input = json_decode(file_get_contents('php://input'), true) ?? $_POST;
-        $actorRoleKey = $_SESSION['role_key'] ?? '';
-        $actorUserId = $_SESSION['user_id'] ?? 0;
 
         try {
-            $createdIds = $this->taskWorkerService->assignWorkers($input, $actorRoleKey, $actorUserId);
+            $createdIds = $this->taskWorkerService->assignWorkers(
+                $input,
+                (string) ($_SESSION['role_key'] ?? ''),
+                (int) $_SESSION['user_id']
+            );
             Response::success(['assigned_ids' => $createdIds]);
         } catch (InvalidArgumentException $e) {
             Response::error($e->getMessage(), 400);
@@ -49,11 +57,13 @@ class TaskWorkerController
         }
 
         $input = json_decode(file_get_contents('php://input'), true) ?? $_POST;
-        $actorRoleKey = $_SESSION['role_key'] ?? '';
-        $actorUserId = $_SESSION['user_id'] ?? 0;
 
         try {
-            $success = $this->taskWorkerService->releaseWorker($input, $actorRoleKey, $actorUserId);
+            $success = $this->taskWorkerService->releaseWorker(
+                $input,
+                (string) ($_SESSION['role_key'] ?? ''),
+                (int) $_SESSION['user_id']
+            );
             Response::success(['released' => $success]);
         } catch (InvalidArgumentException $e) {
             Response::error($e->getMessage(), 400);

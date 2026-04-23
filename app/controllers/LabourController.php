@@ -3,6 +3,12 @@
 require_once __DIR__ . '/../helpers/Response.php';
 require_once __DIR__ . '/../services/LabourService.php';
 
+/**
+ * LabourController
+ *
+ * Architecture: HTTP shape only. Role enforcement is in AuthMiddleware.
+ * Same-day constraints, belt scope, and Ops override rules live in LabourService.
+ */
 class LabourController
 {
     private LabourService $labourService;
@@ -14,7 +20,6 @@ class LabourController
 
     /**
      * GET labour/list
-     * Query params: date, belt_id
      */
     public function listLabourEntries(): void
     {
@@ -24,27 +29,16 @@ class LabourController
         }
 
         try {
-            $actorRoleKey = $_SESSION['role_key'] ?? '';
-
-            if (!in_array($actorRoleKey, ['OPS_MANAGER', 'HEAD_SUPERVISOR'])) {
-                Response::error('Forbidden', 403);
-                return;
-            }
-
             $filters = [
-                'date' => $_GET['date'] ?? null,
+                'date'    => $_GET['date'] ?? null,
                 'belt_id' => $_GET['belt_id'] ?? null,
             ];
 
             $items = $this->labourService->listLabourEntries($filters);
 
             Response::success([
-                'items' => $items,
-                'pagination' => [
-                    'page' => 1,
-                    'limit' => count($items),
-                    'total' => count($items)
-                ]
+                'items'      => $items,
+                'pagination' => ['page' => 1, 'limit' => count($items), 'total' => count($items)],
             ]);
         } catch (Throwable $e) {
             Response::error($e->getMessage(), 400);
@@ -53,7 +47,6 @@ class LabourController
 
     /**
      * POST labour/mark
-     * JSON body: belt_id, entry_date, labour_count, gardener_count, night_guard_count, override_reason
      */
     public function markLabourCounts(): void
     {
@@ -69,16 +62,12 @@ class LabourController
             return;
         }
 
-        $actorUserId = (int) $_SESSION['user_id'];
-        $actorRoleKey = $_SESSION['role_key'] ?? '';
-
-        if (!in_array($actorRoleKey, ['OPS_MANAGER', 'HEAD_SUPERVISOR'])) {
-            Response::error('Forbidden', 403);
-            return;
-        }
-
         try {
-            $result = $this->labourService->markLabourCounts($input, $actorUserId, $actorRoleKey);
+            $result = $this->labourService->markLabourCounts(
+                $input,
+                (int) $_SESSION['user_id'],
+                (string) ($_SESSION['role_key'] ?? '')
+            );
             Response::success($result);
         } catch (DomainException $e) {
             Response::error($e->getMessage(), 403);

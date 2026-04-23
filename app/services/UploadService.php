@@ -307,11 +307,7 @@ class UploadService
 
         try {
             // Store old state for audit
-            $placeholders = implode(',', array_fill(0, count($uploadIds), '?'));
-            $oldUploads = $this->uploadRepository->fetchAll(
-                "SELECT id, authority_visibility FROM uploads WHERE id IN ($placeholders) AND is_deleted = 0 AND is_purged = 0",
-                $uploadIds
-            );
+            $oldUploads = $this->uploadRepository->getUploadsForReview($uploadIds);
 
             if (empty($oldUploads)) {
                 $this->uploadRepository->rollBack();
@@ -539,11 +535,7 @@ class UploadService
         try {
             // Unlink files first (in production, might be queued, but we do it synchronously here)
             // Need to fetch file_paths to unlink them
-            $placeholders = implode(',', array_fill(0, count($uploadIds), '?'));
-            $rows = $this->uploadRepository->fetchAll(
-                 "SELECT id, file_path FROM uploads WHERE id IN ($placeholders) AND authority_visibility = 'REJECTED' AND is_purged = 0 AND DATEDIFF(NOW(), COALESCE(reviewed_at, created_at)) >= ?",
-                 array_merge($uploadIds, [$threshold])
-            );
+            $rows = $this->uploadRepository->getUploadsForPurge($uploadIds, $threshold);
 
             $eligibleIds = [];
             foreach ($rows as $row) {

@@ -3,6 +3,12 @@
 require_once __DIR__ . '/../helpers/Response.php';
 require_once __DIR__ . '/../services/IssueService.php';
 
+/**
+ * IssueController
+ *
+ * Architecture: HTTP shape only. Role enforcement is in AuthMiddleware.
+ * Scope constraints (belt-only for Head Supervisor, Ops-only close) live in IssueService.
+ */
 class IssueController
 {
     private IssueService $issueService;
@@ -23,29 +29,18 @@ class IssueController
         }
 
         try {
-            $actorRoleKey = $_SESSION['role_key'] ?? '';
-
-            if (!in_array($actorRoleKey, ['OPS_MANAGER', 'HEAD_SUPERVISOR'])) {
-                Response::error('Forbidden', 403);
-                return;
-            }
-
             $filters = [
-                'status' => $_GET['status'] ?? null,
+                'status'   => $_GET['status'] ?? null,
                 'priority' => $_GET['priority'] ?? null,
-                'belt_id' => $_GET['belt_id'] ?? null,
-                'site_id' => $_GET['site_id'] ?? null,
+                'belt_id'  => $_GET['belt_id'] ?? null,
+                'site_id'  => $_GET['site_id'] ?? null,
             ];
 
-            $items = $this->issueService->listIssues($filters, $actorRoleKey);
+            $items = $this->issueService->listIssues($filters, (string) ($_SESSION['role_key'] ?? ''));
 
             Response::success([
-                'items' => $items,
-                'pagination' => [
-                    'page' => 1,
-                    'limit' => count($items),
-                    'total' => count($items)
-                ]
+                'items'      => $items,
+                'pagination' => ['page' => 1, 'limit' => count($items), 'total' => count($items)],
             ]);
         } catch (Throwable $e) {
             Response::error($e->getMessage(), 400);
@@ -68,22 +63,17 @@ class IssueController
         }
 
         try {
-            $actorRoleKey = $_SESSION['role_key'] ?? '';
-            
-            if (!in_array($actorRoleKey, ['OPS_MANAGER', 'HEAD_SUPERVISOR'])) {
-                Response::error('Forbidden', 403);
-                return;
-            }
+            $issue = $this->issueService->getIssue(
+                (int) $_GET['issue_id'],
+                (string) ($_SESSION['role_key'] ?? '')
+            );
 
-            $issue = $this->issueService->getIssue((int) $_GET['issue_id'], $actorRoleKey);
-            
             if (!$issue) {
                 Response::error('Issue not found', 404);
                 return;
             }
 
             Response::success($issue);
-            
         } catch (Throwable $e) {
             Response::error($e->getMessage(), 400);
         }
@@ -100,11 +90,13 @@ class IssueController
         }
 
         $input = json_decode(file_get_contents('php://input'), true) ?? $_POST;
-        $actorUserId = (int) $_SESSION['user_id'];
-        $actorRoleKey = $_SESSION['role_key'] ?? '';
 
         try {
-            $result = $this->issueService->createIssue($input, $actorUserId, $actorRoleKey);
+            $result = $this->issueService->createIssue(
+                $input,
+                (int) $_SESSION['user_id'],
+                (string) ($_SESSION['role_key'] ?? '')
+            );
             Response::success($result);
         } catch (DomainException $e) {
             Response::error($e->getMessage(), 403);
@@ -124,16 +116,17 @@ class IssueController
         }
 
         $input = json_decode(file_get_contents('php://input'), true) ?? $_POST;
-        
+
         if (empty($input['issue_id'])) {
             Response::error('Missing issue_id param', 400);
             return;
         }
 
-        $actorRoleKey = $_SESSION['role_key'] ?? '';
-
         try {
-            $result = $this->issueService->markInProgress((int) $input['issue_id'], $actorRoleKey);
+            $result = $this->issueService->markInProgress(
+                (int) $input['issue_id'],
+                (string) ($_SESSION['role_key'] ?? '')
+            );
             Response::success($result);
         } catch (DomainException $e) {
             Response::error($e->getMessage(), 403);
@@ -153,17 +146,18 @@ class IssueController
         }
 
         $input = json_decode(file_get_contents('php://input'), true) ?? $_POST;
-        
+
         if (empty($input['issue_id'])) {
             Response::error('Missing issue_id param', 400);
             return;
         }
 
-        $actorRoleKey = $_SESSION['role_key'] ?? '';
-        $actorUserId = (int) $_SESSION['user_id'];
-
         try {
-            $result = $this->issueService->closeIssue((int) $input['issue_id'], $actorUserId, $actorRoleKey);
+            $result = $this->issueService->closeIssue(
+                (int) $input['issue_id'],
+                (int) $_SESSION['user_id'],
+                (string) ($_SESSION['role_key'] ?? '')
+            );
             Response::success($result);
         } catch (DomainException $e) {
             Response::error($e->getMessage(), 403);
@@ -171,7 +165,7 @@ class IssueController
             Response::error($e->getMessage(), 400);
         }
     }
-    
+
     /**
      * POST issue/link-task
      */
@@ -183,16 +177,18 @@ class IssueController
         }
 
         $input = json_decode(file_get_contents('php://input'), true) ?? $_POST;
-        
+
         if (empty($input['issue_id']) || empty($input['task_id'])) {
             Response::error('Missing issue_id or task_id', 400);
             return;
         }
 
-        $actorRoleKey = $_SESSION['role_key'] ?? '';
-
         try {
-            $result = $this->issueService->linkTask((int) $input['issue_id'], (int) $input['task_id'], $actorRoleKey);
+            $result = $this->issueService->linkTask(
+                (int) $input['issue_id'],
+                (int) $input['task_id'],
+                (string) ($_SESSION['role_key'] ?? '')
+            );
             Response::success($result);
         } catch (DomainException $e) {
             Response::error($e->getMessage(), 403);

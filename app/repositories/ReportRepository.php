@@ -88,8 +88,9 @@ class ReportRepository extends BaseRepository
         
         $where = [];
         if ($supervisorId) {
-            $where[] = "gb.id IN (SELECT green_belt_id FROM supervisor_assignments WHERE supervisor_user_id = :supervisor_id AND (released_date IS NULL OR released_date >= :month_start1))";
+            $where[] = "gb.id IN (SELECT belt_id FROM belt_supervisor_assignments WHERE supervisor_user_id = :supervisor_id AND (end_date IS NULL OR end_date >= :month_start3))";
             $params['supervisor_id'] = $supervisorId;
+            $params['month_start3'] = $monthStart;
         }
         
         $whereClause = empty($where) ? '' : 'WHERE ' . implode(' AND ', $where);
@@ -124,7 +125,7 @@ class ReportRepository extends BaseRepository
             'month_end2' => $monthEnd
         ];
         
-        $where = ["u.id IN (SELECT DISTINCT supervisor_user_id FROM supervisor_assignments WHERE assigned_date <= :month_end1 AND (released_date IS NULL OR released_date >= :month_start1))"];
+        $where = ["u.id IN (SELECT DISTINCT supervisor_user_id FROM belt_supervisor_assignments WHERE start_date <= :month_end1 AND (end_date IS NULL OR end_date >= :month_start1))"];
         if ($supervisorId) {
             $where[] = "u.id = :supervisor_id";
             $params['supervisor_id'] = $supervisorId;
@@ -136,10 +137,10 @@ class ReportRepository extends BaseRepository
                 u.id AS supervisor_user_id,
                 u.full_name AS supervisor_name,
                 
-                (SELECT COUNT(DISTINCT green_belt_id) FROM supervisor_assignments sa 
+                (SELECT COUNT(DISTINCT belt_id) FROM belt_supervisor_assignments sa 
                  WHERE sa.supervisor_user_id = u.id 
-                 AND sa.assigned_date <= :month_end2 
-                 AND (sa.released_date IS NULL OR sa.released_date >= :month_start2)) AS belts_covered_count,
+                 AND sa.start_date <= :month_end2 
+                 AND (sa.end_date IS NULL OR sa.end_date >= :month_start2)) AS belts_covered_count,
                  
                 (SELECT COUNT(*) FROM maintenance_cycles mc 
                  WHERE mc.closed_by_user_id = u.id AND DATE(mc.end_date) BETWEEN :month_start2 AND :month_end2) AS cycles_completed_count,
@@ -187,7 +188,7 @@ class ReportRepository extends BaseRepository
                  JOIN campaigns c ON cs.campaign_id = c.id 
                  WHERE cs.site_id = s.id 
                  AND c.start_date <= :month_end1 
-                 AND (cs.released_date IS NULL OR cs.released_date >= :month_start1)) AS active_campaigns_count,
+                 AND (cs.linked_to_date IS NULL OR cs.linked_to_date >= :month_start1)) AS active_campaigns_count,
                  
                 (SELECT COUNT(*) FROM campaign_sites cs 
                  JOIN campaigns c ON cs.campaign_id = c.id 

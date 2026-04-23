@@ -3,6 +3,12 @@
 require_once __DIR__ . '/../helpers/Response.php';
 require_once __DIR__ . '/../services/RequestService.php';
 
+/**
+ * RequestController
+ *
+ * Architecture: HTTP shape only. Role enforcement is in AuthMiddleware.
+ * Requester scope and Ops-only approval/rejection live in RequestService.
+ */
 class RequestController
 {
     private RequestService $requestService;
@@ -23,25 +29,21 @@ class RequestController
         }
 
         try {
-            $actorUserId = (int) $_SESSION['user_id'];
-            $actorRoleKey = $_SESSION['role_key'] ?? '';
-
             $filters = [
-                'status' => $_GET['status'] ?? null,
-                'requester_user_id' => $_GET['requester_user_id'] ?? null,
-                'client_name' => $_GET['client_name'] ?? null,
+                'status'             => $_GET['status'] ?? null,
+                'requester_user_id'  => $_GET['requester_user_id'] ?? null,
+                'client_name'        => $_GET['client_name'] ?? null,
             ];
 
-            // Service handles scoping based on role internally
-            $items = $this->requestService->listRequests($filters, $actorUserId, $actorRoleKey);
+            $items = $this->requestService->listRequests(
+                $filters,
+                (int) $_SESSION['user_id'],
+                (string) ($_SESSION['role_key'] ?? '')
+            );
 
             Response::success([
-                'items' => $items,
-                'pagination' => [
-                    'page' => 1,
-                    'limit' => count($items),
-                    'total' => count($items)
-                ]
+                'items'      => $items,
+                'pagination' => ['page' => 1, 'limit' => count($items), 'total' => count($items)],
             ]);
         } catch (Throwable $e) {
             Response::error($e->getMessage(), 400);
@@ -64,18 +66,18 @@ class RequestController
         }
 
         try {
-            $actorUserId = (int) $_SESSION['user_id'];
-            $actorRoleKey = $_SESSION['role_key'] ?? '';
-            
-            $request = $this->requestService->getRequest((int) $_GET['request_id'], $actorUserId, $actorRoleKey);
-            
+            $request = $this->requestService->getRequest(
+                (int) $_GET['request_id'],
+                (int) $_SESSION['user_id'],
+                (string) ($_SESSION['role_key'] ?? '')
+            );
+
             if (!$request) {
                 Response::error('Request not found', 404);
                 return;
             }
 
             Response::success($request);
-            
         } catch (Throwable $e) {
             Response::error($e->getMessage(), 400);
         }
@@ -92,11 +94,13 @@ class RequestController
         }
 
         $input = json_decode(file_get_contents('php://input'), true) ?? $_POST;
-        $actorUserId = (int) $_SESSION['user_id'];
-        $actorRoleKey = $_SESSION['role_key'] ?? '';
 
         try {
-            $result = $this->requestService->createRequest($input, $actorUserId, $actorRoleKey);
+            $result = $this->requestService->createRequest(
+                $input,
+                (int) $_SESSION['user_id'],
+                (string) ($_SESSION['role_key'] ?? '')
+            );
             Response::success($result);
         } catch (DomainException $e) {
             Response::error($e->getMessage(), 403);
@@ -116,17 +120,18 @@ class RequestController
         }
 
         $input = json_decode(file_get_contents('php://input'), true) ?? $_POST;
-        
+
         if (empty($input['request_id'])) {
             Response::error('Missing request_id param', 400);
             return;
         }
 
-        $actorUserId = (int) $_SESSION['user_id'];
-        $actorRoleKey = $_SESSION['role_key'] ?? '';
-
         try {
-            $result = $this->requestService->approveRequest((int) $input['request_id'], $actorUserId, $actorRoleKey);
+            $result = $this->requestService->approveRequest(
+                (int) $input['request_id'],
+                (int) $_SESSION['user_id'],
+                (string) ($_SESSION['role_key'] ?? '')
+            );
             Response::success($result);
         } catch (DomainException $e) {
             Response::error($e->getMessage(), 403);
@@ -146,21 +151,18 @@ class RequestController
         }
 
         $input = json_decode(file_get_contents('php://input'), true) ?? $_POST;
-        
+
         if (empty($input['request_id'])) {
             Response::error('Missing request_id param', 400);
             return;
         }
 
-        $actorUserId = (int) $_SESSION['user_id'];
-        $actorRoleKey = $_SESSION['role_key'] ?? '';
-
         try {
             $result = $this->requestService->rejectRequest(
-                (int) $input['request_id'], 
-                $input['rejection_reason'] ?? '',
-                $actorUserId, 
-                $actorRoleKey
+                (int) $input['request_id'],
+                (string) ($input['rejection_reason'] ?? ''),
+                (int) $_SESSION['user_id'],
+                (string) ($_SESSION['role_key'] ?? '')
             );
             Response::success($result);
         } catch (DomainException $e) {

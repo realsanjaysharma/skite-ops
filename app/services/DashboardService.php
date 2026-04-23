@@ -85,4 +85,43 @@ class DashboardService
 
         return $summary;
     }
+
+    public function getGreenBeltSummary(): array
+    {
+        $summary = [
+            'total_belts' => 0,
+            'active_belts' => 0,
+            'open_issues' => 0,
+        ];
+        $summary['total_belts'] = (int) $this->db->query("SELECT COUNT(*) FROM green_belts")->fetchColumn();
+        $summary['active_belts'] = (int) $this->db->query("SELECT COUNT(*) FROM green_belts WHERE is_hidden = 0")->fetchColumn();
+        $summary['open_issues'] = (int) $this->db->query("SELECT COUNT(*) FROM issues WHERE belt_id IS NOT NULL AND status IN ('OPEN', 'IN_PROGRESS')")->fetchColumn();
+        return $summary;
+    }
+
+    public function getAdvertisementSummary(): array
+    {
+        $summary = [
+            'active_campaigns' => 0,
+            'total_sites' => 0,
+            'sites_with_monitoring_overdue' => 0,
+        ];
+        $summary['active_campaigns'] = (int) $this->db->query("SELECT COUNT(*) FROM campaigns WHERE status = 'ACTIVE'")->fetchColumn();
+        $summary['total_sites'] = (int) $this->db->query("SELECT COUNT(*) FROM sites")->fetchColumn();
+        $summary['sites_with_monitoring_overdue'] = (int) $this->db->query("SELECT COUNT(*) FROM site_monitoring_due_dates WHERE due_date < CURRENT_DATE()")->fetchColumn();
+        return $summary;
+    }
+
+    public function getMonitoringSummary(): array
+    {
+        $summary = [
+            'sites_monitored_this_month' => 0,
+            'sites_overdue' => 0,
+            'total_monitoring_uploads' => 0,
+        ];
+        $summary['sites_monitored_this_month'] = (int) $this->db->query("SELECT COUNT(DISTINCT parent_id) FROM uploads WHERE parent_type = 'SITE' AND MONTH(created_at) = MONTH(CURRENT_DATE()) AND YEAR(created_at) = YEAR(CURRENT_DATE())")->fetchColumn();
+        $summary['sites_overdue'] = (int) $this->db->query("SELECT COUNT(*) FROM site_monitoring_due_dates WHERE due_date < CURRENT_DATE()")->fetchColumn();
+        $summary['total_monitoring_uploads'] = (int) $this->db->query("SELECT COUNT(*) FROM uploads WHERE parent_type = 'SITE'")->fetchColumn();
+        return $summary;
+    }
 }

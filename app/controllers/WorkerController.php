@@ -3,6 +3,12 @@
 require_once __DIR__ . '/../helpers/Response.php';
 require_once __DIR__ . '/../services/WorkerService.php';
 
+/**
+ * WorkerController
+ *
+ * Architecture: HTTP shape only. Role enforcement is in AuthMiddleware.
+ * Ops-only create/update rules live in WorkerService.
+ */
 class WorkerController
 {
     private WorkerService $workerService;
@@ -23,25 +29,20 @@ class WorkerController
         }
 
         try {
-            $actorRoleKey = $_SESSION['role_key'] ?? '';
-
             $filters = [
                 'is_active' => isset($_GET['is_active']) ? (int) $_GET['is_active'] : null,
-                'skill_tag' => $_GET['skill_tag'] ?? null
+                'skill_tag' => $_GET['skill_tag'] ?? null,
             ];
 
-            $items = $this->workerService->listWorkers($filters, $actorRoleKey);
+            $items = $this->workerService->listWorkers(
+                $filters,
+                (string) ($_SESSION['role_key'] ?? '')
+            );
 
             Response::success([
-                'items' => $items,
-                'pagination' => [
-                    'page' => 1,
-                    'limit' => count($items),
-                    'total' => count($items)
-                ]
+                'items'      => $items,
+                'pagination' => ['page' => 1, 'limit' => count($items), 'total' => count($items)],
             ]);
-        } catch (DomainException $e) {
-            Response::error($e->getMessage(), 403);
         } catch (Throwable $e) {
             Response::error($e->getMessage(), 400);
         }
@@ -63,19 +64,17 @@ class WorkerController
         }
 
         try {
-            $actorRoleKey = $_SESSION['role_key'] ?? '';
+            $worker = $this->workerService->getWorker(
+                (int) $_GET['worker_id'],
+                (string) ($_SESSION['role_key'] ?? '')
+            );
 
-            $worker = $this->workerService->getWorker((int) $_GET['worker_id'], $actorRoleKey);
-            
             if (!$worker) {
                 Response::error('Worker not found', 404);
                 return;
             }
 
             Response::success($worker);
-            
-        } catch (DomainException $e) {
-            Response::error($e->getMessage(), 403);
         } catch (Throwable $e) {
             Response::error($e->getMessage(), 400);
         }
@@ -92,10 +91,12 @@ class WorkerController
         }
 
         $input = json_decode(file_get_contents('php://input'), true) ?? $_POST;
-        $actorRoleKey = $_SESSION['role_key'] ?? '';
 
         try {
-            $result = $this->workerService->createWorker($input, $actorRoleKey);
+            $result = $this->workerService->createWorker(
+                $input,
+                (string) ($_SESSION['role_key'] ?? '')
+            );
             Response::success($result);
         } catch (DomainException $e) {
             Response::error($e->getMessage(), 403);
@@ -115,16 +116,17 @@ class WorkerController
         }
 
         $input = json_decode(file_get_contents('php://input'), true) ?? $_POST;
-        
+
         if (empty($input['worker_id'])) {
             Response::error('Missing worker_id param', 400);
             return;
         }
 
-        $actorRoleKey = $_SESSION['role_key'] ?? '';
-
         try {
-            $result = $this->workerService->updateWorker($input, $actorRoleKey);
+            $result = $this->workerService->updateWorker(
+                $input,
+                (string) ($_SESSION['role_key'] ?? '')
+            );
             Response::success($result);
         } catch (DomainException $e) {
             Response::error($e->getMessage(), 403);
@@ -144,15 +146,12 @@ class WorkerController
         }
 
         try {
-            $actorRoleKey = $_SESSION['role_key'] ?? '';
-            $date = $_GET['date'] ?? date('Y-m-d');
-            $skillTag = $_GET['skill_tag'] ?? null;
-
-            $result = $this->workerService->getWorkerAvailability($date, $skillTag, $actorRoleKey);
+            $result = $this->workerService->getWorkerAvailability(
+                $_GET['date'] ?? date('Y-m-d'),
+                $_GET['skill_tag'] ?? null,
+                (string) ($_SESSION['role_key'] ?? '')
+            );
             Response::success($result);
-            
-        } catch (DomainException $e) {
-            Response::error($e->getMessage(), 403);
         } catch (Throwable $e) {
             Response::error($e->getMessage(), 400);
         }

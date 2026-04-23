@@ -3,6 +3,12 @@
 require_once __DIR__ . '/../helpers/Response.php';
 require_once __DIR__ . '/../services/WorkerEntryService.php';
 
+/**
+ * WorkerEntryController
+ *
+ * Architecture: HTTP shape only. Role enforcement is in AuthMiddleware.
+ * Attendance/activity enum validation and scope live in WorkerEntryService.
+ */
 class WorkerEntryController
 {
     private WorkerEntryService $workerEntryService;
@@ -23,26 +29,21 @@ class WorkerEntryController
         }
 
         try {
-            $actorRoleKey = $_SESSION['role_key'] ?? '';
-
             $filters = [
-                'worker_id' => isset($_GET['worker_id']) ? (int) $_GET['worker_id'] : null,
-                'entry_date' => $_GET['entry_date'] ?? null,
-                'activity_type' => $_GET['activity_type'] ?? null
+                'worker_id'     => isset($_GET['worker_id']) ? (int) $_GET['worker_id'] : null,
+                'entry_date'    => $_GET['entry_date'] ?? null,
+                'activity_type' => $_GET['activity_type'] ?? null,
             ];
 
-            $items = $this->workerEntryService->listEntries($filters, $actorRoleKey);
+            $items = $this->workerEntryService->listEntries(
+                $filters,
+                (string) ($_SESSION['role_key'] ?? '')
+            );
 
             Response::success([
-                'items' => $items,
-                'pagination' => [
-                    'page' => 1,
-                    'limit' => count($items),
-                    'total' => count($items)
-                ]
+                'items'      => $items,
+                'pagination' => ['page' => 1, 'limit' => count($items), 'total' => count($items)],
             ]);
-        } catch (DomainException $e) {
-            Response::error($e->getMessage(), 403);
         } catch (Throwable $e) {
             Response::error($e->getMessage(), 400);
         }
@@ -59,24 +60,24 @@ class WorkerEntryController
         }
 
         $input = json_decode(file_get_contents('php://input'), true) ?? $_POST;
-        $actorRoleKey = $_SESSION['role_key'] ?? '';
-        $actorUserId = $_SESSION['user_id'] ?? 0;
 
         try {
-            // Append creator identity natively in the controller layer
             $data = [
-                'worker_id' => isset($input['worker_id']) ? (int) $input['worker_id'] : null,
-                'entry_date' => $input['entry_date'] ?? null,
-                'attendance_status' => $input['attendance_status'] ?? null,
-                'activity_type' => $input['activity_type'] ?? null,
-                'task_id' => isset($input['task_id']) ? (int) $input['task_id'] : null,
-                'site_id' => isset($input['site_id']) ? (int) $input['site_id'] : null,
-                'work_plan' => $input['work_plan'] ?? null,
-                'work_update' => $input['work_update'] ?? null,
-                'created_by_user_id' => $actorUserId
+                'worker_id'          => isset($input['worker_id']) ? (int) $input['worker_id'] : null,
+                'entry_date'         => $input['entry_date'] ?? null,
+                'attendance_status'  => $input['attendance_status'] ?? null,
+                'activity_type'      => $input['activity_type'] ?? null,
+                'task_id'            => isset($input['task_id']) ? (int) $input['task_id'] : null,
+                'site_id'            => isset($input['site_id']) ? (int) $input['site_id'] : null,
+                'work_plan'          => $input['work_plan'] ?? null,
+                'work_update'        => $input['work_update'] ?? null,
+                'created_by_user_id' => (int) $_SESSION['user_id'],
             ];
 
-            $result = $this->workerEntryService->markEntry($data, $actorRoleKey);
+            $result = $this->workerEntryService->markEntry(
+                $data,
+                (string) ($_SESSION['role_key'] ?? '')
+            );
             Response::success($result);
         } catch (InvalidArgumentException $e) {
             Response::error($e->getMessage(), 400);
