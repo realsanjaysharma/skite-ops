@@ -83,14 +83,11 @@ class UploadController extends BaseController
      */
     public function createUpload(): void
     {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            Response::error('Method not allowed', 405);
-            return;
-        }
+        if (!$this->requireMethod('POST')) return;
 
-        $input = $_POST;
-        
-        $roleKey = $_SESSION['role_key'] ?? '';
+        $input = $this->getInput();
+        $actor = $this->getActor();
+        $roleKey = $actor['role_key'];
         
         $surface = $this->resolveSurfaceFromRole($roleKey);
         if (!$surface) {
@@ -106,7 +103,7 @@ class UploadController extends BaseController
         $files = $_FILES['files'] ?? [];
 
         try {
-            $result = $this->uploadService->createUploadsForSurface($surface, $input, $files, $_SESSION['user_id']);
+            $result = $this->uploadService->createUploadsForSurface($surface, $input, $files, $actor['user_id']);
             Response::success($result);
         } catch (DomainException $e) {
             Response::error($e->getMessage(), 403);
@@ -232,6 +229,8 @@ class UploadController extends BaseController
             case 'OUTSOURCED_MAINTAINER':
                 return 'OUTSOURCED';
             case 'MONITORING_TEAM':
+            case 'OPS_MANAGER':
+            case 'MANAGEMENT':
                 return 'MONITORING';
             case 'FABRICATION_LEAD':
                 return 'TASK';

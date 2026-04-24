@@ -18,6 +18,7 @@ $createdTaskIds = [];
 $createdSiteIds = [];
 $createdBeltIds = [];
 $storedPaths = [];
+$_SESSION['role_key'] = 'OPS_MANAGER'; // Required for role-based scope checks in UploadService
 
 function passFail(bool $ok, string $label, string $details = ''): void
 {
