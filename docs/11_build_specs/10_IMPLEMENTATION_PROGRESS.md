@@ -866,6 +866,35 @@ Full cross-reference of codebase against `03_API_AND_ROUTE_CONTRACT.md`, `config
 Relevant validation:
 - `php -l` passed on all 9 modified/created files with exit code 0.
 
+### Backend Architecture Standardization & Hardening
+
+Status: `COMPLETE - LIVE VERIFIED`
+
+**BaseController Implementation:**
+- Created a global `BaseController` architecture with unified helper methods (`getInput()`, `getActor()`, `requireMethod()`) to enforce HTTP verb validation and centralize session parsing.
+- Refactored core controllers (`IssueController`, `TaskController`, `BeltController`, `AuthController`, `UploadController`, `TaskProgressController`) to extend `BaseController`, eliminating boilerplate code and raw `$_SERVER`/`$_SESSION` checks.
+- Wired `BaseController.php` into `index.php` router to ensure it's loaded before controller dispatch.
+
+**Task Workflow Integrity:**
+- Identified a critical bug where tasks could not progress past the `OPEN` state.
+- Restored missing `task/start` flow. `TaskService::markInProgress` was implemented to officially move tasks from `OPEN` to `RUNNING`.
+- Fixed `TaskService::markWorkDone` to properly set status to `COMPLETED` and record the `actual_close_date`.
+- Created an automated test script (`tests/test_hardening_workflow.php`) to verify full Task state machine progression.
+
+**Audit Service Coverage & Logging Consolidation:**
+- Migrated legacy modules from using direct `AuditRepository` calls to the centralized `AuditService`.
+- Injected `AuditService` into `TaskService` and `IssueService`.
+- High-governance state changes (`TASK_CREATED`, `TASK_STARTED`, `TASK_COMPLETED`, `ISSUE_CREATED`, `ISSUE_IN_PROGRESS`, `ISSUE_CLOSED`, `ISSUE_TASK_LINKED`) are now correctly captured in the immutable audit log.
+
+**Security & Schema Alignment:**
+- Standardized `WorkerRepository::getAvailabilityStats` to use positional `?` parameters, correcting a drift from the project-wide repository layer pattern.
+- Updated `route_registry.php` to map `task/start` with the `upload` capability (to ensure `FABRICATION_LEAD` is allowed through AuthMiddleware).
+- Corrected report repository PDO-binding and schema discrepancies.
+- Ensured strict upload scope validation for field roles.
+
+**Testing:**
+- Created a comprehensive dynamic Postman test collection (`postman/skite_level2_tests.postman_collection.json`) with automated CSRF token handling and randomized payload data to perform Level 2 Manual Spot Checks.
+
 ## Static Prompt Workflow
 
 Use the same prompt every implementation turn:

@@ -103,15 +103,15 @@ class WorkerRepository extends BaseRepository
     public function getAvailabilityStats(string $date, ?string $skillTag = null): array
     {
         $params = [
-            'report_today1' => $date,
-            'report_today2' => $date,
-            'report_today3' => $date
+            $date, // For :report_today1
+            $date, // For :report_today2
+            $date  // For :report_today3
         ];
         
         $where = [];
         if ($skillTag) {
-            $where[] = "fw.skill_tag = :skill_tag";
-            $params['skill_tag'] = $skillTag;
+            $where[] = "fw.skill_tag = ?";
+            $params[] = $skillTag;
         }
 
         $whereClause = empty($where) ? '' : 'WHERE ' . implode(' AND ', $where);
@@ -128,13 +128,13 @@ class WorkerRepository extends BaseRepository
                     FROM task_worker_assignments twa
                     JOIN tasks t ON t.id = twa.task_id
                     WHERE twa.worker_id = fw.id
-                      AND twa.assigned_date <= :report_today1
-                      AND (twa.release_date IS NULL OR twa.release_date >= :report_today2)
+                      AND twa.assigned_date <= ?
+                      AND (twa.release_date IS NULL OR twa.release_date >= ?)
                       AND t.status IN ('OPEN', 'RUNNING')
                 ) AS active_assignments_count
             FROM fabrication_workers fw
             LEFT JOIN worker_daily_entries wde 
-              ON wde.worker_id = fw.id AND wde.entry_date = :report_today3
+              ON wde.worker_id = fw.id AND wde.entry_date = ?
             {$whereClause}
             ORDER BY fw.worker_name ASC
         ";

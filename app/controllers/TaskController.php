@@ -144,10 +144,40 @@ class TaskController extends BaseController
             return;
         }
 
-        $actorRoleKey = $this->getActor()['role_key'];
+        $actor = $this->getActor();
+        $actorUserId = $actor['user_id'];
+        $actorRoleKey = $actor['role_key'];
 
         try {
-            $result = $this->taskService->archiveTask((int) $input['task_id'], $actorRoleKey);
+            $result = $this->taskService->archiveTask((int) $input['task_id'], $actorUserId, $actorRoleKey);
+            Response::success($result);
+        } catch (DomainException $e) {
+            Response::error($e->getMessage(), 403);
+        } catch (Throwable $e) {
+            Response::error($e->getMessage(), 400);
+        }
+    }
+
+    /**
+     * POST task/start
+     */
+    public function markInProgress(): void
+    {
+        if (!$this->requireMethod('POST')) return;
+
+        $input = $this->getInput();
+        
+        if (empty($input['task_id'])) {
+            Response::error('Missing task_id param', 400);
+            return;
+        }
+
+        $actor = $this->getActor();
+        $actorUserId = $actor['user_id'];
+        $actorRoleKey = $actor['role_key'];
+
+        try {
+            $result = $this->taskService->markInProgress((int) $input['task_id'], $actorUserId, $actorRoleKey);
             Response::success($result);
         } catch (DomainException $e) {
             Response::error($e->getMessage(), 403);

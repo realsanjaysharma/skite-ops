@@ -2,13 +2,17 @@
 
 require_once __DIR__ . '/../repositories/IssueRepository.php';
 
+require_once __DIR__ . '/AuditService.php';
+
 class IssueService
 {
     private IssueRepository $issueRepo;
+    private AuditService $auditService;
 
     public function __construct()
     {
         $this->issueRepo = new IssueRepository();
+        $this->auditService = new AuditService();
     }
 
     /**
@@ -43,13 +47,23 @@ class IssueService
         ];
 
         $newId = $this->issueRepo->create($insertData);
+
+        $this->auditService->logAction(
+            $actorUserId,
+            'ISSUE_CREATED',
+            'issue',
+            $newId,
+            null,
+            $insertData
+        );
+
         return $this->issueRepo->findById($newId);
     }
 
     /**
      * Transition issue OPEN -> IN_PROGRESS.
      */
-    public function markInProgress(int $issueId, string $actorRoleKey): array
+    public function markInProgress(int $issueId, int $actorUserId, string $actorRoleKey): array
     {
         $issue = $this->issueRepo->findById($issueId);
         if (!$issue) {
@@ -73,6 +87,15 @@ class IssueService
             'id' => $issueId,
             'status' => 'IN_PROGRESS'
         ]);
+
+        $this->auditService->logAction(
+            $actorUserId,
+            'ISSUE_IN_PROGRESS',
+            'issue',
+            $issueId,
+            ['status' => $issue['status']],
+            ['status' => 'IN_PROGRESS']
+        );
 
         return $this->issueRepo->findById($issueId);
     }
@@ -98,13 +121,30 @@ class IssueService
             'closed_at' => date('Y-m-d H:i:s'),
         ]);
 
+        $this->auditService->logAction(
+            $actorUserId,
+            'ISSUE_CLOSED',
+            'issue',
+            $issueId,
+            [
+                'status' => $issue['status'],
+                'closed_by_user_id' => $issue['closed_by_user_id'],
+                'closed_at' => $issue['closed_at']
+            ],
+            [
+                'status' => 'CLOSED',
+                'closed_by_user_id' => $actorUserId,
+                'closed_at' => date('Y-m-d H:i:s')
+            ]
+        );
+
         return $this->issueRepo->findById($issueId);
     }
 
     /**
      * Link an existing task to an issue.
      */
-    public function linkTask(int $issueId, int $taskId, string $actorRoleKey): array
+    public function linkTask(int $issueId, int $taskId, int $actorUserId, string $actorRoleKey): array
     {
         if ($actorRoleKey !== 'OPS_MANAGER') {
             throw new DomainException("Only Ops can link a task to an issue.");
@@ -127,6 +167,15 @@ class IssueService
             'id' => $taskId,
             'linked_issue_id' => $issueId,
         ]);
+
+        $this->auditService->logAction(
+            $actorUserId,
+            'ISSUE_TASK_LINKED',
+            'issue',
+            $issueId,
+            ['linked_task_id' => null],
+            ['linked_task_id' => $taskId]
+        );
 
         return $this->issueRepo->findById($issueId);
     }

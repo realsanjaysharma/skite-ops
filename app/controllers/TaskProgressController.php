@@ -23,10 +23,7 @@ class TaskProgressController extends BaseController
      */
     public function listTaskProgress(): void
     {
-        if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-            Response::error('Method not allowed', 405);
-            return;
-        }
+        if (!$this->requireMethod('GET')) return;
 
         try {
             $filters = [
@@ -38,10 +35,12 @@ class TaskProgressController extends BaseController
                 'date_to'     => $_GET['date_to'] ?? null,
             ];
 
+            $actor = $this->getActor();
+
             $items = $this->taskService->listTaskProgress(
                 $filters,
-                (int) $_SESSION['user_id'],
-                (string) ($_SESSION['role_key'] ?? '')
+                $actor['user_id'],
+                $actor['role_key']
             );
 
             Response::success([
@@ -60,10 +59,7 @@ class TaskProgressController extends BaseController
      */
     public function getTaskProgress(): void
     {
-        if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-            Response::error('Method not allowed', 405);
-            return;
-        }
+        if (!$this->requireMethod('GET')) return;
 
         if (empty($_GET['task_id'])) {
             Response::error('Missing task_id param', 400);
@@ -71,10 +67,12 @@ class TaskProgressController extends BaseController
         }
 
         try {
+            $actor = $this->getActor();
+
             $progress = $this->taskService->getTaskProgress(
                 (int) $_GET['task_id'],
-                (int) $_SESSION['user_id'],
-                (string) ($_SESSION['role_key'] ?? '')
+                $actor['user_id'],
+                $actor['role_key']
             );
 
             if (!$progress) {
@@ -95,10 +93,7 @@ class TaskProgressController extends BaseController
      */
     public function updateProgress(): void
     {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            Response::error('Method not allowed', 405);
-            return;
-        }
+        if (!$this->requireMethod('POST')) return;
 
         $input = $this->getInput();
 
@@ -108,10 +103,12 @@ class TaskProgressController extends BaseController
         }
 
         try {
+            $actor = $this->getActor();
+
             $result = $this->taskService->updateTaskProgress(
                 $input,
-                (int) $_SESSION['user_id'],
-                (string) ($_SESSION['role_key'] ?? '')
+                $actor['user_id'],
+                $actor['role_key']
             );
             Response::success($result);
         } catch (DomainException $e) {

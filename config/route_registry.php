@@ -406,6 +406,12 @@ return [
         'module_key' => 'task.management',
         'capability' => 'manage',
     ],
+    'task/start' => [
+        'controller' => 'TaskController',
+        'method'     => 'markInProgress',
+        'module_key' => 'task.management',
+        'capability' => 'upload', // Allows FABRICATION_LEAD (UPLOAD group); TaskService enforces further checks
+    ],
     'task/progress' => [
         'controller' => 'TaskProgressController',
         'method'     => 'updateProgress',

@@ -4,6 +4,7 @@ require_once __DIR__ . '/../repositories/TaskRepository.php';
 require_once __DIR__ . '/../repositories/RequestRepository.php';
 require_once __DIR__ . '/../repositories/IssueRepository.php';
 require_once __DIR__ . '/../repositories/UploadRepository.php';
+require_once __DIR__ . '/AuditService.php';
 
 class TaskService
 {
@@ -11,6 +12,7 @@ class TaskService
     private RequestRepository $requestRepo;
     private IssueRepository $issueRepo;
     private UploadRepository $uploadRepo;
+    private AuditService $auditService;
 
     public function __construct()
     {
@@ -18,6 +20,7 @@ class TaskService
         $this->requestRepo = new RequestRepository();
         $this->issueRepo = new IssueRepository();
         $this->uploadRepo = new UploadRepository();
+        $this->auditService = new AuditService();
     }
 
     /**
@@ -76,6 +79,15 @@ class TaskService
             
             // Note: Issue-to-task link is stored via tasks.linked_issue_id (already set above).
             // No update to the issues table is needed here — the issues table has no linked_task_id column.
+
+            $this->auditService->logAction(
+                $actorUserId,
+                'TASK_CREATED',
+                'task',
+                $newTaskId,
+                null,
+                $insertData
+            );
 
             $this->taskRepo->commit();
         } catch (Throwable $e) {
@@ -141,7 +153,7 @@ class TaskService
     /**
      * Archive a task.
      */
-    public function archiveTask(int $taskId, string $actorRoleKey): array
+    public function archiveTask(int $taskId, int $actorUserId, string $actorRoleKey): array
     {
         if ($actorRoleKey !== 'OPS_MANAGER') {
             throw new DomainException("Only Ops can archive a task.");
@@ -158,8 +170,57 @@ class TaskService
             'archived_at' => date('Y-m-d H:i:s')
         ]);
 
+        $this->auditService->logAction(
+            $actorUserId,
+            'TASK_ARCHIVED',
+            'task',
+            $taskId,
+            ['is_archived' => $task['is_archived']],
+            ['is_archived' => 1]
+        );
+
         return $this->taskRepo->findById($taskId);
     }
+
+    /**
+     * Transition task OPEN -> RUNNING.
+     */
+    public function markInProgress(int $taskId, int $actorUserId, string $actorRoleKey): array
+    {
+        if ($actorRoleKey !== 'OPS_MANAGER' && $actorRoleKey !== 'FABRICATION_LEAD') {
+            throw new DomainException("Role not authorized to start a task.");
+        }
+
+        $task = $this->taskRepo->findById($taskId);
+        if (!$task) {
+            throw new InvalidArgumentException("Task not found.");
+        }
+
+        if ($task['status'] !== 'OPEN') {
+            throw new DomainException("Task must be OPEN to move to RUNNING.");
+        }
+
+        if ($actorRoleKey === 'FABRICATION_LEAD' && $task['assigned_lead_user_id'] != $actorUserId) {
+            throw new DomainException("You can only start tasks assigned to you.");
+        }
+
+        $this->taskRepo->update([
+            'id' => $taskId,
+            'status' => 'RUNNING'
+        ]);
+
+        $this->auditService->logAction(
+            $actorUserId,
+            'TASK_STARTED',
+            'task',
+            $taskId,
+            ['status' => $task['status']],
+            ['status' => 'RUNNING']
+        );
+
+        return $this->taskRepo->findById($taskId);
+    }
+
 
     /**
      * List task progress explicitly mapped for commercial contexts. 
@@ -261,6 +322,8 @@ class TaskService
 
         $updatePayload = [
             'id' => $taskId,
+            'status' => 'COMPLETED',
+            'actual_close_date' => date('Y-m-d H:i:s'),
             'progress_percent' => $data['progress_percent'] ?? 100,
             'completion_note' => $data['completion_note'] ?? $task['completion_note'],
         ];
@@ -270,6 +333,23 @@ class TaskService
         if ($updatePayload['progress_percent'] > 100) $updatePayload['progress_percent'] = 100;
 
         $this->taskRepo->update($updatePayload);
+
+        $this->auditService->logAction(
+            $actorUserId,
+            'TASK_COMPLETED',
+            'task',
+            $taskId,
+            [
+                'status' => $task['status'],
+                'progress_percent' => $task['progress_percent'],
+                'actual_close_date' => $task['actual_close_date']
+            ],
+            [
+                'status' => 'COMPLETED',
+                'progress_percent' => $updatePayload['progress_percent'],
+                'actual_close_date' => $updatePayload['actual_close_date']
+            ]
+        );
 
         return $this->taskRepo->findById($taskId);
     }

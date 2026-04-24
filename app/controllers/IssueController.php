@@ -33,7 +33,8 @@ class IssueController extends BaseController
                 'site_id'  => $_GET['site_id'] ?? null,
             ];
 
-            $items = $this->issueService->listIssues($filters, (string) ($_SESSION['role_key'] ?? ''));
+            $actor = $this->getActor();
+            $items = $this->issueService->listIssues($filters, $actor['role_key']);
 
             Response::success([
                 'items'      => $items,
@@ -57,9 +58,10 @@ class IssueController extends BaseController
         }
 
         try {
+            $actor = $this->getActor();
             $issue = $this->issueService->getIssue(
                 (int) $_GET['issue_id'],
-                (string) ($_SESSION['role_key'] ?? '')
+                $actor['role_key']
             );
 
             if (!$issue) {
@@ -78,10 +80,7 @@ class IssueController extends BaseController
      */
     public function createIssue(): void
     {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            Response::error('Method not allowed', 405);
-            return;
-        }
+        if (!$this->requireMethod('POST')) return;
 
         $input = $this->getInput();
         $actor = $this->getActor();
@@ -115,9 +114,11 @@ class IssueController extends BaseController
         }
 
         try {
+            $actor = $this->getActor();
             $result = $this->issueService->markInProgress(
                 (int) $input['issue_id'],
-                (string) ($_SESSION['role_key'] ?? '')
+                $actor['user_id'],
+                $actor['role_key']
             );
             Response::success($result);
         } catch (DomainException $e) {
@@ -142,10 +143,11 @@ class IssueController extends BaseController
         }
 
         try {
+            $actor = $this->getActor();
             $result = $this->issueService->closeIssue(
                 (int) $input['issue_id'],
-                (int) $_SESSION['user_id'],
-                (string) ($_SESSION['role_key'] ?? '')
+                $actor['user_id'],
+                $actor['role_key']
             );
             Response::success($result);
         } catch (DomainException $e) {
@@ -170,10 +172,12 @@ class IssueController extends BaseController
         }
 
         try {
+            $actor = $this->getActor();
             $result = $this->issueService->linkTask(
                 (int) $input['issue_id'],
                 (int) $input['task_id'],
-                (string) ($_SESSION['role_key'] ?? '')
+                $actor['user_id'],
+                $actor['role_key']
             );
             Response::success($result);
         } catch (DomainException $e) {
