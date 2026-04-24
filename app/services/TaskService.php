@@ -74,15 +74,8 @@ class TaskService
                 ]);
             }
             
-            if ($linkedIssueId) {
-                // Implicitly link the issue to the newly created task
-                $this->issueRepo->update([
-                    'id' => $linkedIssueId,
-                    'linked_task_id' => $newTaskId
-                    // We do not change issue status here automatically according to specs, 
-                    // but we securely establish the tie.
-                ]);
-            }
+            // Note: Issue-to-task link is stored via tasks.linked_issue_id (already set above).
+            // No update to the issues table is needed here — the issues table has no linked_task_id column.
 
             $this->taskRepo->commit();
         } catch (Throwable $e) {

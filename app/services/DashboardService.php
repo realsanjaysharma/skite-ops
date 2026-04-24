@@ -49,7 +49,7 @@ class DashboardService
         $summary['pending_requests'] = (int) $stmt->fetchColumn();
 
         // Active tasks
-        $stmt = $this->db->query("SELECT COUNT(*) FROM tasks WHERE status = 'IN_PROGRESS'");
+        $stmt = $this->db->query("SELECT COUNT(*) FROM tasks WHERE status = 'RUNNING'");
         $summary['active_tasks'] = (int) $stmt->fetchColumn();
 
         // Pending Uploads (Review Needed)

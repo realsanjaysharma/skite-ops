@@ -111,8 +111,8 @@ class TaskRepository extends BaseRepository
              ORDER BY CASE t.status
                 WHEN 'RUNNING' THEN 1
                 WHEN 'OPEN' THEN 2
-                WHEN 'BLOCKED' THEN 3
-                WHEN 'COMPLETED' THEN 4
+                WHEN 'COMPLETED' THEN 3
+                WHEN 'CANCELLED' THEN 4
                 ELSE 5
              END ASC, t.created_at DESC",
             $params

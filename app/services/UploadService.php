@@ -467,17 +467,11 @@ class UploadService
                 throw new DomainException('You are not the assigned lead for this task.');
             }
         } elseif ($surface === 'MONITORING') {
-            // Monitoring team scope check: verify the actor has the MONITORING_TEAM role.
-            // Per RBAC spec, MONITORING_TEAM scope is "only site-driven upload context" —
-            // the role itself gates access; there is no per-site assignment table in v1.
-            $db = Database::getConnection();
-            $stmt = $db->prepare(
-                "SELECT r.role_key FROM users u JOIN roles r ON r.id = u.role_id WHERE u.id = ? LIMIT 1"
-            );
-            $stmt->execute([$actorUserId]);
-            $roleKey = $stmt->fetchColumn();
+            // The RBAC middleware already verified session role_key before reaching this point.
+            // No per-site assignment table exists in v1 — role-level access is the full scope check.
+            $roleKey = $_SESSION['role_key'] ?? '';
             if ($roleKey !== 'MONITORING_TEAM' && $roleKey !== 'OPS_MANAGER') {
-                throw new DomainException('You are not authorized for monitoring uploads.');
+                throw new DomainException('Role not authorised to submit monitoring uploads.');
             }
         }
     }
