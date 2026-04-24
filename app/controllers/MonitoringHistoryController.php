@@ -3,7 +3,7 @@
 require_once __DIR__ . '/../services/MonitoringHistoryService.php';
 require_once __DIR__ . '/../helpers/Response.php';
 
-class MonitoringHistoryController {
+class MonitoringHistoryController extends BaseController {
     public function getHistory(): void {
         if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
             Response::error('Method not allowed', 405);

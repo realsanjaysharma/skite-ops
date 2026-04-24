@@ -3,7 +3,7 @@
 require_once __DIR__ . '/../helpers/Response.php';
 require_once __DIR__ . '/../services/TaskService.php';
 
-class TaskController
+class TaskController extends BaseController
 {
     private TaskService $taskService;
 
@@ -17,14 +17,12 @@ class TaskController
      */
     public function createTask(): void
     {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            Response::error('Method not allowed', 405);
-            return;
-        }
+        if (!$this->requireMethod('POST')) return;
 
-        $input = json_decode(file_get_contents('php://input'), true) ?? $_POST;
-        $actorUserId = (int) $_SESSION['user_id'];
-        $actorRoleKey = $_SESSION['role_key'] ?? '';
+        $input = $this->getInput();
+        $actor = $this->getActor();
+        $actorUserId = $actor['user_id'];
+        $actorRoleKey = $actor['role_key'];
 
         if (empty($input['task_category']) || empty($input['vertical_type'])) {
             Response::error('Missing required fields: task_category, vertical_type', 400);
@@ -46,14 +44,12 @@ class TaskController
      */
     public function listTasks(): void
     {
-        if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-            Response::error('Method not allowed', 405);
-            return;
-        }
+        if (!$this->requireMethod('GET')) return;
 
         try {
-            $actorUserId = (int) $_SESSION['user_id'];
-            $actorRoleKey = $_SESSION['role_key'] ?? '';
+            $actor = $this->getActor();
+            $actorUserId = $actor['user_id'];
+            $actorRoleKey = $actor['role_key'];
 
             $filters = [
                 'status' => $_GET['status'] ?? null,
@@ -82,10 +78,7 @@ class TaskController
      */
     public function getTask(): void
     {
-        if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-            Response::error('Method not allowed', 405);
-            return;
-        }
+        if (!$this->requireMethod('GET')) return;
 
         if (empty($_GET['task_id'])) {
             Response::error('Missing task_id param', 400);
@@ -93,8 +86,9 @@ class TaskController
         }
 
         try {
-            $actorUserId = (int) $_SESSION['user_id'];
-            $actorRoleKey = $_SESSION['role_key'] ?? '';
+            $actor = $this->getActor();
+            $actorUserId = $actor['user_id'];
+            $actorRoleKey = $actor['role_key'];
 
             $task = $this->taskService->getTask((int) $_GET['task_id'], $actorUserId, $actorRoleKey);
             
@@ -115,19 +109,16 @@ class TaskController
      */
     public function updateTask(): void
     {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            Response::error('Method not allowed', 405);
-            return;
-        }
+        if (!$this->requireMethod('POST')) return;
 
-        $input = json_decode(file_get_contents('php://input'), true) ?? $_POST;
+        $input = $this->getInput();
         
         if (empty($input['task_id'])) {
             Response::error('Missing task_id param', 400);
             return;
         }
 
-        $actorRoleKey = $_SESSION['role_key'] ?? '';
+        $actorRoleKey = $this->getActor()['role_key'];
 
         try {
             $result = $this->taskService->updateTask($input, $actorRoleKey);
@@ -144,19 +135,16 @@ class TaskController
      */
     public function archiveTask(): void
     {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            Response::error('Method not allowed', 405);
-            return;
-        }
+        if (!$this->requireMethod('POST')) return;
 
-        $input = json_decode(file_get_contents('php://input'), true) ?? $_POST;
+        $input = $this->getInput();
         
         if (empty($input['task_id'])) {
             Response::error('Missing task_id param', 400);
             return;
         }
 
-        $actorRoleKey = $_SESSION['role_key'] ?? '';
+        $actorRoleKey = $this->getActor()['role_key'];
 
         try {
             $result = $this->taskService->archiveTask((int) $input['task_id'], $actorRoleKey);
@@ -173,20 +161,18 @@ class TaskController
      */
     public function markWorkDone(): void
     {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            Response::error('Method not allowed', 405);
-            return;
-        }
+        if (!$this->requireMethod('POST')) return;
 
-        $input = json_decode(file_get_contents('php://input'), true) ?? $_POST;
+        $input = $this->getInput();
         
         if (empty($input['task_id'])) {
             Response::error('Missing task_id param', 400);
             return;
         }
 
-        $actorUserId = (int) $_SESSION['user_id'];
-        $actorRoleKey = $_SESSION['role_key'] ?? '';
+        $actor = $this->getActor();
+        $actorUserId = $actor['user_id'];
+        $actorRoleKey = $actor['role_key'];
 
         try {
             $result = $this->taskService->markWorkDone($input, $actorUserId, $actorRoleKey);
@@ -204,13 +190,11 @@ class TaskController
      */
     public function myTasks(): void
     {
-        if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-            Response::error('Method not allowed', 405);
-            return;
-        }
+        if (!$this->requireMethod('GET')) return;
 
-        $actorUserId = (int) $_SESSION['user_id'];
-        $actorRoleKey = $_SESSION['role_key'] ?? '';
+        $actor = $this->getActor();
+        $actorUserId = $actor['user_id'];
+        $actorRoleKey = $actor['role_key'];
 
         try {
             $filters = [

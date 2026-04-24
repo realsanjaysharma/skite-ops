@@ -9,7 +9,7 @@ require_once __DIR__ . '/../services/RequestService.php';
  * Architecture: HTTP shape only. Role enforcement is in AuthMiddleware.
  * Requester scope and Ops-only approval/rejection live in RequestService.
  */
-class RequestController
+class RequestController extends BaseController
 {
     private RequestService $requestService;
 
@@ -93,7 +93,7 @@ class RequestController
             return;
         }
 
-        $input = json_decode(file_get_contents('php://input'), true) ?? $_POST;
+        $input = $this->getInput();
 
         try {
             $result = $this->requestService->createRequest(
@@ -119,7 +119,7 @@ class RequestController
             return;
         }
 
-        $input = json_decode(file_get_contents('php://input'), true) ?? $_POST;
+        $input = $this->getInput();
 
         if (empty($input['request_id'])) {
             Response::error('Missing request_id param', 400);
@@ -150,7 +150,7 @@ class RequestController
             return;
         }
 
-        $input = json_decode(file_get_contents('php://input'), true) ?? $_POST;
+        $input = $this->getInput();
 
         if (empty($input['request_id'])) {
             Response::error('Missing request_id param', 400);

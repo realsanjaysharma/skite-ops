@@ -10,7 +10,7 @@ require_once __DIR__ . '/../services/AttendanceService.php';
  * Role/capability access is enforced by AuthMiddleware (module_key + capability).
  * Same-day constraints, override rules, and record scope are enforced in AttendanceService.
  */
-class AttendanceController
+class AttendanceController extends BaseController
 {
     private AttendanceService $attendanceService;
 
@@ -56,7 +56,7 @@ class AttendanceController
             return;
         }
 
-        $input = json_decode(file_get_contents('php://input'), true) ?? $_POST;
+        $input = $this->getInput();
 
         if (empty($input['supervisor_user_id']) || empty($input['attendance_date']) || empty($input['status'])) {
             Response::error('Missing required fields: supervisor_user_id, attendance_date, status', 400);

@@ -11,7 +11,7 @@ require_once __DIR__ . '/../services/FreeMediaService.php';
  *
  * Schema status enum: DISCOVERED → CONFIRMED_ACTIVE → EXPIRED | CONSUMED
  */
-class FreeMediaController
+class FreeMediaController extends BaseController
 {
     public function listFreeMedia(): void
     {

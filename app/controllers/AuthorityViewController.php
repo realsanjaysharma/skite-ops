@@ -3,7 +3,7 @@
 require_once __DIR__ . '/../services/AuthorityViewService.php';
 require_once __DIR__ . '/../helpers/Response.php';
 
-class AuthorityViewController {
+class AuthorityViewController extends BaseController {
     public function view(): void {
         if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
             Response::error('Method not allowed', 405);

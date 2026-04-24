@@ -9,7 +9,7 @@ require_once __DIR__ . '/../services/LabourService.php';
  * Architecture: HTTP shape only. Role enforcement is in AuthMiddleware.
  * Same-day constraints, belt scope, and Ops override rules live in LabourService.
  */
-class LabourController
+class LabourController extends BaseController
 {
     private LabourService $labourService;
 
@@ -55,7 +55,7 @@ class LabourController
             return;
         }
 
-        $input = json_decode(file_get_contents('php://input'), true) ?? $_POST;
+        $input = $this->getInput();
 
         if (empty($input['belt_id']) || empty($input['entry_date'])) {
             Response::error('Missing required fields: belt_id, entry_date', 400);

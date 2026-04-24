@@ -9,7 +9,7 @@ require_once __DIR__ . '/../services/WateringService.php';
  * Architecture: HTTP shape only. Role enforcement is in AuthMiddleware.
  * Same-day rules, belt assignment scope, and override paths live in WateringService.
  */
-class WateringController
+class WateringController extends BaseController
 {
     private WateringService $wateringService;
 
@@ -60,7 +60,7 @@ class WateringController
             return;
         }
 
-        $input = json_decode(file_get_contents('php://input'), true) ?? $_POST;
+        $input = $this->getInput();
 
         if (empty($input['belt_id']) || empty($input['watering_date']) || empty($input['status'])) {
             Response::error('Missing required fields: belt_id, watering_date, status', 400);

@@ -10,7 +10,7 @@
 require_once __DIR__ . '/../services/MaintenanceCycleService.php';
 require_once __DIR__ . '/../helpers/Response.php';
 
-class MaintenanceCycleController
+class MaintenanceCycleController extends BaseController
 {
     /**
      * @var MaintenanceCycleService

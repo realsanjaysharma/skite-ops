@@ -9,7 +9,7 @@ require_once __DIR__ . '/../services/TaskWorkerService.php';
  * Architecture: HTTP shape only. Role enforcement is in AuthMiddleware.
  * Task ownership scope (lead must own the task) lives in TaskWorkerService.
  */
-class TaskWorkerController
+class TaskWorkerController extends BaseController
 {
     private TaskWorkerService $taskWorkerService;
 
@@ -28,7 +28,7 @@ class TaskWorkerController
             return;
         }
 
-        $input = json_decode(file_get_contents('php://input'), true) ?? $_POST;
+        $input = $this->getInput();
 
         try {
             $createdIds = $this->taskWorkerService->assignWorkers(
@@ -56,7 +56,7 @@ class TaskWorkerController
             return;
         }
 
-        $input = json_decode(file_get_contents('php://input'), true) ?? $_POST;
+        $input = $this->getInput();
 
         try {
             $success = $this->taskWorkerService->releaseWorker(

@@ -10,7 +10,7 @@ require_once __DIR__ . '/../services/UploadService.php';
  * Handles the MONITORING_TEAM landing page route (monitoring/upload).
  * Returns their recent monitoring uploads scoped to their creator_user_id.
  */
-class MonitoringUploadController
+class MonitoringUploadController extends BaseController
 {
     private UploadService $uploadService;
 

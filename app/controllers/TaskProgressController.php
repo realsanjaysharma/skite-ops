@@ -9,7 +9,7 @@ require_once __DIR__ . '/../services/TaskService.php';
  * Architecture: HTTP shape only. Role enforcement is in AuthMiddleware.
  * Commercial-role scope and lead-only mutation rules live in TaskService.
  */
-class TaskProgressController
+class TaskProgressController extends BaseController
 {
     private TaskService $taskService;
 
@@ -100,7 +100,7 @@ class TaskProgressController
             return;
         }
 
-        $input = json_decode(file_get_contents('php://input'), true) ?? $_POST;
+        $input = $this->getInput();
 
         if (empty($input['task_id'])) {
             Response::error('Missing task_id param', 400);

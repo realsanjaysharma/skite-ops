@@ -9,7 +9,7 @@ require_once __DIR__ . '/../services/WorkerEntryService.php';
  * Architecture: HTTP shape only. Role enforcement is in AuthMiddleware.
  * Attendance/activity enum validation and scope live in WorkerEntryService.
  */
-class WorkerEntryController
+class WorkerEntryController extends BaseController
 {
     private WorkerEntryService $workerEntryService;
 
@@ -59,7 +59,7 @@ class WorkerEntryController
             return;
         }
 
-        $input = json_decode(file_get_contents('php://input'), true) ?? $_POST;
+        $input = $this->getInput();
 
         try {
             $data = [

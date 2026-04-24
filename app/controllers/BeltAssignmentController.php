@@ -21,7 +21,7 @@
 require_once __DIR__ . '/../services/BeltAssignmentService.php';
 require_once __DIR__ . '/../helpers/Response.php';
 
-class BeltAssignmentController
+class BeltAssignmentController extends BaseController
 {
     /**
      * @var BeltAssignmentService

@@ -3,7 +3,7 @@
 require_once __DIR__ . '/../services/SystemSettingsService.php';
 require_once __DIR__ . '/../helpers/Response.php';
 
-class SystemSettingsController
+class SystemSettingsController extends BaseController
 {
     private $service;
 
@@ -34,7 +34,7 @@ class SystemSettingsController
             return;
         }
 
-        $input = json_decode(file_get_contents('php://input'), true) ?? $_POST;
+        $input = $this->getInput();
         $key = $input['setting_key'] ?? null;
         $value = $input['setting_value'] ?? null;
         

@@ -19,7 +19,7 @@ require_once __DIR__ . '/../services/BeltService.php';
 require_once __DIR__ . '/../helpers/Response.php';
 require_once __DIR__ . '/../../config/constants.php';
 
-class BeltController
+class BeltController extends BaseController
 {
     /**
      * @var BeltService
@@ -38,10 +38,7 @@ class BeltController
      */
     public function listBelts(): void
     {
-        if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-            Response::error('Method not allowed', 405);
-            return;
-        }
+        if (!$this->requireMethod('GET')) return;
 
         try {
             $filters = [
@@ -70,10 +67,7 @@ class BeltController
      */
     public function getBelt(): void
     {
-        if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-            Response::error('Method not allowed', 405);
-            return;
-        }
+        if (!$this->requireMethod('GET')) return;
 
         try {
             $beltId = $_GET['belt_id'] ?? null;
@@ -104,22 +98,14 @@ class BeltController
      */
     public function createBelt(): void
     {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            Response::error('Method not allowed', 405);
-            return;
-        }
+        if (!$this->requireMethod('POST')) return;
 
-        $actorUserId = $_SESSION['user_id'] ?? null;
-
-        if (!$actorUserId) {
-            Response::error('Unauthorized', 401);
-            return;
-        }
+        $actorUserId = $this->getActor()['user_id'];
 
         try {
-            $data = $this->getRequestData();
+            $data = $this->getInput();
 
-            $result = $this->beltService->createBelt($data, (int) $actorUserId);
+            $result = $this->beltService->createBelt($data, $actorUserId);
 
             Response::success($result);
         } catch (Throwable $e) {
@@ -134,22 +120,14 @@ class BeltController
      */
     public function updateBelt(): void
     {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            Response::error('Method not allowed', 405);
-            return;
-        }
+        if (!$this->requireMethod('POST')) return;
 
-        $actorUserId = $_SESSION['user_id'] ?? null;
-
-        if (!$actorUserId) {
-            Response::error('Unauthorized', 401);
-            return;
-        }
+        $actorUserId = $this->getActor()['user_id'];
 
         try {
-            $data = $this->getRequestData();
+            $data = $this->getInput();
 
-            $result = $this->beltService->updateBelt($data, (int) $actorUserId);
+            $result = $this->beltService->updateBelt($data, $actorUserId);
 
             Response::success($result);
         } catch (Throwable $e) {
@@ -157,24 +135,4 @@ class BeltController
         }
     }
 
-    /**
-     * Parse JSON or form-encoded request body.
-     */
-    private function getRequestData(): array
-    {
-        $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
-
-        if (strpos($contentType, 'application/json') !== false) {
-            $rawInput = file_get_contents('php://input');
-            $data = json_decode($rawInput, true);
-
-            if (!is_array($data)) {
-                throw new InvalidArgumentException('Invalid JSON payload.');
-            }
-
-            return $data;
-        }
-
-        return $_POST;
-    }
 }

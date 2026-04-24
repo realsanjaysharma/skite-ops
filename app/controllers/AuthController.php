@@ -19,7 +19,7 @@ require_once __DIR__ . '/../services/AuthService.php';
 require_once __DIR__ . '/../helpers/Csrf.php';
 require_once __DIR__ . '/../helpers/Response.php';
 
-class AuthController
+class AuthController extends BaseController
 {
     /**
      * @var AuthService
@@ -36,13 +36,10 @@ class AuthController
      */
     public function login()
     {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            Response::error('Method not allowed', 405);
-            return;
-        }
+        if (!$this->requireMethod('POST')) return;
 
         try {
-            $data = $this->getRequestData();
+            $data = $this->getInput();
             $email = $data['email'] ?? null;
             $password = $data['password'] ?? null;
 
@@ -74,10 +71,7 @@ class AuthController
 
     public function session()
     {
-        if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-            Response::error('Method not allowed', 405);
-            return;
-        }
+        if (!$this->requireMethod('GET')) return;
 
         try {
             $userId = $_SESSION['user_id'] ?? null;
@@ -110,10 +104,7 @@ class AuthController
 
     public function logout()
     {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            Response::error('Method not allowed', 405);
-            return;
-        }
+        if (!$this->requireMethod('POST')) return;
 
         $_SESSION = [];
         session_destroy();
@@ -143,21 +134,21 @@ class AuthController
         }
 
         try {
-            $data = $this->getRequestData();
+            $data     = $this->getInput();
             $newPassword = $data['password'] ?? null;
 
             if (!$newPassword) {
                 throw new InvalidArgumentException('Password is required');
             }
 
-            $userId = $_SESSION['user_id'] ?? null;
+            $userId = $this->getActor()['user_id'];
 
             if (!$userId) {
                 Response::error('Unauthorized', 401);
                 return;
             }
 
-            $this->authService->resetPassword((int) $userId, $newPassword);
+            $this->authService->resetPassword($userId, $newPassword);
             $_SESSION['force_password_reset'] = false;
 
             Response::success(null);
@@ -166,26 +157,4 @@ class AuthController
         }
     }
 
-    /**
-     * Get request data from JSON or standard form submission.
-     */
-    private function getRequestData()
-    {
-        $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
-
-        // PHP does not populate $_POST for JSON requests,
-        // so we manually decode php://input when needed.
-        if (strpos($contentType, 'application/json') !== false) {
-            $rawInput = file_get_contents('php://input');
-            $data = json_decode($rawInput, true);
-
-            if (!is_array($data)) {
-                throw new InvalidArgumentException('Invalid JSON payload');
-            }
-
-            return $data;
-        }
-
-        return $_POST;
-    }
 }

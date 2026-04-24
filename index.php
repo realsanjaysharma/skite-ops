@@ -117,6 +117,7 @@ if (!file_exists($controllerFile)) {
     return;
 }
 
+require_once __DIR__ . '/app/controllers/BaseController.php';
 require_once $controllerFile;
 
 if (!class_exists($controllerName)) {

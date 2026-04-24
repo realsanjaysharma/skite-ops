@@ -4,7 +4,7 @@ require_once __DIR__ . '/../helpers/Response.php';
 require_once __DIR__ . '/../services/AuditService.php';
 require_once __DIR__ . '/../../config/constants.php';
 
-class AuditController
+class AuditController extends BaseController
 {
     private AuditService $auditService;
 

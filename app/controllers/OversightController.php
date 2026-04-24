@@ -5,7 +5,7 @@ require_once __DIR__ . '/../services/AttendanceService.php';
 require_once __DIR__ . '/../services/WateringService.php';
 require_once __DIR__ . '/../services/LabourService.php';
 
-class OversightController
+class OversightController extends BaseController
 {
     private AttendanceService $attendanceService;
     private WateringService $wateringService;

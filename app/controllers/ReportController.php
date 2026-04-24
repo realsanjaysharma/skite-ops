@@ -8,7 +8,7 @@ require_once __DIR__ . '/../helpers/Response.php';
  *
  * Architecture: HTTP shape only. Role enforcement via AuthMiddleware (reports.monthly + read).
  */
-class ReportController
+class ReportController extends BaseController
 {
     private ReportService $reportService;
 

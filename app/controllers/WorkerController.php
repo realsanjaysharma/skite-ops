@@ -9,7 +9,7 @@ require_once __DIR__ . '/../services/WorkerService.php';
  * Architecture: HTTP shape only. Role enforcement is in AuthMiddleware.
  * Ops-only create/update rules live in WorkerService.
  */
-class WorkerController
+class WorkerController extends BaseController
 {
     private WorkerService $workerService;
 
@@ -90,7 +90,7 @@ class WorkerController
             return;
         }
 
-        $input = json_decode(file_get_contents('php://input'), true) ?? $_POST;
+        $input = $this->getInput();
 
         try {
             $result = $this->workerService->createWorker(
@@ -115,7 +115,7 @@ class WorkerController
             return;
         }
 
-        $input = json_decode(file_get_contents('php://input'), true) ?? $_POST;
+        $input = $this->getInput();
 
         if (empty($input['worker_id'])) {
             Response::error('Missing worker_id param', 400);

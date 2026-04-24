@@ -6,7 +6,7 @@ require_once __DIR__ . '/../services/UploadStorageService.php';
 require_once __DIR__ . '/../repositories/UploadRepository.php';
 require_once __DIR__ . '/../../config/constants.php';
 
-class UploadController
+class UploadController extends BaseController
 {
     private UploadService $uploadService;
 

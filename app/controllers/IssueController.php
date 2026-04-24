@@ -9,7 +9,7 @@ require_once __DIR__ . '/../services/IssueService.php';
  * Architecture: HTTP shape only. Role enforcement is in AuthMiddleware.
  * Scope constraints (belt-only for Head Supervisor, Ops-only close) live in IssueService.
  */
-class IssueController
+class IssueController extends BaseController
 {
     private IssueService $issueService;
 
@@ -23,10 +23,7 @@ class IssueController
      */
     public function listIssues(): void
     {
-        if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-            Response::error('Method not allowed', 405);
-            return;
-        }
+        if (!$this->requireMethod('GET')) return;
 
         try {
             $filters = [
@@ -52,10 +49,7 @@ class IssueController
      */
     public function getIssue(): void
     {
-        if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-            Response::error('Method not allowed', 405);
-            return;
-        }
+        if (!$this->requireMethod('GET')) return;
 
         if (empty($_GET['issue_id'])) {
             Response::error('Missing issue_id param', 400);
@@ -89,13 +83,14 @@ class IssueController
             return;
         }
 
-        $input = json_decode(file_get_contents('php://input'), true) ?? $_POST;
+        $input = $this->getInput();
+        $actor = $this->getActor();
 
         try {
             $result = $this->issueService->createIssue(
                 $input,
-                (int) $_SESSION['user_id'],
-                (string) ($_SESSION['role_key'] ?? '')
+                $actor['user_id'],
+                $actor['role_key']
             );
             Response::success($result);
         } catch (DomainException $e) {
@@ -110,12 +105,9 @@ class IssueController
      */
     public function markInProgress(): void
     {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            Response::error('Method not allowed', 405);
-            return;
-        }
+        if (!$this->requireMethod('POST')) return;
 
-        $input = json_decode(file_get_contents('php://input'), true) ?? $_POST;
+        $input = $this->getInput();
 
         if (empty($input['issue_id'])) {
             Response::error('Missing issue_id param', 400);
@@ -140,12 +132,9 @@ class IssueController
      */
     public function closeIssue(): void
     {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            Response::error('Method not allowed', 405);
-            return;
-        }
+        if (!$this->requireMethod('POST')) return;
 
-        $input = json_decode(file_get_contents('php://input'), true) ?? $_POST;
+        $input = $this->getInput();
 
         if (empty($input['issue_id'])) {
             Response::error('Missing issue_id param', 400);
@@ -171,12 +160,9 @@ class IssueController
      */
     public function linkTask(): void
     {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            Response::error('Method not allowed', 405);
-            return;
-        }
+        if (!$this->requireMethod('POST')) return;
 
-        $input = json_decode(file_get_contents('php://input'), true) ?? $_POST;
+        $input = $this->getInput();
 
         if (empty($input['issue_id']) || empty($input['task_id'])) {
             Response::error('Missing issue_id or task_id', 400);

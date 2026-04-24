@@ -19,7 +19,7 @@ require_once __DIR__ . '/../services/UserService.php';
 require_once __DIR__ . '/../helpers/Response.php';
 require_once __DIR__ . '/../../config/constants.php';
 
-class UserController
+class UserController extends BaseController
 {
     /**
      * @var UserService

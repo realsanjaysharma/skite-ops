@@ -4,7 +4,7 @@ require_once __DIR__ . '/../services/RoleService.php';
 require_once __DIR__ . '/../helpers/Response.php';
 require_once __DIR__ . '/../../config/constants.php';
 
-class RoleController
+class RoleController extends BaseController
 {
     private RoleService $roleService;
 
