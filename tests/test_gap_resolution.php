@@ -88,9 +88,9 @@ if ($dashboard['body']['success'] ?? false) {
 }
 
 echo "\n2. MANAGEMENT DASHBOARD\n";
-// Ops is not Management, so it should fail (403 or success = false)
+// OPS_MANAGER has all modules per RBAC spec, so management dashboard should succeed
 $mgmt = request($baseUrl . 'dashboard/management', 'GET', null, $cookieFile);
-check('Management Dashboard Denied for Ops', $mgmt, false);
+check('Management Dashboard Accessible by Ops', $mgmt, true);
 
 echo "\n3. OVERSIGHT WATERING\n";
 $oversight = request($baseUrl . 'oversight/watering', 'GET', null, $cookieFile);

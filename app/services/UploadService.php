@@ -467,14 +467,17 @@ class UploadService
                 throw new DomainException('You are not the assigned lead for this task.');
             }
         } elseif ($surface === 'MONITORING') {
-            // Monitoring uploads target a site. Verify the user is assigned to monitor this site.
+            // Monitoring team scope check: verify the actor has the MONITORING_TEAM role.
+            // Per RBAC spec, MONITORING_TEAM scope is "only site-driven upload context" —
+            // the role itself gates access; there is no per-site assignment table in v1.
             $db = Database::getConnection();
             $stmt = $db->prepare(
-                "SELECT COUNT(*) FROM site_monitoring_assignments WHERE site_id = ? AND user_id = ? AND (end_date IS NULL OR end_date >= CURRENT_DATE())"
+                "SELECT r.role_key FROM users u JOIN roles r ON r.id = u.role_id WHERE u.id = ? LIMIT 1"
             );
-            $stmt->execute([$parentId, $actorUserId]);
-            if ((int) $stmt->fetchColumn() === 0) {
-                throw new DomainException('You are not assigned to monitor this site.');
+            $stmt->execute([$actorUserId]);
+            $roleKey = $stmt->fetchColumn();
+            if ($roleKey !== 'MONITORING_TEAM' && $roleKey !== 'OPS_MANAGER') {
+                throw new DomainException('You are not authorized for monitoring uploads.');
             }
         }
     }

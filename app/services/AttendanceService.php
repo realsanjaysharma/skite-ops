@@ -2,19 +2,19 @@
 
 require_once __DIR__ . '/../repositories/AttendanceRepository.php';
 require_once __DIR__ . '/../repositories/UserRepository.php';
-require_once __DIR__ . '/../repositories/AuditRepository.php';
+require_once __DIR__ . '/../services/AuditService.php';
 
 class AttendanceService
 {
     private AttendanceRepository $attendanceRepo;
     private UserRepository $userRepo;
-    private AuditRepository $auditRepo;
+    private AuditService $auditService;
 
     public function __construct()
     {
         $this->attendanceRepo = new AttendanceRepository();
         $this->userRepo = new UserRepository();
-        $this->auditRepo = new AuditRepository();
+        $this->auditService = new AuditService();
     }
 
     /**
@@ -94,7 +94,7 @@ class AttendanceService
             $this->attendanceRepo->update($updateData);
 
             if ($existing['status'] !== $status || $overrideByUserId) {
-                $this->auditRepo->logAction(
+                $this->auditService->logAction(
                     $actorUserId,
                     'UPDATE',
                     'supervisor_attendance',
@@ -121,7 +121,7 @@ class AttendanceService
             $newId = $this->attendanceRepo->create($insertData);
             
             if ($overrideByUserId) {
-                $this->auditRepo->logAction(
+                $this->auditService->logAction(
                     $actorUserId,
                     'CREATE',
                     'supervisor_attendance',

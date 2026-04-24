@@ -268,18 +268,17 @@ try {
 
     echo "\n6. CREATOR LIST AND SELF-DELETE\n";
     $myUploadsBeforeDelete = $uploadService->listCreatorUploads($supervisorUserId);
-    $supervisorListBefore = array_values(array_filter(
-        $myUploadsBeforeDelete,
-        static fn(array $row): bool => (int) $row['created_by_user_id'] === $supervisorUserId
-    ));
+    // listCreatorUploads returns a paginated wrapper: ['items' => [...], 'pagination' => [...]]
+    $supervisorListBefore = $myUploadsBeforeDelete['items'] ?? [];
     passFail(count($supervisorListBefore) >= 3, 'Creator upload list returns supervisor-created uploads');
 
     $deletedUpload = $uploadService->softDeleteUpload((int) ($supervisorCreated[0]['id'] ?? 0), $supervisorUserId);
     passFail((int) ($deletedUpload['is_deleted'] ?? 0) === 1, 'Upload self-delete marks row deleted');
 
     $myUploadsAfterDelete = $uploadService->listCreatorUploads($supervisorUserId);
+    $afterItems = $myUploadsAfterDelete['items'] ?? [];
     $deletedStillVisible = false;
-    foreach ($myUploadsAfterDelete as $row) {
+    foreach ($afterItems as $row) {
         if ((int) $row['id'] === (int) ($supervisorCreated[0]['id'] ?? 0)) {
             $deletedStillVisible = true;
             break;
@@ -340,6 +339,9 @@ try {
     }
 
     foreach ($createdBeltIds as $beltId) {
+        // Must delete child assignment rows before the belt (FK constraints)
+        $db->prepare("DELETE FROM belt_supervisor_assignments WHERE belt_id = ?")->execute([$beltId]);
+        $db->prepare("DELETE FROM belt_outsourced_assignments WHERE belt_id = ?")->execute([$beltId]);
         $db->prepare("DELETE FROM green_belts WHERE id = ?")->execute([$beltId]);
     }
 

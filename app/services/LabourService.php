@@ -2,19 +2,19 @@
 
 require_once __DIR__ . '/../repositories/LabourRepository.php';
 require_once __DIR__ . '/../repositories/BeltRepository.php';
-require_once __DIR__ . '/../repositories/AuditRepository.php';
+require_once __DIR__ . '/../services/AuditService.php';
 
 class LabourService
 {
     private LabourRepository $labourRepo;
     private BeltRepository $beltRepo;
-    private AuditRepository $auditRepo;
+    private AuditService $auditService;
 
     public function __construct()
     {
         $this->labourRepo = new LabourRepository();
         $this->beltRepo = new BeltRepository();
-        $this->auditRepo = new AuditRepository();
+        $this->auditService = new AuditService();
     }
 
     /**
@@ -100,7 +100,7 @@ class LabourService
                 $existing['gardener_count'] != $data['gardener_count'] || 
                 $existing['night_guard_count'] != $data['night_guard_count']) 
             {
-                $this->auditRepo->logAction(
+                $this->auditService->logAction(
                     $actorUserId,
                     'UPDATE',
                     'labour_entries',
@@ -129,7 +129,7 @@ class LabourService
             $newId = $this->labourRepo->create($insertData);
             
             if ($overrideByUserId) {
-                $this->auditRepo->logAction(
+                $this->auditService->logAction(
                     $actorUserId,
                     'CREATE',
                     'labour_entries',

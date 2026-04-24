@@ -3,21 +3,21 @@
 require_once __DIR__ . '/../repositories/WateringRepository.php';
 require_once __DIR__ . '/../repositories/BeltRepository.php';
 require_once __DIR__ . '/../repositories/BeltAssignmentRepository.php';
-require_once __DIR__ . '/../repositories/AuditRepository.php';
+require_once __DIR__ . '/../services/AuditService.php';
 
 class WateringService
 {
     private WateringRepository $wateringRepo;
     private BeltRepository $beltRepo;
     private BeltAssignmentRepository $assignmentRepo;
-    private AuditRepository $auditRepo;
+    private AuditService $auditService;
 
     public function __construct()
     {
         $this->wateringRepo = new WateringRepository();
         $this->beltRepo = new BeltRepository();
         $this->assignmentRepo = new BeltAssignmentRepository();
-        $this->auditRepo = new AuditRepository();
+        $this->auditService = new AuditService();
     }
 
     /**
@@ -108,7 +108,7 @@ class WateringService
             $this->wateringRepo->update($updateData);
 
             if ($existing['status'] !== $status || $overrideByUserId) {
-                $this->auditRepo->logAction(
+                $this->auditService->logAction(
                     $actorUserId,
                     'UPDATE',
                     'watering_records',
@@ -136,7 +136,7 @@ class WateringService
             $newId = $this->wateringRepo->create($insertData);
             
             if ($overrideByUserId) {
-                $this->auditRepo->logAction(
+                $this->auditService->logAction(
                     $actorUserId,
                     'CREATE',
                     'watering_records',

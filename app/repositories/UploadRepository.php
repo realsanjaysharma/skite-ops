@@ -275,14 +275,13 @@ class UploadRepository extends BaseRepository
         }
 
         $placeholders = implode(',', array_fill(0, count($uploadIds), '?'));
-        $params = array_merge([$decision, $reviewerUserId, $comment], $uploadIds);
+        $params = array_merge([$decision, $reviewerUserId], $uploadIds);
 
         $this->execute(
             "UPDATE uploads
              SET authority_visibility = ?,
                  reviewed_by_user_id = ?,
                  reviewed_at = NOW(),
-                 review_comment = ?,
                  updated_at = NOW()
              WHERE id IN ($placeholders) AND is_deleted = 0 AND is_purged = 0",
             $params
