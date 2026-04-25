@@ -909,9 +909,26 @@ Run only relevant validation, update docs/11_build_specs/10_IMPLEMENTATION_PROGR
 This prompt should not need wording changes between modules.
 The only thing that changes over time is the progress file itself.
 
+### Green Belt Master and Detail Frontend
+
+Status: `COMPLETE - SYNTAX AND BROWSER VERIFIED`
+
+Completed:
+- Overhauled `green_belt.master` to match the `PAGE_FIELD_AND_ACTION_SPEC.md` columns exactly (`belt_code`, `common_name`, `authority_name`, `zone`, `permission_status`, `maintenance_mode`, `is_hidden`).
+- Added a full set of filters (`zone`, `permission_status`, `maintenance_mode`, `hidden`) to the master view using `UI.filters`.
+- Enhanced `green_belt.detail` view with role-based checks (Ops Manager sees Edit Belt and Assign buttons).
+- Implemented `Assignments` panel (Supervisors, Authorities, Outsourced) with inline creation buttons.
+- Implemented `Maintenance Cycles` panel with `Start Cycle` and `Close Cycle` workflow forms.
+- Added `Issues` panel with `Log Issue` creation form.
+- Added read-only panels for `Watering Summary` and `Recent Uploads`.
+- Replaced generic JSON rendering with styled pills and explicit UI components for all statuses.
+
+Relevant validation:
+- Visual browser-agent click-through test confirmed correct layout, filter application, row clicks, and modal forms.
+
 ## Current Next Scoped Task
 
-`green belt master and detail frontend`
+`green belt watering and attendance frontend`
 
 ## Serial Scoped Task Queue
 

@@ -162,16 +162,42 @@ Views.register('dashboard.management', dashboardView('dashboard/management', 'Ma
 `));
 
 Views.register('green_belt.master', {
-  async render() {
-    const data = await Api.get('belt/list');
-    return renderListPage('Green Belts', 'belt/list', data, 'green_belt.master', {
-      columns: ['id', 'belt_code', 'common_name', 'authority_name', 'permission_status', 'maintenance_mode', 'watering_frequency'],
-      createButton: UI.button('New Belt', { icon: 'ph-plus', kind: 'btn-primary', attr: 'data-create-belt' }),
-      rowAttr: (row) => `data-open-belt="${row.id}"`
-    });
+  async render({ params = {} }) {
+    const data = await Api.get('belt/list', params);
+    const rows = normalizeItems(data);
+    const columns = [
+      { key: 'belt_code', label: 'Belt Code' },
+      { key: 'common_name', label: 'Common Name' },
+      { key: 'authority_name', label: 'Authority Name' },
+      { key: 'zone', label: 'Zone' },
+      { key: 'permission_status', label: 'Permission', html: true, render: (row) => UI.status(row.permission_status) },
+      { key: 'maintenance_mode', label: 'Mode', html: true, render: (row) => UI.status(row.maintenance_mode) },
+      { key: 'is_hidden', label: 'Hidden', html: true, render: (row) => UI.status(row.is_hidden ? 'HIDDEN' : 'VISIBLE') }
+    ];
+
+    const filterUI = UI.panel('Filters', UI.filters([
+      { name: 'zone', label: 'Zone', value: params.zone || '' },
+      { name: 'permission_status', label: 'Permission', type: 'select', value: params.permission_status || '', options: [
+        { value: '', label: 'All' }, 'APPLIED', 'AGREEMENT_SIGNED', 'EXPIRED'
+      ]},
+      { name: 'maintenance_mode', label: 'Mode', type: 'select', value: params.maintenance_mode || '', options: [
+        { value: '', label: 'All' }, 'MAINTAINED', 'OUTSOURCED'
+      ]},
+      { name: 'hidden', label: 'Hidden', type: 'select', value: params.hidden || '', options: [
+        { value: '', label: 'All' }, { value: '0', label: 'Visible' }, { value: '1', label: 'Hidden' }
+      ]}
+    ], 'Apply Filter'));
+
+    const actions = UI.button('Refresh', { icon: 'ph-arrows-clockwise', attr: 'data-refresh' }) +
+                    UI.button('New Belt', { icon: 'ph-plus', kind: 'btn-primary', attr: 'data-create-belt' });
+
+    return UI.page('Green Belts', 'Manage belts, permissions, and oversight', actions)
+      + filterUI
+      + UI.panel('Records', UI.table(columns, rows, { empty: 'No belts found', rowAttr: (row) => `data-open-belt="${row.id}"` }));
   },
   async afterRender() {
     attachRefresh();
+    wireFilters((payload) => App.navigate('green_belt.master', payload));
     document.querySelectorAll('[data-open-belt]').forEach((row) => {
       row.addEventListener('click', () => App.navigate('green_belt.detail', { belt_id: row.dataset.openBelt }));
     });
@@ -180,6 +206,12 @@ Views.register('green_belt.master', {
         { name: 'belt_code', label: 'Belt Code', required: true },
         { name: 'common_name', label: 'Common Name', required: true },
         { name: 'authority_name', label: 'Authority Name', required: true },
+        { name: 'zone', label: 'Zone' },
+        { name: 'location_text', label: 'Location' },
+        { name: 'latitude', label: 'Latitude', type: 'number' },
+        { name: 'longitude', label: 'Longitude', type: 'number' },
+        { name: 'permission_start_date', label: 'Permission Start', type: 'date' },
+        { name: 'permission_end_date', label: 'Permission End', type: 'date' },
         { name: 'permission_status', label: 'Permission Status', type: 'select', value: 'AGREEMENT_SIGNED', options: ['APPLIED', 'AGREEMENT_SIGNED', 'EXPIRED'] },
         { name: 'maintenance_mode', label: 'Maintenance Mode', type: 'select', value: 'MAINTAINED', options: ['MAINTAINED', 'OUTSOURCED'] },
         { name: 'watering_frequency', label: 'Watering Frequency', type: 'select', value: 'DAILY', options: ['DAILY', 'ALTERNATE_DAY', 'WEEKLY'] }
@@ -193,20 +225,105 @@ Views.register('green_belt.detail', {
     if (!params.belt_id) return UI.page('Belt Detail', 'Open a belt from Green Belts') + UI.empty('No belt selected');
     const data = await Api.get('belt/get', { belt_id: params.belt_id });
     const belt = data.belt || data;
-    return UI.page(belt.common_name || 'Belt Detail', belt.belt_code || `Belt #${params.belt_id}`, UI.button('Back', { icon: 'ph-arrow-left', attr: 'data-back-belts' }))
+    
+    const isOps = Auth.getUser()?.role_key === 'OPS_MANAGER';
+    const actions = UI.button('Back', { icon: 'ph-arrow-left', attr: 'data-back-belts' }) + 
+                    (isOps ? UI.button('Edit Belt', { icon: 'ph-pencil', attr: 'data-edit-belt' }) : '');
+
+    return UI.page(belt.common_name || 'Belt Detail', belt.belt_code || `Belt #${params.belt_id}`, actions)
       + UI.cards([
         { label: 'Permission', value: UI.titleize(belt.permission_status || '-') },
         { label: 'Maintenance', value: UI.titleize(belt.maintenance_mode || '-') },
         { label: 'Watering', value: UI.titleize(belt.watering_frequency || '-') },
-        { label: 'Issues', value: data.issues?.length || 0 }
+        { label: 'Status', value: belt.is_hidden ? 'HIDDEN' : 'ACTIVE' }
       ])
-      + UI.panel('Assignments', UI.table(inferColumns(data.supervisor_assignments || []), data.supervisor_assignments || [], { empty: 'No supervisor assignments' }))
-      + UI.panel('Cycles', UI.table(inferColumns(data.cycle_history || []), data.cycle_history || [], { empty: 'No cycle history' }))
-      + UI.panel('Uploads', UI.table(inferColumns(data.uploads || []), data.uploads || [], { empty: 'No uploads' }))
-      + UI.panel('Issues', UI.table(inferColumns(data.issues || []), data.issues || [], { empty: 'No issues' }));
+      + UI.panel('Assignments', `
+        <div class="inline-actions" style="margin-bottom: 12px;">
+          ${isOps ? UI.button('Assign Supervisor', { attr: 'data-assign="supervisor"' }) : ''}
+          ${isOps ? UI.button('Assign Authority', { attr: 'data-assign="authority"' }) : ''}
+          ${isOps ? UI.button('Assign Outsourced', { attr: 'data-assign="outsourced"' }) : ''}
+        </div>
+        <h4>Supervisors</h4>
+        ${UI.table(inferColumns(data.supervisor_assignments || []), data.supervisor_assignments || [], { empty: 'No supervisor assignments' })}
+        <h4>Authorities</h4>
+        ${UI.table(inferColumns(data.authority_assignments || []), data.authority_assignments || [], { empty: 'No authority assignments' })}
+        <h4>Outsourced</h4>
+        ${UI.table(inferColumns(data.outsourced_assignments || []), data.outsourced_assignments || [], { empty: 'No outsourced assignments' })}
+      `)
+      + UI.panel('Maintenance Cycles', `
+        <div class="inline-actions" style="margin-bottom: 12px;">
+          ${belt.maintenance_mode === 'MAINTAINED' ? UI.button('Start Cycle', { icon: 'ph-play', attr: 'data-start-cycle' }) : ''}
+          ${belt.maintenance_mode === 'MAINTAINED' ? UI.button('Close Cycle', { icon: 'ph-stop', attr: 'data-close-cycle' }) : ''}
+        </div>
+        ${UI.table(inferColumns(data.cycle_history || []), data.cycle_history || [], { empty: 'No cycle history' })}
+      `)
+      + UI.panel('Watering Summary', UI.table(inferColumns([data.recent_watering_summary || {}]), [data.recent_watering_summary || {}], { empty: 'No watering summary' }))
+      + UI.panel('Recent Uploads', UI.table(inferColumns(data.uploads || []), data.uploads || [], { empty: 'No uploads' }))
+      + UI.panel('Issues', `
+        <div class="inline-actions" style="margin-bottom: 12px;">
+          ${UI.button('Log Issue', { icon: 'ph-warning', attr: 'data-log-issue' })}
+        </div>
+        ${UI.table(inferColumns(data.issues || []), data.issues || [], { empty: 'No issues' })}
+      `);
   },
-  async afterRender() {
+  async afterRender({ params }) {
     document.querySelector('[data-back-belts]')?.addEventListener('click', () => App.navigate('green_belt.master'));
+    document.querySelector('[data-edit-belt]')?.addEventListener('click', async () => {
+      const data = await Api.get('belt/get', { belt_id: params.belt_id });
+      const b = data.belt;
+      openSimpleForm('Edit Green Belt', [
+        { name: 'belt_id', type: 'hidden', value: b.id },
+        { name: 'common_name', label: 'Common Name', required: true, value: b.common_name },
+        { name: 'authority_name', label: 'Authority Name', required: true, value: b.authority_name },
+        { name: 'zone', label: 'Zone', value: b.zone },
+        { name: 'location_text', label: 'Location', value: b.location_text },
+        { name: 'latitude', label: 'Latitude', type: 'number', value: b.latitude },
+        { name: 'longitude', label: 'Longitude', type: 'number', value: b.longitude },
+        { name: 'permission_start_date', label: 'Permission Start', type: 'date', value: b.permission_start_date },
+        { name: 'permission_end_date', label: 'Permission End', type: 'date', value: b.permission_end_date },
+        { name: 'permission_status', label: 'Permission Status', type: 'select', value: b.permission_status, options: ['APPLIED', 'AGREEMENT_SIGNED', 'EXPIRED'] },
+        { name: 'maintenance_mode', label: 'Maintenance Mode', type: 'select', value: b.maintenance_mode, options: ['MAINTAINED', 'OUTSOURCED'] },
+        { name: 'watering_frequency', label: 'Watering Frequency', type: 'select', value: b.watering_frequency, options: ['DAILY', 'ALTERNATE_DAY', 'WEEKLY'] },
+        { name: 'is_hidden', label: 'Hidden', type: 'select', value: b.is_hidden, options: [{value: '0', label: 'No'}, {value: '1', label: 'Yes'}] }
+      ], 'Save Changes', (payload) => simpleAction('belt/update', payload, 'Green belt updated'));
+    });
+    
+    document.querySelector('[data-start-cycle]')?.addEventListener('click', () => {
+      openSimpleForm('Start Maintenance Cycle', [
+        { name: 'belt_id', type: 'hidden', value: params.belt_id },
+        { name: 'start_date', label: 'Start Date', type: 'date', required: true, value: UI.currentDate() }
+      ], 'Start Cycle', (payload) => simpleAction('cycle/start', payload, 'Cycle started'));
+    });
+
+    document.querySelector('[data-close-cycle]')?.addEventListener('click', () => {
+      openSimpleForm('Close Maintenance Cycle', [
+        { name: 'cycle_id', label: 'Active Cycle ID', type: 'number', required: true },
+        { name: 'end_date', label: 'End Date', type: 'date', required: true, value: UI.currentDate() },
+        { name: 'close_reason', label: 'Reason', type: 'textarea' }
+      ], 'Close Cycle', (payload) => simpleAction('cycle/close', payload, 'Cycle closed'));
+    });
+
+    document.querySelectorAll('[data-assign]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const type = btn.dataset.assign;
+        openSimpleForm(`Assign ${UI.titleize(type)}`, [
+          { name: 'belt_id', type: 'hidden', value: params.belt_id },
+          { name: `${type}_user_id`, label: 'User ID', type: 'number', required: true },
+          { name: 'start_date', label: 'Start Date', type: 'date', required: true, value: UI.currentDate() }
+        ], 'Assign', (payload) => simpleAction(`${type}assignment/create`, payload, 'Assigned'));
+      });
+    });
+
+    document.querySelector('[data-log-issue]')?.addEventListener('click', () => {
+      openSimpleForm('Log Issue', [
+        { name: 'belt_id', type: 'hidden', value: params.belt_id },
+        { name: 'site_category', type: 'hidden', value: 'GREEN_BELT' },
+        { name: 'title', label: 'Title', required: true },
+        { name: 'issue_type', label: 'Type', type: 'select', value: 'DAMAGE', options: ['DAMAGE', 'THEFT', 'WIRING', 'AUTHORITY_OBJECTION', 'OTHER'] },
+        { name: 'priority', label: 'Priority', type: 'select', value: 'MEDIUM', options: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] },
+        { name: 'description', label: 'Description', type: 'textarea', required: true }
+      ], 'Submit Issue', (payload) => simpleAction('issue/create', payload, 'Issue logged'));
+    });
   }
 });
 
