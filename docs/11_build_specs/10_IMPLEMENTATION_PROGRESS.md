@@ -970,16 +970,28 @@ Completed:
 - Integrated both views with their respective backend controllers (`MonitoringPlanController`, `MonitoringHistoryController`).
 - Removed generic fallbacks for monitoring from the `simpleLists` registry to ensure the new custom UI is active.
 
+### Task Worker Assignment and Request Management Frontend
+
+Status: `COMPLETE - SYNTAX VERIFIED`
+
+Completed:
+- Implemented `task.request_intake` with a request list grid and a detailed approval/rejection modal for Ops Managers.
+- Implemented `task.management` with task creation, lead assignment, and status-aware filtering.
+- Implemented `task.detail` view providing a deep dive into task metadata and worker allocations.
+- Implemented `task.worker_allocation` for managing the fabrication worker master list (skill tags, active status).
+- Integrated cross-navigation between Requests, Tasks, and Details.
+- Removed generic fallbacks from `simpleLists` to ensure custom UI logic is active.
+
 ## Current Next Scoped Task
 
-`task worker assignment and request management frontend`
+`system settings and audit log frontend`
 
 ## Serial Scoped Task Queue
 
 Run these tasks in order, one per implementation turn.
 
-1. `system settings and audit log frontend`
-2. `dashboard and analytics final pass`
+1. `dashboard and analytics final pass`
+2. `final system walkthrough and polish`
 Do not skip ahead unless the current task is blocked and that blocker is recorded below.
 
 1. `upload service foundation` - COMPLETE

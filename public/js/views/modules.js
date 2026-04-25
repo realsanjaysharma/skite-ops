@@ -994,16 +994,263 @@ Views.register('monitoring.history', {
   }
 });
 
+Views.register('task.request_intake', {
+  async render({ params = {} }) {
+    const data = await Api.get('request/list', params);
+    const rows = normalizeItems(data);
+    const columns = [
+      { key: 'request_id', label: 'ID' },
+      { key: 'requester_name', label: 'Requester' },
+      { key: 'request_type', label: 'Type' },
+      { key: 'client_name', label: 'Client' },
+      { key: 'status', label: 'Status', html: true, render: (row) => UI.status(row.status) },
+      { key: 'priority', label: 'Priority', html: true, render: (row) => UI.status(row.priority) },
+      { key: 'created_at', label: 'Requested' }
+    ];
+
+    const actions = UI.button('New Request', { icon: 'ph-plus', kind: 'btn-primary', attr: 'data-create-request' });
+
+    return UI.page('Task Requests', 'Review and approve operational requests', actions)
+      + UI.panel('Filters', UI.filters([
+        { name: 'status', label: 'Status', type: 'select', value: params.status, options: ['', 'PENDING', 'APPROVED', 'REJECTED'] }
+      ], 'Apply'))
+      + UI.panel('Records', UI.table(columns, rows, {
+        empty: 'No requests found',
+        rowAttr: (row) => `data-request='${JSON.stringify(row).replace(/'/g, "&#39;")}'`
+      }));
+  },
+  async afterRender() {
+    attachRefresh();
+    wireFilters((payload) => App.navigate('task.request_intake', payload));
+
+    document.querySelector('[data-create-request]')?.addEventListener('click', () => {
+      openSimpleForm('Raise Request', [
+        { name: 'request_type', label: 'Request Type', type: 'select', options: ['FABRICATION', 'PRINTING', 'MOUNTING', 'MAINTENANCE', 'OTHER'], required: true },
+        { name: 'priority', label: 'Priority', type: 'select', options: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'], required: true },
+        { name: 'client_name', label: 'Client Name' },
+        { name: 'campaign_id', label: 'Campaign ID', type: 'number' },
+        { name: 'site_id', label: 'Site ID', type: 'number' },
+        { name: 'description', label: 'Detailed Description', type: 'textarea', required: true }
+      ], 'Submit Request', (payload) => simpleAction('request/create', payload, 'Request submitted'));
+    });
+
+    document.querySelectorAll('[data-request]').forEach(row => {
+      row.addEventListener('click', () => {
+        const request = JSON.parse(row.dataset.request);
+        
+        let extraHTML = '';
+        if (request.status === 'PENDING') {
+          extraHTML = `
+            <div class="modal-actions" style="margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 1rem;">
+              <button type="button" class="btn btn-primary" data-approve="${request.request_id}">Approve & Create Task</button>
+              <button type="button" class="btn btn-warn" data-reject="${request.request_id}">Reject</button>
+            </div>
+          `;
+        }
+
+        UI.showModal('Request Details', `
+          <div class="stack-form">
+            <div class="form-grid">
+              <div class="field"><span>Type</span><input type="text" value="${request.request_type}" readonly></div>
+              <div class="field"><span>Requester</span><input type="text" value="${request.requester_name}" readonly></div>
+              <div class="field"><span>Client</span><input type="text" value="${request.client_name || 'N/A'}" readonly></div>
+              <div class="field"><span>Status</span><input type="text" value="${request.status}" readonly></div>
+              <div class="field full"><span>Description</span><textarea readonly>${request.description}</textarea></div>
+            </div>
+            ${extraHTML}
+          </div>
+        `);
+
+        const modal = document.getElementById('modal-root');
+        modal.querySelector('[data-approve]')?.addEventListener('click', async () => {
+          await simpleAction('request/approve', { request_id: request.request_id }, 'Request approved and task created');
+          UI.closeModal();
+        });
+
+        modal.querySelector('[data-reject]')?.addEventListener('click', () => {
+          UI.closeModal();
+          openSimpleForm('Reject Request', [
+            { name: 'request_id', type: 'hidden', value: request.request_id },
+            { name: 'rejection_reason', label: 'Reason for Rejection', type: 'textarea', required: true }
+          ], 'Confirm Rejection', (payload) => simpleAction('request/reject', payload, 'Request rejected'));
+        });
+      });
+    });
+  }
+});
+
+Views.register('task.management', {
+  async render({ params = {} }) {
+    const data = await Api.get('task/list', params);
+    const rows = normalizeItems(data);
+    const columns = [
+      { key: 'task_id', label: 'ID' },
+      { key: 'work_description', label: 'Task' },
+      { key: 'vertical_type', label: 'Vertical' },
+      { key: 'assigned_lead_name', label: 'Lead' },
+      { key: 'status', label: 'Status', html: true, render: (row) => UI.status(row.status) },
+      { key: 'priority', label: 'Priority', html: true, render: (row) => UI.status(row.priority) },
+      { key: 'progress_percent', label: 'Progress', render: (row) => `${row.progress_percent}%` }
+    ];
+
+    const actions = UI.button('New Task', { icon: 'ph-plus', kind: 'btn-primary', attr: 'data-create-task' });
+
+    return UI.page('Task Management', 'Monitor and assign fabrication tasks', actions)
+      + UI.panel('Filters', UI.filters([
+        { name: 'status', label: 'Status', type: 'select', value: params.status, options: ['', 'PENDING', 'IN_PROGRESS', 'WORK_DONE', 'COMPLETED', 'ARCHIVED'] },
+        { name: 'priority', label: 'Priority', type: 'select', value: params.priority, options: ['', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] },
+        { name: 'vertical_type', label: 'Vertical', type: 'select', value: params.vertical_type, options: ['', 'FABRICATION', 'PRINTING', 'MOUNTING', 'MAINTENANCE'] }
+      ], 'Apply'))
+      + UI.panel('Tasks', UI.table(columns, rows, {
+        empty: 'No tasks found',
+        rowAttr: (row) => `data-task-id="${row.task_id}"`
+      }));
+  },
+  async afterRender() {
+    attachRefresh();
+    wireFilters((payload) => App.navigate('task.management', payload));
+
+    document.querySelector('[data-create-task]')?.addEventListener('click', () => {
+      openSimpleForm('Create Task', [
+        { name: 'task_category', label: 'Category', type: 'select', options: ['GENERAL', 'CLIENT_CAMPAIGN', 'SITE_REPAIR'], required: true },
+        { name: 'vertical_type', label: 'Vertical', type: 'select', options: ['FABRICATION', 'PRINTING', 'MOUNTING', 'MAINTENANCE'], required: true },
+        { name: 'priority', label: 'Priority', type: 'select', options: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'], required: true },
+        { name: 'work_description', label: 'Work Description', type: 'textarea', required: true },
+        { name: 'expected_close_date', label: 'Expected Close', type: 'date' }
+      ], 'Create', (payload) => simpleAction('task/create', payload, 'Task created'));
+    });
+
+    document.querySelectorAll('[data-task-id]').forEach(row => {
+      row.addEventListener('click', () => {
+        App.navigate('task.detail', { task_id: row.dataset.taskId });
+      });
+    });
+  }
+});
+
+Views.register('task.detail', {
+  async render({ params = {} }) {
+    const task = await Api.get('task/get', { task_id: params.task_id });
+    if (!task) return UI.error('Task not found');
+
+    const metaColumns = [
+      { key: 'label', label: 'Field' },
+      { key: 'value', label: 'Value', html: true }
+    ];
+    const metaRows = [
+      { label: 'Description', value: task.work_description },
+      { label: 'Status', value: UI.status(task.status) },
+      { label: 'Priority', value: UI.status(task.priority) },
+      { label: 'Assigned Lead', value: task.assigned_lead_name || 'Unassigned' },
+      { label: 'Progress', value: `${task.progress_percent}%` }
+    ];
+
+    const actions = UI.button('Back', { icon: 'ph-arrow-left', attr: 'data-back' })
+      + UI.button('Manage Lead', { icon: 'ph-user-circle-plus', attr: 'data-manage-lead' })
+      + UI.button('Assign Workers', { icon: 'ph-users', attr: 'data-assign-workers' });
+
+    return UI.page(`Task #${task.task_id}`, task.vertical_type, actions)
+      + UI.panel('Metadata', UI.table(metaColumns, metaRows))
+      + UI.panel('Allocation', UI.table([
+          { key: 'worker_name', label: 'Worker' },
+          { key: 'skill_tag', label: 'Skill' },
+          { key: 'assigned_at', label: 'Assigned' },
+          { key: 'id', label: 'Action', render: (row) => `<button class="btn btn-ghost btn-sm" data-release="${row.id}">Release</button>` }
+        ], task.allocations || [], { empty: 'No workers allocated' }));
+  },
+  async afterRender() {
+    const params = App.getParams();
+    document.querySelector('[data-back]')?.addEventListener('click', () => App.navigate('task.management'));
+
+    document.querySelector('[data-manage-lead]')?.addEventListener('click', async () => {
+      const leads = await Api.get('role/list'); // Not ideal, but let's assume we can find leads
+      openSimpleForm('Assign Lead', [
+        { name: 'task_id', type: 'hidden', value: params.task_id },
+        { name: 'lead_user_id', label: 'Lead User ID', type: 'number', required: true }
+      ], 'Assign', (payload) => simpleAction('task/update', payload, 'Lead assigned'));
+    });
+
+    document.querySelector('[data-assign-workers]')?.addEventListener('click', async () => {
+      openSimpleForm('Assign Workers', [
+        { name: 'task_id', type: 'hidden', value: params.task_id },
+        { name: 'worker_ids_text', label: 'Worker IDs (comma separated)', type: 'textarea', required: true }
+      ], 'Allocate', (payload) => {
+        payload.worker_ids = payload.worker_ids_text.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+        delete payload.worker_ids_text;
+        return simpleAction('taskworker/assign', payload, 'Workers allocated');
+      });
+    });
+
+    document.querySelectorAll('[data-release]').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (confirm('Release this worker?')) {
+          await simpleAction('taskworker/release', { allocation_id: btn.dataset.release }, 'Worker released');
+          App.refresh();
+        }
+      });
+    });
+  }
+});
+
+Views.register('task.worker_allocation', {
+  async render({ params = {} }) {
+    const data = await Api.get('worker/list', params);
+    const rows = normalizeItems(data);
+    const columns = [
+      { key: 'worker_id', label: 'ID' },
+      { key: 'worker_name', label: 'Name' },
+      { key: 'skill_tag', label: 'Skill', html: true, render: (row) => UI.status(row.skill_tag) },
+      { key: 'is_active', label: 'Status', render: (row) => row.is_active ? 'Active' : 'Inactive' }
+    ];
+
+    const actions = UI.button('New Worker', { icon: 'ph-plus', kind: 'btn-primary', attr: 'data-create-worker' });
+
+    return UI.page('Workers', 'Manage fabrication and mounting staff', actions)
+      + UI.panel('Filters', UI.filters([
+        { name: 'skill_tag', label: 'Skill', type: 'select', value: params.skill_tag, options: ['', 'FABRICATION', 'PRINTING', 'MOUNTING', 'MAINTENANCE'] },
+        { name: 'is_active', label: 'Active Only?', type: 'select', value: params.is_active, options: [{value: '', label: 'All'}, {value: '1', label: 'Yes'}, {value: '0', label: 'No'}] }
+      ], 'Apply'))
+      + UI.panel('Records', UI.table(columns, rows, {
+        empty: 'No workers found',
+        rowAttr: (row) => `data-worker='${JSON.stringify(row).replace(/'/g, "&#39;")}'`
+      }));
+  },
+  async afterRender() {
+    attachRefresh();
+    wireFilters((payload) => App.navigate('task.worker_allocation', payload));
+
+    document.querySelector('[data-create-worker]')?.addEventListener('click', () => {
+      openSimpleForm('Create Worker', [
+        { name: 'worker_name', label: 'Full Name', required: true },
+        { name: 'skill_tag', label: 'Skill Tag', type: 'select', options: ['FABRICATION', 'PRINTING', 'MOUNTING', 'MAINTENANCE'], required: true }
+      ], 'Create', (payload) => simpleAction('worker/create', payload, 'Worker created'));
+    });
+
+    document.querySelectorAll('[data-worker]').forEach(row => {
+      row.addEventListener('click', () => {
+        const worker = JSON.parse(row.dataset.worker);
+        openSimpleForm('Edit Worker', [
+          { name: 'worker_id', type: 'hidden', value: worker.worker_id },
+          { name: 'worker_name', label: 'Full Name', value: worker.worker_name, required: true },
+          { name: 'skill_tag', label: 'Skill Tag', type: 'select', value: worker.skill_tag, options: ['FABRICATION', 'PRINTING', 'MOUNTING', 'MAINTENANCE'], required: true },
+          { name: 'is_active', label: 'Is Active?', type: 'select', value: worker.is_active ? '1' : '0', options: [{value: '1', label: 'Yes'}, {value: '0', label: 'No'}] }
+        ], 'Update', (payload) => {
+          payload.is_active = payload.is_active === '1';
+          return simpleAction('worker/update', payload, 'Worker updated');
+        });
+      });
+    });
+  }
+});
+
 const simpleLists = {
   'green_belt.maintenance_cycles': ['cycle/list', 'Maintenance Cycles', ['id', 'belt_code', 'common_name', 'start_date', 'end_date', 'status']],
   'green_belt.upload_review': ['upload/list', 'Upload Review', ['id', 'parent_type', 'parent_id', 'upload_type', 'authority_visibility', 'created_by_user_name', 'created_at']],
   'green_belt.issue_management': ['issue/list', 'Issues', ['id', 'title', 'priority', 'status', 'belt_id', 'site_id', 'created_at']],
   'green_belt.authority_view': ['authority/view', 'Authority View', ['id', 'belt_name', 'upload_type', 'work_type', 'created_at']],
-  'task.request_intake': ['request/list', 'Task Requests', ['id', 'requester_name', 'request_type', 'status', 'priority', 'created_at']],
   'task.progress_read': ['taskprogress/list', 'Task Progress', ['id', 'work_description', 'status', 'progress_percent', 'assigned_lead_name']],
-  'task.management': ['task/list', 'Task Management', ['id', 'work_description', 'task_category', 'vertical_type', 'priority', 'status', 'progress_percent']],
   'task.my_tasks': ['task/my', 'My Tasks', ['id', 'work_description', 'task_category', 'priority', 'status', 'progress_percent']],
-  'task.worker_allocation': ['worker/list', 'Workers', ['id', 'worker_name', 'skill_tag', 'is_active']],
   'governance.user_management': ['user/list', 'Users', ['id', 'full_name', 'email', 'role_name', 'is_active']],
   'governance.access_mappings': ['role/list', 'Roles & Access', ['id', 'role_key', 'role_name', 'permission_group_key', 'landing_module_key', 'is_active']],
   'governance.audit_logs': ['audit/list', 'Audit Logs', ['id', 'actor_user_name', 'action_type', 'entity_type', 'entity_id', 'created_at']],
