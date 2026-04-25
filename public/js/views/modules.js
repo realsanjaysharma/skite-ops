@@ -327,47 +327,6 @@ Views.register('green_belt.detail', {
   }
 });
 
-Views.register('green_belt.watering_oversight', {
-  async render({ params = {} }) {
-    const data = await Api.get('watering/list', params);
-    const rows = normalizeItems(data);
-    const columns = [
-      { key: 'belt_code', label: 'Belt Code' },
-      { key: 'belt_name', label: 'Belt Name' },
-      { key: 'supervisor_name', label: 'Supervisor' },
-      { key: 'watering_status', label: 'Status', html: true, render: (row) => UI.status(row.watering_status) },
-      { key: 'reason_text', label: 'Reason' },
-      { key: 'marked_by_name', label: 'Marked By' },
-      { key: 'marked_at', label: 'Marked At' }
-    ];
-
-    const filterUI = UI.panel('Filters', UI.filters([
-      { name: 'date', label: 'Date', type: 'date', value: params.date || UI.currentDate() },
-      { name: 'belt_id', label: 'Belt ID', type: 'number', value: params.belt_id || '' },
-      { name: 'supervisor_user_id', label: 'Supervisor ID', type: 'number', value: params.supervisor_user_id || '' }
-    ], 'Load'));
-
-    const actions = UI.button('Refresh', { icon: 'ph-arrows-clockwise', attr: 'data-refresh' }) +
-                    UI.button('Mark Watering', { icon: 'ph-drop', kind: 'btn-primary', attr: 'data-mark-watering' });
-
-    return UI.page('Watering Oversight', 'Same-day watering grid for maintained belts', actions)
-      + filterUI
-      + UI.panel('Records', UI.table(columns, rows, { empty: 'No watering records found for this date' }));
-  },
-  async afterRender() {
-    attachRefresh();
-    wireFilters((payload) => App.navigate('green_belt.watering_oversight', payload));
-    document.querySelector('[data-mark-watering]')?.addEventListener('click', () => {
-      openSimpleForm('Mark Watering', [
-        { name: 'belt_id', label: 'Belt ID', type: 'number', required: true },
-        { name: 'watering_date', label: 'Date', type: 'date', required: true, value: UI.currentDate() },
-        { name: 'status', label: 'Status', type: 'select', value: 'PENDING', options: ['PENDING', 'COMPLETED', 'NOT_REQUIRED'] },
-        { name: 'reason_text', label: 'Reason (Ops Override)', type: 'textarea' }
-      ], 'Save', (payload) => simpleAction('watering/mark', payload, 'Watering status marked'));
-    });
-  }
-});
-
 Views.register('green_belt.supervisor_attendance', {
   async render({ params = {} }) {
     const data = await Api.get('attendance/list', params);
@@ -414,8 +373,9 @@ Views.register('green_belt.labour_entries', {
       { key: 'belt_code', label: 'Belt Code' },
       { key: 'belt_name', label: 'Belt Name' },
       { key: 'entry_date', label: 'Date' },
-      { key: 'male_count', label: 'Male Count' },
-      { key: 'female_count', label: 'Female Count' },
+      { key: 'labour_count', label: 'Labour' },
+      { key: 'gardener_count', label: 'Gardeners' },
+      { key: 'night_guard_count', label: 'Night Guards' },
       { key: 'reason_text', label: 'Reason' },
       { key: 'marked_by_name', label: 'Marked By' },
       { key: 'marked_at', label: 'Marked At' }
@@ -440,8 +400,9 @@ Views.register('green_belt.labour_entries', {
       openSimpleForm('Enter Labour Counts', [
         { name: 'belt_id', label: 'Belt ID', type: 'number', required: true },
         { name: 'entry_date', label: 'Date', type: 'date', required: true, value: UI.currentDate() },
-        { name: 'male_count', label: 'Male Count', type: 'number', value: '0' },
-        { name: 'female_count', label: 'Female Count', type: 'number', value: '0' },
+        { name: 'labour_count', label: 'Labour Count', type: 'number', value: '0' },
+        { name: 'gardener_count', label: 'Gardener Count', type: 'number', value: '0' },
+        { name: 'night_guard_count', label: 'Night Guard Count', type: 'number', value: '0' },
         { name: 'reason_text', label: 'Reason (Ops Override)', type: 'textarea' }
       ], 'Save', (payload) => simpleAction('labour/mark', payload, 'Labour marked'));
     });
@@ -811,18 +772,35 @@ Views.register('green_belt.my_uploads', {
 });
 
 Views.register('green_belt.watering_oversight', {
-  async render() {
-    const data = await Api.get('oversight/watering');
+  async render({ params = {} }) {
+    const date = params.date || UI.currentDate();
+    const data = await Api.get('oversight/watering', { date });
     const watering = normalizeItems(data.watering || data.watering_records || data);
     const attendance = normalizeItems(data.attendance || []);
     const labour = normalizeItems(data.labour || []);
-    return UI.page('Supervisor Attendance & Watering', UI.currentDate(), UI.button('Refresh', { icon: 'ph-arrows-clockwise', attr: 'data-refresh' }))
-      + UI.panel('Watering', UI.table(inferColumns(watering), watering, { empty: 'No watering exceptions' }))
+
+    const actions = UI.button('Refresh', { icon: 'ph-arrows-clockwise', attr: 'data-refresh' }) +
+                    UI.button('Mark Watering', { icon: 'ph-drop', kind: 'btn-primary', attr: 'data-mark-watering' });
+
+    return UI.page('Watering Oversight', date, actions)
+      + UI.panel('Filters', UI.filters([
+          { name: 'date', label: 'Date', type: 'date', value: date }
+        ], 'Load'))
+      + UI.panel('Watering', UI.table(inferColumns(watering), watering, { empty: 'No watering records' }))
       + UI.panel('Attendance', UI.table(inferColumns(attendance), attendance, { empty: 'No attendance rows' }))
       + UI.panel('Labour Counts', UI.table(inferColumns(labour), labour, { empty: 'No labour rows' }));
   },
   async afterRender() {
     attachRefresh();
+    wireFilters((payload) => App.navigate('green_belt.watering_oversight', payload));
+    document.querySelector('[data-mark-watering]')?.addEventListener('click', () => {
+      openSimpleForm('Mark Watering', [
+        { name: 'belt_id', label: 'Belt ID', type: 'number', required: true },
+        { name: 'watering_date', label: 'Date', type: 'date', required: true, value: UI.currentDate() },
+        { name: 'status', label: 'Status', type: 'select', value: 'DONE', options: ['DONE', 'NOT_REQUIRED'] },
+        { name: 'reason_text', label: 'Reason (Ops Override)', type: 'textarea' }
+      ], 'Save', (payload) => simpleAction('watering/mark', payload, 'Watering status marked'));
+    });
   }
 });
 
@@ -999,7 +977,7 @@ Views.register('task.request_intake', {
     const data = await Api.get('request/list', params);
     const rows = normalizeItems(data);
     const columns = [
-      { key: 'request_id', label: 'ID' },
+      { key: 'id', label: 'ID' },
       { key: 'requester_name', label: 'Requester' },
       { key: 'request_type', label: 'Type' },
       { key: 'client_name', label: 'Client' },
@@ -1042,8 +1020,8 @@ Views.register('task.request_intake', {
         if (request.status === 'PENDING') {
           extraHTML = `
             <div class="modal-actions" style="margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 1rem;">
-              <button type="button" class="btn btn-primary" data-approve="${request.request_id}">Approve & Create Task</button>
-              <button type="button" class="btn btn-warn" data-reject="${request.request_id}">Reject</button>
+              <button type="button" class="btn btn-primary" data-approve="${request.id}">Approve & Create Task</button>
+              <button type="button" class="btn btn-warn" data-reject="${request.id}">Reject</button>
             </div>
           `;
         }
@@ -1063,14 +1041,14 @@ Views.register('task.request_intake', {
 
         const modal = document.getElementById('modal-root');
         modal.querySelector('[data-approve]')?.addEventListener('click', async () => {
-          await simpleAction('request/approve', { request_id: request.request_id }, 'Request approved and task created');
+          await simpleAction('request/approve', { request_id: request.id }, 'Request approved and task created');
           UI.closeModal();
         });
 
         modal.querySelector('[data-reject]')?.addEventListener('click', () => {
           UI.closeModal();
           openSimpleForm('Reject Request', [
-            { name: 'request_id', type: 'hidden', value: request.request_id },
+            { name: 'request_id', type: 'hidden', value: request.id },
             { name: 'rejection_reason', label: 'Reason for Rejection', type: 'textarea', required: true }
           ], 'Confirm Rejection', (payload) => simpleAction('request/reject', payload, 'Request rejected'));
         });
@@ -1084,7 +1062,7 @@ Views.register('task.management', {
     const data = await Api.get('task/list', params);
     const rows = normalizeItems(data);
     const columns = [
-      { key: 'task_id', label: 'ID' },
+      { key: 'id', label: 'ID' },
       { key: 'work_description', label: 'Task' },
       { key: 'vertical_type', label: 'Vertical' },
       { key: 'assigned_lead_name', label: 'Lead' },
@@ -1103,7 +1081,7 @@ Views.register('task.management', {
       ], 'Apply'))
       + UI.panel('Tasks', UI.table(columns, rows, {
         empty: 'No tasks found',
-        rowAttr: (row) => `data-task-id="${row.task_id}"`
+        rowAttr: (row) => `data-task-id="${row.id}"`
       }));
   },
   async afterRender() {
@@ -1149,7 +1127,7 @@ Views.register('task.detail', {
       + UI.button('Manage Lead', { icon: 'ph-user-circle-plus', attr: 'data-manage-lead' })
       + UI.button('Assign Workers', { icon: 'ph-users', attr: 'data-assign-workers' });
 
-    return UI.page(`Task #${task.task_id}`, task.vertical_type, actions)
+    return UI.page(`Task #${task.id}`, task.vertical_type, actions)
       + UI.panel('Metadata', UI.table(metaColumns, metaRows))
       + UI.panel('Allocation', UI.table([
           { key: 'worker_name', label: 'Worker' },
@@ -1158,8 +1136,7 @@ Views.register('task.detail', {
           { key: 'id', label: 'Action', render: (row) => `<button class="btn btn-ghost btn-sm" data-release="${row.id}">Release</button>` }
         ], task.allocations || [], { empty: 'No workers allocated' }));
   },
-  async afterRender() {
-    const params = App.getParams();
+  async afterRender({ params = {} }) {
     document.querySelector('[data-back]')?.addEventListener('click', () => App.navigate('task.management'));
 
     document.querySelector('[data-manage-lead]')?.addEventListener('click', async () => {
@@ -1198,7 +1175,7 @@ Views.register('task.worker_allocation', {
     const data = await Api.get('worker/list', params);
     const rows = normalizeItems(data);
     const columns = [
-      { key: 'worker_id', label: 'ID' },
+      { key: 'id', label: 'ID' },
       { key: 'worker_name', label: 'Name' },
       { key: 'skill_tag', label: 'Skill', html: true, render: (row) => UI.status(row.skill_tag) },
       { key: 'is_active', label: 'Status', render: (row) => row.is_active ? 'Active' : 'Inactive' }
@@ -1231,7 +1208,7 @@ Views.register('task.worker_allocation', {
       row.addEventListener('click', () => {
         const worker = JSON.parse(row.dataset.worker);
         openSimpleForm('Edit Worker', [
-          { name: 'worker_id', type: 'hidden', value: worker.worker_id },
+          { name: 'worker_id', type: 'hidden', value: worker.id },
           { name: 'worker_name', label: 'Full Name', value: worker.worker_name, required: true },
           { name: 'skill_tag', label: 'Skill Tag', type: 'select', value: worker.skill_tag, options: ['FABRICATION', 'PRINTING', 'MOUNTING', 'MAINTENANCE'], required: true },
           { name: 'is_active', label: 'Is Active?', type: 'select', value: worker.is_active ? '1' : '0', options: [{value: '1', label: 'Yes'}, {value: '0', label: 'No'}] }
@@ -1240,6 +1217,138 @@ Views.register('task.worker_allocation', {
           return simpleAction('worker/update', payload, 'Worker updated');
         });
       });
+    });
+  }
+});
+
+Views.register('governance.audit_logs', {
+  async render({ params = {} }) {
+    const data = await Api.get('audit/list', params);
+    const rows = normalizeItems(data);
+    const columns = [
+      { key: 'created_at', label: 'Timestamp' },
+      { key: 'actor_user_name', label: 'Actor' },
+      { key: 'action_type', label: 'Action' },
+      { key: 'entity_type', label: 'Entity' },
+      { key: 'entity_id', label: 'ID' }
+    ];
+
+    return UI.page('Audit Logs', 'Track all system activities')
+      + UI.panel('Filters', UI.filters([
+        { name: 'date_from', label: 'From', type: 'date', value: params.date_from },
+        { name: 'date_to', label: 'To', type: 'date', value: params.date_to },
+        { name: 'action_type', label: 'Action', value: params.action_type || '' },
+        { name: 'entity_type', label: 'Entity', value: params.entity_type || '' }
+      ], 'Search'))
+      + UI.panel('History', UI.table(columns, rows, {
+        empty: 'No audit logs found',
+        rowAttr: (row) => `data-audit='${JSON.stringify(row).replace(/'/g, "&#39;")}'`
+      }));
+  },
+  async afterRender() {
+    attachRefresh();
+    wireFilters((payload) => App.navigate('governance.audit_logs', payload));
+
+    document.querySelectorAll('[data-audit]').forEach(row => {
+      row.addEventListener('click', () => {
+        const audit = JSON.parse(row.dataset.audit);
+        const formatJson = (obj) => obj ? `<pre style="font-size: 0.8rem; background: var(--bg-surface); padding: 0.5rem; border-radius: 4px; border: 1px solid var(--border); overflow: auto; max-height: 200px;">${JSON.stringify(obj, null, 2)}</pre>` : 'None';
+        
+        UI.showModal('Audit Detail', `
+          <div class="stack-form">
+            <div class="form-grid">
+              <div class="field"><span>Actor</span><input type="text" value="${audit.actor_user_name}" readonly></div>
+              <div class="field"><span>Action</span><input type="text" value="${audit.action_type}" readonly></div>
+              <div class="field"><span>Entity</span><input type="text" value="${audit.entity_type} (#${audit.entity_id})" readonly></div>
+              <div class="field"><span>Time</span><input type="text" value="${audit.created_at}" readonly></div>
+            </div>
+            <div class="field full" style="margin-top: 1rem;">
+              <span>Old Values</span>
+              ${formatJson(audit.old_values)}
+            </div>
+            <div class="field full" style="margin-top: 1rem;">
+              <span>New Values</span>
+              ${formatJson(audit.new_values)}
+            </div>
+          </div>
+        `);
+      });
+    });
+  }
+});
+
+Views.register('settings.system', {
+  async render() {
+    const data = await Api.get('settings/list');
+    const rows = normalizeItems(data);
+    const columns = [
+      { key: 'setting_key', label: 'Key' },
+      { key: 'setting_value', label: 'Value' },
+      { key: 'description', label: 'Description' }
+    ];
+
+    return UI.page('System Settings', 'Manage application-wide configuration')
+      + UI.panel('Configuration', UI.table(columns, rows, {
+        empty: 'No settings found',
+        rowAttr: (row) => `data-setting='${JSON.stringify(row).replace(/'/g, "&#39;")}'`
+      }));
+  },
+  async afterRender() {
+    attachRefresh();
+    document.querySelectorAll('[data-setting]').forEach(row => {
+      row.addEventListener('click', () => {
+        const setting = JSON.parse(row.dataset.setting);
+        openSimpleForm(`Edit ${setting.setting_key}`, [
+          { name: 'setting_key', type: 'hidden', value: setting.setting_key },
+          { name: 'description', label: 'Description', type: 'text', value: setting.description, readonly: true },
+          { name: 'setting_value', label: 'Value', type: setting.value_type === 'number' ? 'number' : 'text', value: setting.setting_value, required: true }
+        ], 'Save Changes', (payload) => simpleAction('settings/update', payload, 'Setting updated successfully'));
+      });
+    });
+  }
+});
+
+Views.register('governance.rejected_upload_cleanup', {
+  async render({ params = {} }) {
+    const data = await Api.get('upload/cleanup-list', params);
+    const rows = normalizeItems(data);
+    const columns = [
+      { key: 'id', label: 'ID' },
+      { key: 'belt_name', label: 'Belt' },
+      { key: 'supervisor_name', label: 'Supervisor' },
+      { key: 'rejection_reason', label: 'Reason' },
+      { key: 'created_at', label: 'Created' }
+    ];
+
+    const actions = UI.button('Purge All Filtered', { icon: 'ph-trash', kind: 'btn-warn', attr: 'data-purge-all' });
+
+    return UI.page('Rejected Uploads Cleanup', 'Manage and purge old rejected media', actions)
+      + UI.panel('Filters', UI.filters([
+        { name: 'date_from', label: 'From', type: 'date', value: params.date_from },
+        { name: 'date_to', label: 'To', type: 'date', value: params.date_to }
+      ], 'Apply'))
+      + UI.panel('Records', UI.table(columns, rows, {
+        empty: 'No rejected uploads found for cleanup',
+        rowAttr: (row) => `data-upload-id="${row.id}"`
+      }));
+  },
+  async afterRender() {
+    attachRefresh();
+    wireFilters((payload) => App.navigate('governance.rejected_upload_cleanup', payload));
+
+    document.querySelector('[data-purge-all]')?.addEventListener('click', async () => {
+      const rows = document.querySelectorAll('[data-upload-id]');
+      const ids = Array.from(rows).map(row => parseInt(row.dataset.uploadId));
+      
+      if (ids.length === 0) {
+        alert('No records to purge.');
+        return;
+      }
+
+      if (confirm(`Are you sure you want to PERMANENTLY purge ${ids.length} rejected uploads? This cannot be undone.`)) {
+        await simpleAction('upload/purge', { upload_ids: ids }, 'Uploads purged successfully');
+        App.refresh();
+      }
     });
   }
 });
@@ -1253,9 +1362,6 @@ const simpleLists = {
   'task.my_tasks': ['task/my', 'My Tasks', ['id', 'work_description', 'task_category', 'priority', 'status', 'progress_percent']],
   'governance.user_management': ['user/list', 'Users', ['id', 'full_name', 'email', 'role_name', 'is_active']],
   'governance.access_mappings': ['role/list', 'Roles & Access', ['id', 'role_key', 'role_name', 'permission_group_key', 'landing_module_key', 'is_active']],
-  'governance.audit_logs': ['audit/list', 'Audit Logs', ['id', 'actor_user_name', 'action_type', 'entity_type', 'entity_id', 'created_at']],
-  'governance.rejected_upload_cleanup': ['upload/cleanup-list', 'Rejected Upload Cleanup', ['id', 'belt_name', 'created_by_user_name', 'authority_visibility', 'reviewed_at']],
-  'settings.system': ['settings/list', 'System Settings', ['setting_key', 'setting_value', 'value_type', 'description']]
 };
 
 Object.entries(simpleLists).forEach(([moduleKey, [route, title, columns]]) => {

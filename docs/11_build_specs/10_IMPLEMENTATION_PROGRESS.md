@@ -982,16 +982,36 @@ Completed:
 - Integrated cross-navigation between Requests, Tasks, and Details.
 - Removed generic fallbacks from `simpleLists` to ensure custom UI logic is active.
 
+### Governance and System Settings Frontend
+
+Status: `COMPLETE - SYNTAX VERIFIED`
+
+Completed:
+- Implemented `settings.system` with a configuration grid and inline edit modals for system variables.
+- Implemented `governance.audit_logs` with comprehensive filters (Actor, Entity, Action) and a detailed JSON payload viewer in modals.
+- Implemented `governance.rejected_upload_cleanup` with a purge workflow for stale rejected media.
+- Integrated all three views into the sidebar under the "Governance" and "Settings" sections.
+- Removed generic fallbacks from `simpleLists` to ensure custom UI logic is active.
+
 ## Current Next Scoped Task
 
-`system settings and audit log frontend`
+`task.my_tasks full view`
 
 ## Serial Scoped Task Queue
 
 Run these tasks in order, one per implementation turn.
 
-1. `dashboard and analytics final pass`
-2. `final system walkthrough and polish`
+1. `task.my_tasks full view` ← CURRENT
+2. `green_belt.upload_review full view`
+3. `green_belt.issue_management full view`
+4. `green_belt.authority_view full view`
+5. `governance.user_management full view`
+6. `governance.access_mappings full view`
+7. `task.progress_read full view`
+8. `dashboard and analytics final pass`
+9. `backend http integration testing`
+10. `final system walkthrough and polish`
+
 Do not skip ahead unless the current task is blocked and that blocker is recorded below.
 
 1. `upload service foundation` - COMPLETE
@@ -1034,28 +1054,74 @@ Do not skip ahead unless the current task is blocked and that blocker is recorde
 
 1. `frontend shell hardening` - COMPLETE
 2. `frontend dashboard screens` - COMPLETE
-3. `green belt master and detail frontend` - NEXT
-4. `field upload screens frontend`
-5. `head supervisor operations frontend`
-6. `upload review and cleanup frontend`
-7. `issues requests and tasks frontend`
-8. `fabrication execution frontend`
-9. `advertisement and monitoring frontend`
-10. `campaigns and free media frontend`
-11. `authority portal frontend`
-12. `governance and reports frontend`
+3. `green belt master and detail frontend` - COMPLETE
+4. `field upload screens frontend` - COMPLETE
+5. `head supervisor operations frontend` - COMPLETE
+6. `upload review and cleanup frontend` - COMPLETE
+7. `issues requests and tasks frontend` - COMPLETE
+8. `fabrication execution frontend` - COMPLETE
+9. `advertisement and monitoring frontend` - COMPLETE
+10. `campaigns and free media frontend` - COMPLETE
+11. `authority portal frontend` - COMPLETE
+12. `governance and reports frontend` - COMPLETE
+13. `task.my_tasks full view` ← CURRENT
+14. `green_belt.upload_review full view`
+15. `green_belt.issue_management full view`
+16. `green_belt.authority_view full view`
+17. `governance.user_management full view`
+18. `governance.access_mappings full view`
+19. `task.progress_read full view`
+
+## Bugs Fixed — 2026-04-27
+
+These were found during a cross-reference audit of `modules.js` against the schema, API contract, and original design transcripts. Fixed in `public/js/views/modules.js`.
+
+### 1. Double `green_belt.watering_oversight` Registration
+- **Problem:** `Views.register('green_belt.watering_oversight')` appeared twice. The first block (line ~330) called the wrong route (`watering/list`) and was silently overwritten by the second. The Ops-facing mark form was lost; only the read-only Head Supervisor combined view survived.
+- **Fix:** Removed the wrong first registration. Enhanced the correct second registration (route `oversight/watering`) to include date filter and a Mark Watering button.
+
+### 2. Watering Status Options Wrong
+- **Problem:** The Mark Watering form offered `PENDING` and `COMPLETED` as selectable status values. The `watering_records` schema uses `ENUM('DONE', 'NOT_REQUIRED')` only. `PENDING` is derived, never stored. `COMPLETED` does not exist.
+- **Fix:** Status options changed to `['DONE', 'NOT_REQUIRED']`.
+
+### 3. Labour Field Names Wrong
+- **Problem:** Labour entries table columns and mark form used `male_count` / `female_count`. The `labour_entries` schema uses `labour_count`, `gardener_count`, `night_guard_count`. Submitting the form would have sent fields the backend rejects.
+- **Fix:** All references updated to `labour_count`, `gardener_count`, `night_guard_count` in both the display columns and the form fields.
+
+---
+
+## Known Spec Deviations Outstanding
+
+These are confirmed gaps against `04_PAGE_FIELD_AND_ACTION_SPEC.md` and `09_MODULE_ACCEPTANCE_CHECKLISTS.md`. Not yet fixed. Each should be resolved during the relevant frontend view task or the final system walkthrough.
+
+### Frontend View Gaps (simpleLists stubs with no action controls)
+- `green_belt.upload_review` — needs Approve, Reject, Bulk Approve, Bulk Reject. Without this Ops cannot process any field uploads.
+- `green_belt.issue_management` — needs Move to In Progress, Create Task, Link Task, Close Issue actions.
+- `green_belt.authority_view` — needs Download filtered view and WhatsApp helper share. Authority reps cannot do their core job without this.
+- `task.my_tasks` — FABRICATION_LEAD landing page. Needs progress update form, work-done upload trigger, and task status display. Blocks fabrication lead entirely.
+- `task.progress_read` — commercial roles (Sales, Client Servicing, Media Planning) need filtered read-only progress view.
+- `governance.user_management` — needs Create User, Deactivate, Restore lifecycle actions.
+- `governance.access_mappings` — needs Create Role with module-scope assignment and Edit Role.
+
+### Missing Fields and Filters
+- Green Belt master list is missing the `supervisor` filter (spec §6 requires it).
+- Green Belt create/edit form is missing the `is_hidden` toggle (spec §6 requires it).
+- Monitoring plan `site_category` filter options are wrong (`CITY` / `HIGHWAY` do not exist in the schema enum). Correct values: `BILLBOARD`, `BUS_SHELTER`, `POLE_KIOSK`, `OTHER`, `GREEN_BELT`.
+
+### Backend Integration Testing Not Done
+- All Phase 3+ backend modules (watering, attendance, labour, issues, tasks, campaigns, free media, monitoring, authority view, reports) are syntax-verified only. No live HTTP round-trips have been run against these endpoints. Postman collection exists at `postman/skite_level2_tests.postman_collection.json`. Must be executed before final system walkthrough.
+
+---
 
 ## Current Task Reference Docs
 
 Read only the docs needed for the current scoped task.
-For the current `frontend navigation shell from allowed_module_keys` task, start with:
+For the current `task.my_tasks full view` task, start with:
 
-- `docs/11_build_specs/01_RBAC_PERMISSION_GROUP_SPEC.md`
-- `docs/11_build_specs/02_CANONICAL_SCHEMA_ROADMAP.md`
-- `docs/11_build_specs/03_API_AND_ROUTE_CONTRACT.md`
-- `docs/11_build_specs/04_PAGE_FIELD_AND_ACTION_SPEC.md`
-- `docs/11_build_specs/05_WORKFLOW_STATE_MACHINE_SPEC.md`
-- `docs/11_build_specs/09_MODULE_ACCEPTANCE_CHECKLISTS.md`
+- `docs/11_build_specs/03_API_AND_ROUTE_CONTRACT.md` — task routes, progress update payload shape
+- `docs/11_build_specs/04_PAGE_FIELD_AND_ACTION_SPEC.md` — §17 My Tasks (fabrication lead view spec)
+- `docs/11_build_specs/05_WORKFLOW_STATE_MACHINE_SPEC.md` — task state machine (OPEN→RUNNING→COMPLETED)
+- `docs/11_build_specs/09_MODULE_ACCEPTANCE_CHECKLISTS.md` — §5 Task acceptance gates
 
 ## Task Update Rule
 
