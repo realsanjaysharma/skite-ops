@@ -327,6 +327,127 @@ Views.register('green_belt.detail', {
   }
 });
 
+Views.register('green_belt.watering_oversight', {
+  async render({ params = {} }) {
+    const data = await Api.get('watering/list', params);
+    const rows = normalizeItems(data);
+    const columns = [
+      { key: 'belt_code', label: 'Belt Code' },
+      { key: 'belt_name', label: 'Belt Name' },
+      { key: 'supervisor_name', label: 'Supervisor' },
+      { key: 'watering_status', label: 'Status', html: true, render: (row) => UI.status(row.watering_status) },
+      { key: 'reason_text', label: 'Reason' },
+      { key: 'marked_by_name', label: 'Marked By' },
+      { key: 'marked_at', label: 'Marked At' }
+    ];
+
+    const filterUI = UI.panel('Filters', UI.filters([
+      { name: 'date', label: 'Date', type: 'date', value: params.date || UI.currentDate() },
+      { name: 'belt_id', label: 'Belt ID', type: 'number', value: params.belt_id || '' },
+      { name: 'supervisor_user_id', label: 'Supervisor ID', type: 'number', value: params.supervisor_user_id || '' }
+    ], 'Load'));
+
+    const actions = UI.button('Refresh', { icon: 'ph-arrows-clockwise', attr: 'data-refresh' }) +
+                    UI.button('Mark Watering', { icon: 'ph-drop', kind: 'btn-primary', attr: 'data-mark-watering' });
+
+    return UI.page('Watering Oversight', 'Same-day watering grid for maintained belts', actions)
+      + filterUI
+      + UI.panel('Records', UI.table(columns, rows, { empty: 'No watering records found for this date' }));
+  },
+  async afterRender() {
+    attachRefresh();
+    wireFilters((payload) => App.navigate('green_belt.watering_oversight', payload));
+    document.querySelector('[data-mark-watering]')?.addEventListener('click', () => {
+      openSimpleForm('Mark Watering', [
+        { name: 'belt_id', label: 'Belt ID', type: 'number', required: true },
+        { name: 'watering_date', label: 'Date', type: 'date', required: true, value: UI.currentDate() },
+        { name: 'status', label: 'Status', type: 'select', value: 'PENDING', options: ['PENDING', 'COMPLETED', 'NOT_REQUIRED'] },
+        { name: 'reason_text', label: 'Reason (Ops Override)', type: 'textarea' }
+      ], 'Save', (payload) => simpleAction('watering/mark', payload, 'Watering status marked'));
+    });
+  }
+});
+
+Views.register('green_belt.supervisor_attendance', {
+  async render({ params = {} }) {
+    const data = await Api.get('attendance/list', params);
+    const rows = normalizeItems(data);
+    const columns = [
+      { key: 'supervisor_name', label: 'Supervisor' },
+      { key: 'attendance_status', label: 'Status', html: true, render: (row) => UI.status(row.attendance_status) },
+      { key: 'reason_text', label: 'Reason' },
+      { key: 'marked_by_name', label: 'Marked By' },
+      { key: 'marked_at', label: 'Marked At' }
+    ];
+
+    const filterUI = UI.panel('Filters', UI.filters([
+      { name: 'date', label: 'Date', type: 'date', value: params.date || UI.currentDate() },
+      { name: 'supervisor_user_id', label: 'Supervisor ID', type: 'number', value: params.supervisor_user_id || '' }
+    ], 'Load'));
+
+    const actions = UI.button('Refresh', { icon: 'ph-arrows-clockwise', attr: 'data-refresh' }) +
+                    UI.button('Mark Attendance', { icon: 'ph-user-check', kind: 'btn-primary', attr: 'data-mark-attendance' });
+
+    return UI.page('Supervisor Attendance', 'Same-day supervisor attendance grid', actions)
+      + filterUI
+      + UI.panel('Records', UI.table(columns, rows, { empty: 'No attendance records found for this date' }));
+  },
+  async afterRender() {
+    attachRefresh();
+    wireFilters((payload) => App.navigate('green_belt.supervisor_attendance', payload));
+    document.querySelector('[data-mark-attendance]')?.addEventListener('click', () => {
+      openSimpleForm('Mark Attendance', [
+        { name: 'supervisor_user_id', label: 'Supervisor ID', type: 'number', required: true },
+        { name: 'attendance_date', label: 'Date', type: 'date', required: true, value: UI.currentDate() },
+        { name: 'status', label: 'Status', type: 'select', value: 'PRESENT', options: ['PRESENT', 'ABSENT', 'LEAVE'] },
+        { name: 'reason_text', label: 'Reason (Ops Override)', type: 'textarea' }
+      ], 'Save', (payload) => simpleAction('attendance/mark', payload, 'Attendance marked'));
+    });
+  }
+});
+
+Views.register('green_belt.labour_entries', {
+  async render({ params = {} }) {
+    const data = await Api.get('labour/list', params);
+    const rows = normalizeItems(data);
+    const columns = [
+      { key: 'belt_code', label: 'Belt Code' },
+      { key: 'belt_name', label: 'Belt Name' },
+      { key: 'entry_date', label: 'Date' },
+      { key: 'male_count', label: 'Male Count' },
+      { key: 'female_count', label: 'Female Count' },
+      { key: 'reason_text', label: 'Reason' },
+      { key: 'marked_by_name', label: 'Marked By' },
+      { key: 'marked_at', label: 'Marked At' }
+    ];
+
+    const filterUI = UI.panel('Filters', UI.filters([
+      { name: 'date', label: 'Date', type: 'date', value: params.date || UI.currentDate() },
+      { name: 'belt_id', label: 'Belt ID', type: 'number', value: params.belt_id || '' }
+    ], 'Load'));
+
+    const actions = UI.button('Refresh', { icon: 'ph-arrows-clockwise', attr: 'data-refresh' }) +
+                    UI.button('Enter Labour Counts', { icon: 'ph-users', kind: 'btn-primary', attr: 'data-mark-labour' });
+
+    return UI.page('Labour Entries', 'Daily labour entry panel', actions)
+      + filterUI
+      + UI.panel('Records', UI.table(columns, rows, { empty: 'No labour records found for this date' }));
+  },
+  async afterRender() {
+    attachRefresh();
+    wireFilters((payload) => App.navigate('green_belt.labour_entries', payload));
+    document.querySelector('[data-mark-labour]')?.addEventListener('click', () => {
+      openSimpleForm('Enter Labour Counts', [
+        { name: 'belt_id', label: 'Belt ID', type: 'number', required: true },
+        { name: 'entry_date', label: 'Date', type: 'date', required: true, value: UI.currentDate() },
+        { name: 'male_count', label: 'Male Count', type: 'number', value: '0' },
+        { name: 'female_count', label: 'Female Count', type: 'number', value: '0' },
+        { name: 'reason_text', label: 'Reason (Ops Override)', type: 'textarea' }
+      ], 'Save', (payload) => simpleAction('labour/mark', payload, 'Labour marked'));
+    });
+  }
+});
+
 function uploadView(surface, parentType, title) {
   return {
     async render() {

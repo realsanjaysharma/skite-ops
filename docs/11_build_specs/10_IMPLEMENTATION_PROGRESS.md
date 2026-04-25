@@ -926,9 +926,20 @@ Completed:
 Relevant validation:
 - Visual browser-agent click-through test confirmed correct layout, filter application, row clicks, and modal forms.
 
+### Green Belt Watering and Attendance Frontend
+
+Status: `COMPLETE - SYNTAX VERIFIED`
+
+Completed:
+- Implemented `green_belt.watering_oversight` with a data table, daily filters, and an inline `Mark Watering` workflow form (with override text).
+- Implemented `green_belt.supervisor_attendance` featuring an attendance grid, daily filters, and an inline `Mark Attendance` workflow form.
+- Implemented `green_belt.labour_entries` with a daily labour count grid and a dedicated `Enter Labour Counts` mutation form.
+- Ensured all views securely pass payloads to the established backend endpoints (`watering/mark`, `attendance/mark`, `labour/mark`).
+- Added cache busting to `index.html` assets (`?v=2`) to prevent testing environments from holding onto stale vanilla JS modules.
+
 ## Current Next Scoped Task
 
-`green belt watering and attendance frontend`
+`advertisement campaign and site frontend`
 
 ## Serial Scoped Task Queue
 
