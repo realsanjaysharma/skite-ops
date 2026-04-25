@@ -982,16 +982,26 @@ Completed:
 - Integrated cross-navigation between Requests, Tasks, and Details.
 - Removed generic fallbacks from `simpleLists` to ensure custom UI logic is active.
 
+### Governance and System Settings Frontend
+
+Status: `COMPLETE - SYNTAX VERIFIED`
+
+Completed:
+- Implemented `settings.system` with a configuration grid and inline edit modals for system variables.
+- Implemented `governance.audit_logs` with comprehensive filters (Actor, Entity, Action) and a detailed JSON payload viewer in modals.
+- Implemented `governance.rejected_upload_cleanup` with a purge workflow for stale rejected media.
+- Integrated all three views into the sidebar under the "Governance" and "Settings" sections.
+- Removed generic fallbacks from `simpleLists` to ensure custom UI logic is active.
+
 ## Current Next Scoped Task
 
-`system settings and audit log frontend`
+`dashboard and analytics final pass`
 
 ## Serial Scoped Task Queue
 
 Run these tasks in order, one per implementation turn.
 
-1. `dashboard and analytics final pass`
-2. `final system walkthrough and polish`
+1. `final system walkthrough and polish`
 Do not skip ahead unless the current task is blocked and that blocker is recorded below.
 
 1. `upload service foundation` - COMPLETE

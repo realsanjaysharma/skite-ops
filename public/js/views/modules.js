@@ -1244,6 +1244,138 @@ Views.register('task.worker_allocation', {
   }
 });
 
+Views.register('governance.audit_logs', {
+  async render({ params = {} }) {
+    const data = await Api.get('audit/list', params);
+    const rows = normalizeItems(data);
+    const columns = [
+      { key: 'created_at', label: 'Timestamp' },
+      { key: 'actor_user_name', label: 'Actor' },
+      { key: 'action_type', label: 'Action' },
+      { key: 'entity_type', label: 'Entity' },
+      { key: 'entity_id', label: 'ID' }
+    ];
+
+    return UI.page('Audit Logs', 'Track all system activities')
+      + UI.panel('Filters', UI.filters([
+        { name: 'date_from', label: 'From', type: 'date', value: params.date_from },
+        { name: 'date_to', label: 'To', type: 'date', value: params.date_to },
+        { name: 'action_type', label: 'Action', value: params.action_type || '' },
+        { name: 'entity_type', label: 'Entity', value: params.entity_type || '' }
+      ], 'Search'))
+      + UI.panel('History', UI.table(columns, rows, {
+        empty: 'No audit logs found',
+        rowAttr: (row) => `data-audit='${JSON.stringify(row).replace(/'/g, "&#39;")}'`
+      }));
+  },
+  async afterRender() {
+    attachRefresh();
+    wireFilters((payload) => App.navigate('governance.audit_logs', payload));
+
+    document.querySelectorAll('[data-audit]').forEach(row => {
+      row.addEventListener('click', () => {
+        const audit = JSON.parse(row.dataset.audit);
+        const formatJson = (obj) => obj ? `<pre style="font-size: 0.8rem; background: var(--bg-surface); padding: 0.5rem; border-radius: 4px; border: 1px solid var(--border); overflow: auto; max-height: 200px;">${JSON.stringify(obj, null, 2)}</pre>` : 'None';
+        
+        UI.showModal('Audit Detail', `
+          <div class="stack-form">
+            <div class="form-grid">
+              <div class="field"><span>Actor</span><input type="text" value="${audit.actor_user_name}" readonly></div>
+              <div class="field"><span>Action</span><input type="text" value="${audit.action_type}" readonly></div>
+              <div class="field"><span>Entity</span><input type="text" value="${audit.entity_type} (#${audit.entity_id})" readonly></div>
+              <div class="field"><span>Time</span><input type="text" value="${audit.created_at}" readonly></div>
+            </div>
+            <div class="field full" style="margin-top: 1rem;">
+              <span>Old Values</span>
+              ${formatJson(audit.old_values)}
+            </div>
+            <div class="field full" style="margin-top: 1rem;">
+              <span>New Values</span>
+              ${formatJson(audit.new_values)}
+            </div>
+          </div>
+        `);
+      });
+    });
+  }
+});
+
+Views.register('settings.system', {
+  async render() {
+    const data = await Api.get('settings/list');
+    const rows = normalizeItems(data);
+    const columns = [
+      { key: 'setting_key', label: 'Key' },
+      { key: 'setting_value', label: 'Value' },
+      { key: 'description', label: 'Description' }
+    ];
+
+    return UI.page('System Settings', 'Manage application-wide configuration')
+      + UI.panel('Configuration', UI.table(columns, rows, {
+        empty: 'No settings found',
+        rowAttr: (row) => `data-setting='${JSON.stringify(row).replace(/'/g, "&#39;")}'`
+      }));
+  },
+  async afterRender() {
+    attachRefresh();
+    document.querySelectorAll('[data-setting]').forEach(row => {
+      row.addEventListener('click', () => {
+        const setting = JSON.parse(row.dataset.setting);
+        openSimpleForm(`Edit ${setting.setting_key}`, [
+          { name: 'setting_key', type: 'hidden', value: setting.setting_key },
+          { name: 'description', label: 'Description', type: 'text', value: setting.description, readonly: true },
+          { name: 'setting_value', label: 'Value', type: setting.value_type === 'number' ? 'number' : 'text', value: setting.setting_value, required: true }
+        ], 'Save Changes', (payload) => simpleAction('settings/update', payload, 'Setting updated successfully'));
+      });
+    });
+  }
+});
+
+Views.register('governance.rejected_upload_cleanup', {
+  async render({ params = {} }) {
+    const data = await Api.get('upload/cleanup-list', params);
+    const rows = normalizeItems(data);
+    const columns = [
+      { key: 'id', label: 'ID' },
+      { key: 'belt_name', label: 'Belt' },
+      { key: 'supervisor_name', label: 'Supervisor' },
+      { key: 'rejection_reason', label: 'Reason' },
+      { key: 'created_at', label: 'Created' }
+    ];
+
+    const actions = UI.button('Purge All Filtered', { icon: 'ph-trash', kind: 'btn-warn', attr: 'data-purge-all' });
+
+    return UI.page('Rejected Uploads Cleanup', 'Manage and purge old rejected media', actions)
+      + UI.panel('Filters', UI.filters([
+        { name: 'date_from', label: 'From', type: 'date', value: params.date_from },
+        { name: 'date_to', label: 'To', type: 'date', value: params.date_to }
+      ], 'Apply'))
+      + UI.panel('Records', UI.table(columns, rows, {
+        empty: 'No rejected uploads found for cleanup',
+        rowAttr: (row) => `data-upload-id="${row.id}"`
+      }));
+  },
+  async afterRender() {
+    attachRefresh();
+    wireFilters((payload) => App.navigate('governance.rejected_upload_cleanup', payload));
+
+    document.querySelector('[data-purge-all]')?.addEventListener('click', async () => {
+      const rows = document.querySelectorAll('[data-upload-id]');
+      const ids = Array.from(rows).map(row => parseInt(row.dataset.uploadId));
+      
+      if (ids.length === 0) {
+        alert('No records to purge.');
+        return;
+      }
+
+      if (confirm(`Are you sure you want to PERMANENTLY purge ${ids.length} rejected uploads? This cannot be undone.`)) {
+        await simpleAction('upload/purge', { upload_ids: ids }, 'Uploads purged successfully');
+        App.refresh();
+      }
+    });
+  }
+});
+
 const simpleLists = {
   'green_belt.maintenance_cycles': ['cycle/list', 'Maintenance Cycles', ['id', 'belt_code', 'common_name', 'start_date', 'end_date', 'status']],
   'green_belt.upload_review': ['upload/list', 'Upload Review', ['id', 'parent_type', 'parent_id', 'upload_type', 'authority_visibility', 'created_by_user_name', 'created_at']],
@@ -1253,9 +1385,6 @@ const simpleLists = {
   'task.my_tasks': ['task/my', 'My Tasks', ['id', 'work_description', 'task_category', 'priority', 'status', 'progress_percent']],
   'governance.user_management': ['user/list', 'Users', ['id', 'full_name', 'email', 'role_name', 'is_active']],
   'governance.access_mappings': ['role/list', 'Roles & Access', ['id', 'role_key', 'role_name', 'permission_group_key', 'landing_module_key', 'is_active']],
-  'governance.audit_logs': ['audit/list', 'Audit Logs', ['id', 'actor_user_name', 'action_type', 'entity_type', 'entity_id', 'created_at']],
-  'governance.rejected_upload_cleanup': ['upload/cleanup-list', 'Rejected Upload Cleanup', ['id', 'belt_name', 'created_by_user_name', 'authority_visibility', 'reviewed_at']],
-  'settings.system': ['settings/list', 'System Settings', ['setting_key', 'setting_value', 'value_type', 'description']]
 };
 
 Object.entries(simpleLists).forEach(([moduleKey, [route, title, columns]]) => {
