@@ -937,9 +937,18 @@ Completed:
 - Ensured all views securely pass payloads to the established backend endpoints (`watering/mark`, `attendance/mark`, `labour/mark`).
 - Added cache busting to `index.html` assets (`?v=2`) to prevent testing environments from holding onto stale vanilla JS modules.
 
+### Advertisement Campaign and Site Frontend
+
+Status: `COMPLETE - SYNTAX VERIFIED`
+
+Completed:
+- Implemented `advertisement.site_master` with full filtering and an interactive Site modal (Create/Update).
+- Implemented `advertisement.campaign_management` with dynamic campaign lifecycle buttons (End Campaign, Confirm Free Media) driven by row state.
+- Fixed a silent bug where `simpleLists` registration was overwriting custom views (restored the Green Belt attendance forms and the new Advertisement modals).
+
 ## Current Next Scoped Task
 
-`advertisement campaign and site frontend`
+`free media inventory frontend`
 
 ## Serial Scoped Task Queue
 

@@ -99,8 +99,8 @@ async function simpleAction(route, payload, successMessage) {
   App.refresh();
 }
 
-function openSimpleForm(title, fields, submitLabel, handler) {
-  UI.showModal(title, UI.form(fields, submitLabel));
+function openSimpleForm(title, fields, submitLabel, handler, extraHTML = '') {
+  UI.showModal(title, UI.form(fields, submitLabel, extraHTML));
   document.querySelector('.js-action-form')?.addEventListener('submit', async (event) => {
     event.preventDefault();
     try {
@@ -448,6 +448,201 @@ Views.register('green_belt.labour_entries', {
   }
 });
 
+Views.register('advertisement.site_master', {
+  async render({ params = {} }) {
+    const data = await Api.get('site/list', params);
+    const rows = normalizeItems(data);
+    const columns = [
+      { key: 'site_code', label: 'Site Code' },
+      { key: 'location_text', label: 'Location' },
+      { key: 'site_category', label: 'Category' },
+      { key: 'lighting_type', label: 'Lighting' },
+      { key: 'route_or_group', label: 'Route/Group' },
+      { key: 'green_belt_reference', label: 'Belt Reference' },
+      { key: 'is_active', label: 'Active', html: true, render: (row) => UI.status(row.is_active ? 'ACTIVE' : 'INACTIVE') }
+    ];
+
+    const filterUI = UI.panel('Filters', UI.filters([
+      { name: 'site_category', label: 'Category', type: 'select', value: params.site_category, options: ['', 'GREEN_BELT', 'BILLBOARD', 'BUS_SHELTER', 'POLE_KIOSK', 'OTHER'] },
+      { name: 'lighting_type', label: 'Lighting', type: 'select', value: params.lighting_type, options: ['', 'NON_LIT', 'LIT', 'DIGITAL'] },
+      { name: 'is_active', label: 'Active Status', type: 'select', value: params.is_active, options: [{ value: '', label: 'All' }, { value: '1', label: 'Active' }, { value: '0', label: 'Inactive' }] }
+    ], 'Load'));
+
+    const actions = UI.button('Refresh', { icon: 'ph-arrows-clockwise', attr: 'data-refresh' }) +
+                    UI.button('New Site', { icon: 'ph-plus', kind: 'btn-primary', attr: 'data-create-site' });
+
+    return UI.page('Site Master', 'Manage advertising sites and assets', actions)
+      + filterUI
+      + UI.panel('Records', UI.table(columns, rows, { 
+          empty: 'No sites found matching criteria',
+          rowAttr: (row) => `data-edit-site="${row.site_id}" data-site='${JSON.stringify(row).replace(/'/g, "&#39;")}'`
+      }));
+  },
+  async afterRender() {
+    attachRefresh();
+    wireFilters((payload) => App.navigate('advertisement.site_master', payload));
+    
+    document.querySelector('[data-create-site]')?.addEventListener('click', () => {
+      openSimpleForm('Create Site', [
+        { name: 'site_code', label: 'Site Code', required: true },
+        { name: 'location_text', label: 'Location' },
+        { name: 'site_category', label: 'Category', type: 'select', value: 'BILLBOARD', options: ['GREEN_BELT', 'BILLBOARD', 'BUS_SHELTER', 'POLE_KIOSK', 'OTHER'] },
+        { name: 'green_belt_id', label: 'Linked Belt ID (if Green Belt)', type: 'number' },
+        { name: 'route_or_group', label: 'Route/Group' },
+        { name: 'ownership_name', label: 'Ownership' },
+        { name: 'board_type', label: 'Board Type' },
+        { name: 'lighting_type', label: 'Lighting', type: 'select', value: 'NON_LIT', options: ['NON_LIT', 'LIT', 'DIGITAL'] },
+        { name: 'latitude', label: 'Latitude', type: 'number' },
+        { name: 'longitude', label: 'Longitude', type: 'number' },
+        { name: 'is_active', label: 'Is Active', type: 'select', value: '1', options: [{ value: '1', label: 'Yes' }, { value: '0', label: 'No' }] }
+      ], 'Create', (payload) => {
+        payload.is_active = payload.is_active === '1' ? 1 : 0;
+        return simpleAction('site/create', payload, 'Site created');
+      });
+    });
+
+    document.querySelectorAll('[data-edit-site]').forEach(row => {
+      row.addEventListener('click', () => {
+        const site = JSON.parse(row.dataset.site);
+        openSimpleForm('Edit Site', [
+          { name: 'site_id', type: 'hidden', value: site.site_id },
+          { name: 'site_code', label: 'Site Code', value: site.site_code, required: true },
+          { name: 'location_text', label: 'Location', value: site.location_text },
+          { name: 'site_category', label: 'Category', type: 'select', value: site.site_category, options: ['GREEN_BELT', 'BILLBOARD', 'BUS_SHELTER', 'POLE_KIOSK', 'OTHER'] },
+          { name: 'green_belt_id', label: 'Linked Belt ID', type: 'number', value: site.green_belt_id || '' },
+          { name: 'route_or_group', label: 'Route/Group', value: site.route_or_group },
+          { name: 'ownership_name', label: 'Ownership', value: site.ownership_name },
+          { name: 'board_type', label: 'Board Type', value: site.board_type },
+          { name: 'lighting_type', label: 'Lighting', type: 'select', value: site.lighting_type, options: ['NON_LIT', 'LIT', 'DIGITAL'] },
+          { name: 'latitude', label: 'Latitude', type: 'number', value: site.latitude || '' },
+          { name: 'longitude', label: 'Longitude', type: 'number', value: site.longitude || '' },
+          { name: 'is_active', label: 'Is Active', type: 'select', value: site.is_active ? '1' : '0', options: [{ value: '1', label: 'Yes' }, { value: '0', label: 'No' }] }
+        ], 'Update', (payload) => {
+          payload.is_active = payload.is_active === '1' ? 1 : 0;
+          return simpleAction('site/update', payload, 'Site updated');
+        });
+      });
+    });
+  }
+});
+
+Views.register('advertisement.campaign_management', {
+  async render({ params = {} }) {
+    const data = await Api.get('campaign/list', params);
+    const rows = normalizeItems(data);
+    const columns = [
+      { key: 'campaign_code', label: 'Campaign Code' },
+      { key: 'client_name', label: 'Client' },
+      { key: 'campaign_name', label: 'Campaign Name' },
+      { key: 'status', label: 'Status', html: true, render: (row) => UI.status(row.status) },
+      { key: 'start_date', label: 'Start Date' },
+      { key: 'expected_end_date', label: 'Exp. End' },
+      { key: 'active_sites_count', label: 'Linked Sites' }
+    ];
+
+    const filterUI = UI.panel('Filters', UI.filters([
+      { name: 'status', label: 'Status', type: 'select', value: params.status, options: ['', 'UPCOMING', 'ACTIVE', 'ENDED'] },
+      { name: 'client_name', label: 'Client', value: params.client_name },
+      { name: 'site_category', label: 'Site Category', type: 'select', value: params.site_category, options: ['', 'GREEN_BELT', 'BILLBOARD', 'BUS_SHELTER', 'POLE_KIOSK', 'OTHER'] }
+    ], 'Load'));
+
+    const actions = UI.button('Refresh', { icon: 'ph-arrows-clockwise', attr: 'data-refresh' }) +
+                    UI.button('New Campaign', { icon: 'ph-plus', kind: 'btn-primary', attr: 'data-create-campaign' });
+
+    return UI.page('Campaign Management', 'Manage ad campaigns and site allocations', actions)
+      + filterUI
+      + UI.panel('Records', UI.table(columns, rows, { 
+          empty: 'No campaigns found',
+          rowAttr: (row) => `data-edit-campaign="${row.campaign_id}" data-campaign='${JSON.stringify(row).replace(/'/g, "&#39;")}'`
+      }));
+  },
+  async afterRender() {
+    attachRefresh();
+    wireFilters((payload) => App.navigate('advertisement.campaign_management', payload));
+    
+    document.querySelector('[data-create-campaign]')?.addEventListener('click', () => {
+      openSimpleForm('Create Campaign', [
+        { name: 'campaign_code', label: 'Campaign Code', required: true },
+        { name: 'client_name', label: 'Client Name', required: true },
+        { name: 'campaign_name', label: 'Campaign Name', required: true },
+        { name: 'start_date', label: 'Start Date', type: 'date', required: true, value: UI.currentDate() },
+        { name: 'expected_end_date', label: 'Expected End Date', type: 'date', required: true },
+        { name: 'site_ids_text', label: 'Linked Site IDs (comma separated)', type: 'textarea' }
+      ], 'Create', (payload) => {
+        if (payload.site_ids_text) {
+          payload.site_ids = payload.site_ids_text.split(',').map(s => s.trim()).filter(Boolean);
+        }
+        delete payload.site_ids_text;
+        return simpleAction('campaign/create', payload, 'Campaign created');
+      });
+    });
+
+    document.querySelectorAll('[data-edit-campaign]').forEach(row => {
+      row.addEventListener('click', () => {
+        const campaign = JSON.parse(row.dataset.campaign);
+        
+        let extraHTML = '';
+        if (campaign.status === 'ACTIVE' || campaign.status === 'UPCOMING') {
+          extraHTML = `
+            <div class="field full">
+              <button type="button" class="btn btn-warn" data-end-campaign="${campaign.campaign_id}">End Campaign</button>
+            </div>
+          `;
+        } else if (campaign.status === 'ENDED') {
+          extraHTML = `
+            <div class="field full">
+              <button type="button" class="btn btn-primary" data-free-media="${campaign.campaign_id}">Confirm Free Media</button>
+            </div>
+          `;
+        }
+
+        openSimpleForm('Edit Campaign', [
+          { name: 'campaign_id', type: 'hidden', value: campaign.campaign_id },
+          { name: 'campaign_code', label: 'Campaign Code', value: campaign.campaign_code, required: true },
+          { name: 'client_name', label: 'Client Name', value: campaign.client_name, required: true },
+          { name: 'campaign_name', label: 'Campaign Name', value: campaign.campaign_name, required: true },
+          { name: 'expected_end_date', label: 'Expected End Date', type: 'date', value: campaign.expected_end_date ? campaign.expected_end_date.split(' ')[0] : '', required: true },
+          { name: 'site_ids_text', label: 'Replace Linked Site IDs (comma separated, empty to keep current)', type: 'textarea' }
+        ], 'Update', (payload) => {
+          if (payload.site_ids_text) {
+            payload.site_ids = payload.site_ids_text.split(',').map(s => s.trim()).filter(Boolean);
+          }
+          delete payload.site_ids_text;
+          return simpleAction('campaign/update', payload, 'Campaign updated');
+        }, extraHTML);
+
+        // Bind the extra buttons inside the modal
+        const modalRoot = document.getElementById('modal-root');
+        
+        const btnEnd = modalRoot.querySelector('[data-end-campaign]');
+        if (btnEnd) {
+          btnEnd.addEventListener('click', (e) => {
+            e.preventDefault();
+            UI.closeModal();
+            openSimpleForm('End Campaign', [
+              { name: 'campaign_id', type: 'hidden', value: campaign.campaign_id },
+              { name: 'actual_end_date', label: 'Actual End Date', type: 'date', required: true, value: UI.currentDate() }
+            ], 'End Now', (payload) => simpleAction('campaign/end', payload, 'Campaign ended'));
+          });
+        }
+
+        const btnFreeMedia = modalRoot.querySelector('[data-free-media]');
+        if (btnFreeMedia) {
+          btnFreeMedia.addEventListener('click', (e) => {
+            e.preventDefault();
+            UI.closeModal();
+            openSimpleForm('Confirm Free Media', [
+              { name: 'campaign_id', type: 'hidden', value: campaign.campaign_id },
+              { name: 'site_id', label: 'Site ID (to confirm)', type: 'number', required: true },
+              { name: 'expiry_date', label: 'Free Media Expiry Date', type: 'date', required: true, value: UI.currentDate() }
+            ], 'Confirm', (payload) => simpleAction('campaign/confirm-free-media', payload, 'Free media confirmed'));
+          });
+        }
+      });
+    });
+  }
+});
+
 function uploadView(surface, parentType, title) {
   return {
     async render() {
@@ -594,13 +789,9 @@ Views.register('monitoring.plan', {
 
 const simpleLists = {
   'green_belt.maintenance_cycles': ['cycle/list', 'Maintenance Cycles', ['id', 'belt_code', 'common_name', 'start_date', 'end_date', 'status']],
-  'green_belt.supervisor_attendance': ['attendance/list', 'Supervisor Attendance', ['id', 'supervisor_name', 'attendance_date', 'status', 'created_by_user_name']],
-  'green_belt.labour_entries': ['labour/list', 'Labour Entries', ['id', 'belt_name', 'entry_date', 'labour_count', 'gardener_count', 'night_guard_count']],
   'green_belt.upload_review': ['upload/list', 'Upload Review', ['id', 'parent_type', 'parent_id', 'upload_type', 'authority_visibility', 'created_by_user_name', 'created_at']],
   'green_belt.issue_management': ['issue/list', 'Issues', ['id', 'title', 'priority', 'status', 'belt_id', 'site_id', 'created_at']],
   'green_belt.authority_view': ['authority/view', 'Authority View', ['id', 'belt_name', 'upload_type', 'work_type', 'created_at']],
-  'advertisement.site_master': ['site/list', 'Site Master', ['id', 'site_code', 'location_text', 'site_category', 'lighting_type', 'is_active']],
-  'advertisement.campaign_management': ['campaign/list', 'Campaigns', ['id', 'campaign_code', 'client_name', 'campaign_name', 'status', 'start_date', 'expected_end_date']],
   'monitoring.history': ['monitoring/history', 'Monitoring History', ['id', 'site_code', 'is_discovery_mode', 'created_by_user_name', 'created_at']],
   'media.free_media_inventory': ['freemedia/list', 'Free Media', ['id', 'site_code', 'source_type', 'status', 'discovered_date', 'expiry_date']],
   'task.request_intake': ['request/list', 'Task Requests', ['id', 'requester_name', 'request_type', 'status', 'priority', 'created_at']],
