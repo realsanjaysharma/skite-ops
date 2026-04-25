@@ -242,6 +242,18 @@ foreach ($audits as $a) {
     echo "   - {$a['action_type']} on {$a['entity_type']} #{$a['entity_id']}\n";
 }
 
+// 14. CLEANUP TEST ARTIFACTS
+echo "\n14. CLEANUP\n";
+if (!empty($newBeltId)) {
+    $db->exec("DELETE FROM audit_logs WHERE entity_type = 'green_belt' AND entity_id = " . (int)$newBeltId);
+    $db->exec("DELETE FROM belt_supervisor_assignments WHERE belt_id = " . (int)$newBeltId);
+    $db->exec("DELETE FROM belt_authority_assignments WHERE belt_id = " . (int)$newBeltId);
+    $db->exec("DELETE FROM belt_outsourced_assignments WHERE belt_id = " . (int)$newBeltId);
+    $db->exec("DELETE FROM green_belts WHERE id = " . (int)$newBeltId);
+    echo "   [OK] Cleaned up belt artifacts for #{$newBeltId}\n";
+}
+// Test user is intentionally preserved for use by subsequent phase test scripts.
+
 // Summary
 echo "\n=== RESULTS: {$pass} PASSED, {$fail} FAILED ===\n";
 

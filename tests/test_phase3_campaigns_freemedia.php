@@ -174,6 +174,22 @@ if ($fmId) {
     check('Consume free media successfully (skipped, no ID)', ['body' => ['success' => false]], true);
 }
 
+echo "\n9. CLEANUP\n";
+if (!empty($fmId)) {
+    $db->exec("DELETE FROM audit_logs WHERE entity_type = 'free_media_record' AND entity_id = " . (int)$fmId);
+    $db->exec("DELETE FROM free_media_records WHERE id = " . (int)$fmId);
+}
+if (!empty($campaignId)) {
+    $db->exec("DELETE FROM audit_logs WHERE entity_type = 'campaign' AND entity_id = " . (int)$campaignId);
+    $db->exec("DELETE FROM campaign_site_links WHERE campaign_id = " . (int)$campaignId);
+    $db->exec("DELETE FROM campaigns WHERE id = " . (int)$campaignId);
+}
+if (!empty($siteId)) {
+    $db->exec("DELETE FROM audit_logs WHERE entity_type = 'site' AND entity_id = " . (int)$siteId);
+    $db->exec("DELETE FROM sites WHERE id = " . (int)$siteId);
+}
+echo "   [OK] Cleaned up free media, campaign, and site artifacts.\n";
+
 echo "\n=== RESULTS: {$pass} PASSED, {$fail} FAILED ===\n";
 
 if (file_exists($cookieFile)) {

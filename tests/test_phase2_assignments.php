@@ -236,6 +236,22 @@ foreach ($audits as $a) {
     echo "   - {$a['action_type']} on {$a['entity_type']} #{$a['entity_id']}\n";
 }
 
+echo "\n14. CLEANUP\n";
+if (!empty($saId)) {
+    $db->exec("DELETE FROM audit_logs WHERE entity_type = 'belt_supervisor_assignment' AND entity_id = " . (int)$saId);
+    $db->exec("DELETE FROM belt_supervisor_assignments WHERE id = " . (int)$saId);
+}
+if (!empty($aaId)) {
+    $db->exec("DELETE FROM audit_logs WHERE entity_type = 'belt_authority_assignment' AND entity_id = " . (int)$aaId);
+    $db->exec("DELETE FROM belt_authority_assignments WHERE id = " . (int)$aaId);
+}
+if (!empty($oaId)) {
+    $db->exec("DELETE FROM audit_logs WHERE entity_type = 'belt_outsourced_assignment' AND entity_id = " . (int)$oaId);
+    $db->exec("DELETE FROM belt_outsourced_assignments WHERE id = " . (int)$oaId);
+}
+// Test users are intentionally preserved for use by subsequent phase test scripts.
+echo "   [OK] Cleaned up assignments.\n";
+
 echo "\n=== RESULTS: {$pass} PASSED, {$fail} FAILED ===\n";
 
 if (file_exists($cookieFile)) { unlink($cookieFile); }

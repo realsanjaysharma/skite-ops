@@ -18,7 +18,6 @@ postman/
 .postman/
 postman/
 scripts/
-*.js
 /storage/sessions/
 /storage/*
 !/storage/.gitkeep

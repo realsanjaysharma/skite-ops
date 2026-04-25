@@ -20,7 +20,8 @@ Future prompts can reference this file instead of repeating product context.
 - foundation seed has been validated on local XAMPP MariaDB
 - active `skite_ops` runtime DB is now rebuilt on the canonical schema and foundation seed
 - Phase 1 backend foundation is verified against the real configured app database on local XAMPP
-- reusable auth/user/audit/RBAC foundation exists, but most product modules are still not implemented
+- reusable auth/user/audit/RBAC foundation exists, backend product modules are implemented, and frontend module UI is now the active workstream
+- Frontend shell hardening is COMPLETE: RBAC-filtered menu, view registry, shared UI primitives, mobile navigation, current-month defaults, and route-map validation are now in place
 - BaseRepository transaction methods fixed to public for service-layer control
 - AI tool handoff guide created at `docs/AI_TOOL_HANDOFF_GUIDE.md` for multi-tool workflow
 - Phase 2 Green Belt Core backend is COMPLETE (9 files, 16 routes, detail payload aligned, syntax validated)
@@ -95,13 +96,13 @@ Validated behaviors:
 
 ### Platform And RBAC Runtime
 
-- frontend shell/menu rendering from `allowed_module_keys`
 - deeper record-scope helper expansion as Phase 2+ domain routes appear
+- richer frontend page-specific actions beyond the shell/list/upload foundations
 
 ### Product Modules
 
-- (All backend product modules are now fully implemented and hardened!)
-- Only frontend integration and UI work remains.
+- Backend product modules are fully implemented and hardened.
+- Frontend integration and page-specific UI work is currently ongoing.
 
 ## Current Phase
 
@@ -799,13 +800,13 @@ Completed behavior:
 - Fixed system-wide crash risk from `AuditService->log()` missing by adding an alias wrapper for `logAction()`.
 - Replaced 20 non-existent `Response::json()` calls across report endpoints with correct `Response::success/error()` methods.
 - Resolved ClassNotFound risks by adding `require_once` for `BaseRepository` mapped intelligently.
-- Mounted missing endpoint for binary streaming (`upload/serve`) allowing dynamically fetched uploads securely mapping logic gracefully intuitively.
-- Adjusted path-resolution issues mapping raw absolute files gracefully preventing soft-undelete mismatches logically elegantly elegantly correctly securely securely.
+- Mounted missing endpoint for binary streaming (`upload/serve`) allowing dynamically fetched uploads securely.
+- Adjusted path-resolution issues mapping raw absolute files gracefully preventing soft-undelete mismatches.
 - Deployed a global exception handler in `index.php` to gracefully catch `DomainException`, `InvalidArgumentException`, and `Throwable` and prevent fatal crashes.
 - Secured task creation with database transactions in `TaskService.php` to prevent orphaned records.
 - Enforced strict upload scope validation for field roles in `UploadService.php`.
 - Removed redundant authorization logic from controllers, fully delegating to `AuthMiddleware`.
-- Verified PHP `-l` across entire 75+ script pool completely transparently confirming total syntax safety implicitly flexibly systematically proactively effectively logically.
+- Verified PHP `-l` across entire 75+ script pool confirming total syntax safety.
 
 ### Frontend Navigation Shell
 
@@ -826,22 +827,22 @@ Completed behavior:
 - Seamless multi-tenant login/logout sequences executing smoothly without page refreshes natively securely.
 
 Relevant validation:
-- Passed the `test_frontend_nav.php` 5-role script confirming explicit REST validations returned strictly expected `landing_route` parameters properly successfully mathematically cleanly securely rationally logically successfully correctly expertly completely automatically smoothly inherently.
+- Passed the `test_frontend_nav.php` 5-role script confirming explicit REST validations returned strictly expected `landing_route` parameters properly.
 
 ### Phase Acceptance Review
 
 Status: `COMPLETE - LIVE VERIFIED`
 
 Completed bug fixes preventing fatal runtime errors and security escapes:
-- **Core Security:** Replaced `secure => false` manually hardcoded into `index.php` dynamically switching to checking environment flags securely enforcing strict cookie parameters safely gracefully naturally implicitly smartly.
-- **Dependency Injections:** Corrected `ClassNotFoundException` fatals smoothly appending precisely the `require_once` missing values inside `MonitoringPlanService.php`, `AuthorityViewService.php`, and `MonitoringHistoryService.php` systematically structurally.
+- **Core Security:** Replaced `secure => false` manually hardcoded into `index.php` with dynamic environment checking.
+- **Dependency Injections:** Corrected `ClassNotFoundException` fatals by appending `require_once` statements inside `MonitoringPlanService.php`, `AuthorityViewService.php`, and `MonitoringHistoryService.php`.
 - **Database Mismatches:**
-  - Modified explicitly the `LEFT JOIN requests` queries inside `TaskRepository.php` cleanly mapping them down directly securely inherently into `task_requests` precisely gracefully smoothly inherently correctly dynamically intuitively cleanly organically appropriately expertly automatically dynamically robustly organically.
-  - Rectified explicitly the non-existent `resolved_at` field natively inherently querying `DashboardService.php` intelligently organically effectively smartly cleanly seamlessly intuitively safely properly securely successfully.
+  - Modified explicitly the `LEFT JOIN requests` queries inside `TaskRepository.php` mapping them to `task_requests`.
+  - Rectified explicitly the non-existent `resolved_at` field natively querying `DashboardService.php`.
 
 Relevant validation:
-- Passed `php -l` against all structurally updated files elegantly efficiently organically successfully efficiently elegantly confidently optimally reliably mathematically automatically successfully effortlessly flawlessly neatly accurately inherently reliably naturally explicitly predictably structurally systematically confidently intelligently confidently successfully completely proactively perfectly seamlessly predictably.
-- Programmatically instantiated explicitly and returned mathematically correct count summaries verifying `DashboardService.php` directly cleanly safely dynamically securely inherently beautifully flawlessly definitively optimally rationally efficiently.
+- Passed `php -l` against all structurally updated files.
+- Programmatically instantiated explicitly and returned mathematically correct count summaries verifying `DashboardService.php`.
 
 ### Repository Audit Review — Pre-Frontend Fixes
 
@@ -910,7 +911,7 @@ The only thing that changes over time is the progress file itself.
 
 ## Current Next Scoped Task
 
-`Frontend Implementation (Not yet scoped here)`
+`green belt master and detail frontend`
 
 ## Serial Scoped Task Queue
 
@@ -949,6 +950,24 @@ Do not skip ahead unless the current task is blocked and that blocker is recorde
 30. `backend integration test scripts (phases 3-7)` - COMPLETE
 31. `frontend navigation shell from allowed_module_keys` - COMPLETE
 32. `phase acceptance review for completed modules` - COMPLETE
+
+## Frontend Serial Scoped Task Queue
+
+Run these frontend tasks in order, one per implementation turn.
+Do not skip ahead unless the current task is blocked and that blocker is recorded below.
+
+1. `frontend shell hardening` - COMPLETE
+2. `frontend dashboard screens` - COMPLETE
+3. `green belt master and detail frontend` - NEXT
+4. `field upload screens frontend`
+5. `head supervisor operations frontend`
+6. `upload review and cleanup frontend`
+7. `issues requests and tasks frontend`
+8. `fabrication execution frontend`
+9. `advertisement and monitoring frontend`
+10. `campaigns and free media frontend`
+11. `authority portal frontend`
+12. `governance and reports frontend`
 
 ## Current Task Reference Docs
 
@@ -1009,8 +1028,50 @@ Local verification data now present in runtime DB:
 
 Residual notes:
 
-- backend now returns `allowed_module_keys` for future menu generation, but no frontend navigation shell exists yet
+- backend returns `allowed_module_keys`, and the frontend shell now uses it to render the menu and protect navigation
 - Phase 1 routes do not yet exercise rich domain record-scope filters; deeper record-scope testing begins with Green Belt and later modules
+
+## Frontend Shell Hardening Result
+
+Status: `COMPLETE - SYNTAX AND ROUTE-MAP VERIFIED`
+
+Completed:
+
+- replaced raw JSON-style frontend rendering with a module view registry in `public/js/views/modules.js`
+- added shared vanilla UI primitives for pages, panels, tables, filters, forms, modals, toasts, status pills, and upload forms
+- wired the shell to `allowed_module_keys`, role key, and landing route from auth/session
+- hid detail-only modules from the sidebar and kept role-specific upload/authority landing pages hidden from unrelated roles
+- added responsive mobile navigation with sidebar drawer and scrim
+- added current-month defaults for reports and monitoring plan
+- added a dedicated Monitoring Plan view that shows stored monthly due dates instead of blank generic columns
+- added frontend route-map contract coverage in `tests/test_frontend_route_map.php`
+
+Relevant validation:
+
+- `node --check public\js\app.js` passed
+- `node --check public\js\core\ui.js` passed
+- `node --check public\js\views\modules.js` passed
+- `C:\xampp\php\php.exe tests\syntax_scan.php` passed
+- `C:\xampp\php\php.exe tests\test_frontend_nav.php` passed
+- `C:\xampp\php\php.exe tests\test_frontend_route_map.php` passed
+- `C:\xampp\php\php.exe tests\test_gap_resolution.php` passed
+- `C:\xampp\php\php.exe tests\test_hardening_workflow.php` passed
+
+Important repo note:
+
+- `.gitignore` previously ignored `*.js`; that broad rule was removed so the frontend shell files under `public/js/` can be tracked.
+
+## Frontend Dashboard Screens Result
+
+Status: `COMPLETE - SYNTAX VERIFIED`
+
+Completed:
+
+- Replaced the generic hardcoded `dashboardView` "Next Actions" buttons with specific, role-appropriate navigation buttons for each of the 5 dashboards (`master_ops`, `green_belt`, `advertisement`, `monitoring`, `management`).
+- Dashboard actions are now scoped strictly to the domains that matter for that specific dashboard context (e.g., Monitoring Plan / History for Monitoring Dashboard; Green Belts / Watering / Issues for Green Belt Dashboard).
+
+Relevant validation:
+- Validated Javascript syntax.
 
 ## Legacy Prompt Notes
 

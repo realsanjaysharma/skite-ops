@@ -128,6 +128,17 @@ if ($requestId) {
     check('Approve Request (skipped)', ['body' => ['success' => false]], true);
 }
 
+echo "\n6. CLEANUP\n";
+if (!empty($issueId)) {
+    $db->exec("DELETE FROM audit_logs WHERE entity_type = 'issue' AND entity_id = " . (int)$issueId);
+    $db->exec("DELETE FROM issues WHERE id = " . (int)$issueId);
+}
+if (!empty($requestId)) {
+    $db->exec("DELETE FROM audit_logs WHERE entity_type = 'task_request' AND entity_id = " . (int)$requestId);
+    $db->exec("DELETE FROM task_requests WHERE id = " . (int)$requestId);
+}
+echo "   [OK] Cleaned up issues and task requests.\n";
+
 echo "\n=== RESULTS: {$pass} PASSED, {$fail} FAILED ===\n";
 
 if (file_exists($cookieFile)) {

@@ -161,6 +161,20 @@ if ($autoClosed) {
     echo "   [FAIL] Active cycle auto-closed when belt hidden\n";
 }
 
+echo "\n6. CLEANUP\n";
+if (!empty($beltId)) {
+    if (!empty($cycleId)) {
+        $db->exec("DELETE FROM audit_logs WHERE entity_type = 'maintenance_cycle' AND entity_id = " . (int)$cycleId);
+    }
+    if (!empty($cycleTwoId)) {
+        $db->exec("DELETE FROM audit_logs WHERE entity_type = 'maintenance_cycle' AND entity_id = " . (int)$cycleTwoId);
+    }
+    $db->exec("DELETE FROM audit_logs WHERE entity_type = 'green_belt' AND entity_id = " . (int)$beltId);
+    $db->exec("DELETE FROM maintenance_cycles WHERE belt_id = " . (int)$beltId);
+    $db->exec("DELETE FROM green_belts WHERE id = " . (int)$beltId);
+    echo "   [OK] Cleaned up cycles and belt artifacts for #{$beltId}\n";
+}
+
 echo "\n=== RESULTS: {$pass} PASSED, {$fail} FAILED ===\n";
 
 if (file_exists($cookieFile)) {
