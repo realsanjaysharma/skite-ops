@@ -946,9 +946,22 @@ Completed:
 - Implemented `advertisement.campaign_management` with dynamic campaign lifecycle buttons (End Campaign, Confirm Free Media) driven by row state.
 - Fixed a silent bug where `simpleLists` registration was overwriting custom views (restored the Green Belt attendance forms and the new Advertisement modals).
 
+### Free Media Inventory Frontend
+
+Status: `COMPLETE - SYNTAX VERIFIED`
+
+Completed:
+- Implemented `media.free_media_inventory` view in `modules.js` with Status, Category, and Route/Group filters.
+- Added a custom data grid displaying site code, location, source, status, and lifecycle dates (discovery, confirmation, expiry).
+- Implemented a details modal with context-aware actions:
+    - "Confirm Active" (transitions DISCOVERED -> CONFIRMED_ACTIVE).
+    - "Mark Expired" and "Mark Consumed" (for active records).
+- Added a "View Site Master" shortcut that navigates to the Site Master page with an active filter for the specific site.
+- Removed the generic `media.free_media_inventory` registration from `simpleLists` to ensure the operational UI is used.
+
 ## Current Next Scoped Task
 
-`free media inventory frontend`
+`monitoring team plan and history frontend`
 
 ## Serial Scoped Task Queue
 

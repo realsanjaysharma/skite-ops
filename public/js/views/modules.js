@@ -643,6 +643,111 @@ Views.register('advertisement.campaign_management', {
   }
 });
 
+Views.register('media.free_media_inventory', {
+  async render({ params = {} }) {
+    const data = await Api.get('freemedia/list', params);
+    const rows = normalizeItems(data);
+    const columns = [
+      { key: 'site_code', label: 'Site Code' },
+      { key: 'location_text', label: 'Location' },
+      { key: 'source_type', label: 'Source' },
+      { key: 'status', label: 'Status', html: true, render: (row) => UI.status(row.status) },
+      { key: 'discovered_date', label: 'Discovered' },
+      { key: 'confirmed_date', label: 'Confirmed' },
+      { key: 'expiry_date', label: 'Expiry' }
+    ];
+
+    const filterUI = UI.panel('Filters', UI.filters([
+      { name: 'status', label: 'Status', type: 'select', value: params.status, options: ['', 'DISCOVERED', 'CONFIRMED_ACTIVE', 'EXPIRED', 'CONSUMED'] },
+      { name: 'site_category', label: 'Category', type: 'select', value: params.site_category, options: ['', 'GREEN_BELT', 'BILLBOARD', 'BUS_SHELTER', 'POLE_KIOSK', 'OTHER'] },
+      { name: 'route_or_group', label: 'Route/Group', value: params.route_or_group }
+    ], 'Apply'));
+
+    const actions = UI.button('Refresh', { icon: 'ph-arrows-clockwise', attr: 'data-refresh' });
+
+    return UI.page('Free Media Inventory', 'Manage available advertising inventory', actions)
+      + filterUI
+      + UI.panel('Records', UI.table(columns, rows, {
+        empty: 'No free media found matching criteria',
+        rowAttr: (row) => `data-record='${JSON.stringify(row).replace(/'/g, "&#39;")}'`
+      }));
+  },
+  async afterRender() {
+    attachRefresh();
+    wireFilters((payload) => App.navigate('media.free_media_inventory', payload));
+
+    document.querySelectorAll('[data-record]').forEach(row => {
+      row.addEventListener('click', () => {
+        const record = JSON.parse(row.dataset.record);
+        
+        let extraHTML = '';
+        if (record.status === 'DISCOVERED') {
+          extraHTML = `
+            <div class="field full">
+              <button type="button" class="btn btn-primary" data-confirm-record="${record.record_id}">Confirm Active</button>
+            </div>
+          `;
+        } else if (record.status === 'CONFIRMED_ACTIVE') {
+          extraHTML = `
+            <div class="modal-actions" style="margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 1rem;">
+              <button type="button" class="btn btn-warn" data-expire-record="${record.record_id}">Mark Expired</button>
+              <button type="button" class="btn btn-ghost" data-consume-record="${record.record_id}">Mark Consumed</button>
+            </div>
+          `;
+        }
+
+        UI.showModal('Free Media Details', `
+          <div class="stack-form">
+            <div class="form-grid">
+              <div class="field"><span>Site Code</span><input type="text" value="${record.site_code}" readonly></div>
+              <div class="field"><span>Location</span><input type="text" value="${record.location_text}" readonly></div>
+              <div class="field"><span>Source</span><input type="text" value="${record.source_type}" readonly></div>
+              <div class="field"><span>Status</span><input type="text" value="${record.status}" readonly></div>
+            </div>
+            ${extraHTML}
+            <div class="modal-actions">
+              <button type="button" class="btn btn-ghost" data-modal-close>Close</button>
+              <button type="button" class="btn btn-primary" data-nav-site="${record.site_id}">View Site Master</button>
+            </div>
+          </div>
+        `);
+
+        // Bind buttons
+        const modalRoot = document.getElementById('modal-root');
+        
+        modalRoot.querySelector('[data-nav-site]')?.addEventListener('click', () => {
+          UI.closeModal();
+          App.navigate('advertisement.site_master', { site_code: record.site_code });
+        });
+
+        modalRoot.querySelector('[data-confirm-record]')?.addEventListener('click', () => {
+          UI.closeModal();
+          openSimpleForm('Confirm Free Media', [
+            { name: 'record_id', type: 'hidden', value: record.record_id },
+            { name: 'confirmed_date', label: 'Confirmed Date', type: 'date', required: true, value: UI.currentDate() },
+            { name: 'expiry_date', label: 'Expiry Date', type: 'date' }
+          ], 'Confirm Now', (payload) => simpleAction('freemedia/confirm', payload, 'Record confirmed active'));
+        });
+
+        modalRoot.querySelector('[data-expire-record]')?.addEventListener('click', async () => {
+          if (confirm('Are you sure you want to mark this record as EXPIRED?')) {
+            await simpleAction('freemedia/expire', { record_id: record.record_id }, 'Record expired');
+            UI.closeModal();
+          }
+        });
+
+        modalRoot.querySelector('[data-consume-record]')?.addEventListener('click', async () => {
+          if (confirm('Are you sure you want to mark this record as CONSUMED?')) {
+            await simpleAction('freemedia/consume', { record_id: record.record_id }, 'Record consumed');
+            UI.closeModal();
+          }
+        });
+      });
+    });
+  }
+});
+
+
 function uploadView(surface, parentType, title) {
   return {
     async render() {
@@ -793,7 +898,6 @@ const simpleLists = {
   'green_belt.issue_management': ['issue/list', 'Issues', ['id', 'title', 'priority', 'status', 'belt_id', 'site_id', 'created_at']],
   'green_belt.authority_view': ['authority/view', 'Authority View', ['id', 'belt_name', 'upload_type', 'work_type', 'created_at']],
   'monitoring.history': ['monitoring/history', 'Monitoring History', ['id', 'site_code', 'is_discovery_mode', 'created_by_user_name', 'created_at']],
-  'media.free_media_inventory': ['freemedia/list', 'Free Media', ['id', 'site_code', 'source_type', 'status', 'discovered_date', 'expiry_date']],
   'task.request_intake': ['request/list', 'Task Requests', ['id', 'requester_name', 'request_type', 'status', 'priority', 'created_at']],
   'task.progress_read': ['taskprogress/list', 'Task Progress', ['id', 'work_description', 'status', 'progress_percent', 'assigned_lead_name']],
   'task.management': ['task/list', 'Task Management', ['id', 'work_description', 'task_category', 'vertical_type', 'priority', 'status', 'progress_percent']],
