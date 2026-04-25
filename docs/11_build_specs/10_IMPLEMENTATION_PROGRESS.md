@@ -959,13 +959,27 @@ Completed:
 - Added a "View Site Master" shortcut that navigates to the Site Master page with an active filter for the specific site.
 - Removed the generic `media.free_media_inventory` registration from `simpleLists` to ensure the operational UI is used.
 
+### Monitoring Team Plan and History Frontend
+
+Status: `COMPLETE - SYNTAX VERIFIED`
+
+Completed:
+- Implemented `monitoring.plan` view with a dynamic calendar-style date picker (1-31 days) for setting monitoring schedules per site.
+- Added "Bulk Copy Pattern" and "Copy to Next Month" actions to streamline operational planning.
+- Implemented `monitoring.history` view with comprehensive filters (Date Range, Category, Discovery Mode) and a dedicated data grid for submitted proof.
+- Integrated both views with their respective backend controllers (`MonitoringPlanController`, `MonitoringHistoryController`).
+- Removed generic fallbacks for monitoring from the `simpleLists` registry to ensure the new custom UI is active.
+
 ## Current Next Scoped Task
 
-`monitoring team plan and history frontend`
+`task worker assignment and request management frontend`
 
 ## Serial Scoped Task Queue
 
 Run these tasks in order, one per implementation turn.
+
+1. `system settings and audit log frontend`
+2. `dashboard and analytics final pass`
 Do not skip ahead unless the current task is blocked and that blocker is recorded below.
 
 1. `upload service foundation` - COMPLETE

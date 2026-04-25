@@ -849,7 +849,7 @@ Views.register('reports.monthly', {
 });
 
 Views.register('monitoring.plan', {
-  async render({ params }) {
+  async render({ params = {} }) {
     const month = params.month || UI.currentMonth();
     const filters = { month };
     if (params.site_category) filters.site_category = params.site_category;
@@ -859,36 +859,138 @@ Views.register('monitoring.plan', {
     const data = await Api.get('monitoringplan/list', filters);
     const rows = normalizeItems(data);
     const columns = [
-      { key: 'site_id', label: 'Site ID' },
       { key: 'site_code', label: 'Site Code' },
       { key: 'location_text', label: 'Location' },
       { key: 'site_category', label: 'Category', html: true, render: (row) => UI.status(row.site_category) },
       { key: 'lighting_type', label: 'Lighting', html: true, render: (row) => UI.status(row.lighting_type) },
       { key: 'route_or_group', label: 'Route / Group' },
       { key: 'selected_due_dates_count', label: 'Due Dates' },
-      { key: 'due_dates', label: 'Dates', render: (row) => valueForDisplay(row.due_dates) }
+      { key: 'due_dates', label: 'Dates', render: (row) => row.due_dates.map(d => d.split('-')[2]).join(', ') }
     ];
 
-    return UI.page('Monitoring Plan', 'Stored monthly due dates are the due-truth for monitoring')
+    const actions = 
+      UI.button('Refresh', { icon: 'ph-arrows-clockwise', attr: 'data-refresh' }) +
+      UI.button('Bulk Copy Pattern', { icon: 'ph-copy', attr: 'data-bulk-copy' });
+
+    return UI.page('Monitoring Plan', 'Manage monthly monitoring schedules', actions)
       + UI.panel('Filters', UI.filters([
         { name: 'month', label: 'Month', type: 'month', value: month },
-        { name: 'site_category', label: 'Category', type: 'select', value: params.site_category || '', options: [
-          { value: '', label: 'All' },
-          'GREEN_BELT',
-          'CITY',
-          'HIGHWAY'
-        ] },
-        { name: 'lighting_type', label: 'Lighting', type: 'select', value: params.lighting_type || '', options: [
-          { value: '', label: 'All' },
-          'LIT',
-          'NON_LIT'
-        ] },
+        { name: 'site_category', label: 'Category', type: 'select', value: params.site_category || '', options: ['', 'GREEN_BELT', 'CITY', 'HIGHWAY'] },
+        { name: 'lighting_type', label: 'Lighting', type: 'select', value: params.lighting_type || '', options: ['', 'LIT', 'NON_LIT'] },
         { name: 'route_or_group', label: 'Route / Group', value: params.route_or_group || '' }
       ], 'Load'))
-      + UI.panel('Sites', UI.table(columns, rows, { empty: 'No sites found for this month' }));
+      + UI.panel('Plan Records', UI.table(columns, rows, { 
+          empty: 'No sites found for this month',
+          rowAttr: (row) => `data-site='${JSON.stringify(row).replace(/'/g, "&#39;")}' data-month="${month}"`
+      }));
   },
   async afterRender() {
+    attachRefresh();
     wireFilters((payload) => App.navigate('monitoring.plan', payload));
+
+    document.querySelector('[data-bulk-copy]')?.addEventListener('click', () => {
+      openSimpleForm('Bulk Copy Plan', [
+        { name: 'source_month', label: 'Source Month', type: 'month', required: true, value: UI.currentMonth() },
+        { name: 'target_month', label: 'Target Month', type: 'month', required: true },
+        { name: 'route_or_group', label: 'Limit to Route/Group (Optional)' },
+        { name: 'replace_existing', label: 'Replace Existing Plans?', type: 'select', options: [{value: '0', label: 'No'}, {value: '1', label: 'Yes'}] }
+      ], 'Execute Bulk Copy', (payload) => {
+        payload.replace_existing = payload.replace_existing === '1';
+        return simpleAction('monitoringplan/bulk-copy', payload, 'Bulk copy completed');
+      });
+    });
+
+    document.querySelectorAll('[data-site]').forEach(row => {
+      row.addEventListener('click', () => {
+        const site = JSON.parse(row.dataset.site);
+        const month = row.dataset.month;
+        
+        const daysInMonth = new Date(month.split('-')[0], month.split('-')[1], 0).getDate();
+        let html = `<div class="days-grid" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.5rem; margin-bottom: 1rem;">`;
+        for (let d = 1; d <= daysInMonth; d++) {
+          const dateStr = `${month}-${String(d).padStart(2, '0')}`;
+          const checked = site.due_dates.includes(dateStr) ? 'checked' : '';
+          html += `
+            <label style="border: 1px solid var(--border); padding: 0.5rem; text-align: center; cursor: pointer; border-radius: 4px;">
+              <input type="checkbox" name="due_dates" value="${dateStr}" ${checked} style="display: block; margin: 0 auto 0.2rem;">
+              <span style="font-size: 0.75rem;">${d}</span>
+            </label>
+          `;
+        }
+        html += `</div>`;
+
+        UI.showModal(`Plan: ${site.site_code}`, `
+          <form id="due-dates-form" class="stack-form">
+            <p style="margin-bottom: 1rem;">Select monitoring dates for <strong>${month}</strong></p>
+            ${html}
+            <div class="modal-actions">
+              <button type="button" class="btn btn-ghost" data-modal-close>Cancel</button>
+              <button type="button" class="btn btn-warn" data-copy-next>Copy to Next Month</button>
+              <button type="submit" class="btn btn-primary">Save Changes</button>
+            </div>
+          </form>
+        `);
+
+        const modal = document.getElementById('modal-root');
+        
+        modal.querySelector('#due-dates-form').addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const selected = Array.from(new FormData(e.target).getAll('due_dates'));
+          await simpleAction('monitoringplan/save', {
+            site_id: site.site_id,
+            plan_month: month,
+            due_dates: selected
+          }, 'Plan updated');
+          UI.closeModal();
+        });
+
+        modal.querySelector('[data-copy-next]').addEventListener('click', () => {
+          const nextMonth = new Date(month + '-01');
+          nextMonth.setMonth(nextMonth.getMonth() + 1);
+          const targetMonth = nextMonth.toISOString().substring(0, 7);
+          
+          if (confirm(`Copy this month's pattern to ${targetMonth}?`)) {
+            simpleAction('monitoringplan/copy-next-month', {
+              site_id: site.site_id,
+              source_month: month,
+              target_month: targetMonth
+            }, 'Copied to next month');
+            UI.closeModal();
+          }
+        });
+      });
+    });
+  }
+});
+
+Views.register('monitoring.history', {
+  async render({ params = {} }) {
+    const data = await Api.get('monitoring/history', params);
+    const rows = normalizeItems(data);
+    const columns = [
+      { key: 'created_at', label: 'Date/Time' },
+      { key: 'site_code', label: 'Site Code' },
+      { key: 'location_text', label: 'Location' },
+      { key: 'is_discovery_mode', label: 'Mode', render: (row) => row.is_discovery_mode ? 'DISCOVERY' : 'PLANNED' },
+      { key: 'comment_text', label: 'Comment' },
+      { key: 'upload_count', label: 'Photos', render: (row) => row.upload_count || 1 }
+    ];
+
+    return UI.page('Monitoring History', 'Review submitted monitoring proof')
+      + UI.panel('Filters', UI.filters([
+        { name: 'date_from', label: 'From', type: 'date', value: params.date_from },
+        { name: 'date_to', label: 'To', type: 'date', value: params.date_to },
+        { name: 'site_category', label: 'Category', type: 'select', value: params.site_category || '', options: ['', 'GREEN_BELT', 'CITY', 'HIGHWAY'] },
+        { name: 'discovery_mode', label: 'Discovery Only?', type: 'select', value: params.discovery_mode || '', options: [{value: '', label: 'All'}, {value: '1', label: 'Yes'}, {value: '0', label: 'No'}] }
+      ], 'Search'))
+      + UI.panel('History Records', UI.table(columns, rows, {
+        empty: 'No monitoring history found',
+        rowAttr: (row) => `data-history-id="${row.upload_id}"`
+      }));
+  },
+  async afterRender() {
+    attachRefresh();
+    wireFilters((payload) => App.navigate('monitoring.history', payload));
   }
 });
 
@@ -897,7 +999,6 @@ const simpleLists = {
   'green_belt.upload_review': ['upload/list', 'Upload Review', ['id', 'parent_type', 'parent_id', 'upload_type', 'authority_visibility', 'created_by_user_name', 'created_at']],
   'green_belt.issue_management': ['issue/list', 'Issues', ['id', 'title', 'priority', 'status', 'belt_id', 'site_id', 'created_at']],
   'green_belt.authority_view': ['authority/view', 'Authority View', ['id', 'belt_name', 'upload_type', 'work_type', 'created_at']],
-  'monitoring.history': ['monitoring/history', 'Monitoring History', ['id', 'site_code', 'is_discovery_mode', 'created_by_user_name', 'created_at']],
   'task.request_intake': ['request/list', 'Task Requests', ['id', 'requester_name', 'request_type', 'status', 'priority', 'created_at']],
   'task.progress_read': ['taskprogress/list', 'Task Progress', ['id', 'work_description', 'status', 'progress_percent', 'assigned_lead_name']],
   'task.management': ['task/list', 'Task Management', ['id', 'work_description', 'task_category', 'vertical_type', 'priority', 'status', 'progress_percent']],
