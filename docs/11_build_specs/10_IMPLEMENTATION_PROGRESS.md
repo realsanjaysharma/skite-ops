@@ -1332,7 +1332,7 @@ Inline action column renders state-specific buttons so the Fabrication Lead can 
 
 ### Out of Scope (Not Touched)
 
-- `task.detail` view was NOT modified. Per spec §24 it should expose `AFTER_WORK` upload, `BEFORE_WORK` upload, and Call Ops helper for the assigned lead. That is a separate enhancement and was deferred to keep this turn scoped.
+- `task.detail` view was NOT modified for spec §24 lead actions (BEFORE_WORK / AFTER_WORK upload, Call Ops helper). Separate enhancement.
 - `task.management` enum drift (uses `'PENDING','IN_PROGRESS','WORK_DONE'` instead of canonical `'OPEN','RUNNING','COMPLETED'`) was noticed but left untouched — separate scoped task required.
 
 ### Files Touched
@@ -1340,3 +1340,50 @@ Inline action column renders state-specific buttons so the Fabrication Lead can 
 - `public/js/views/modules.js` (+110 lines, full `task.my_tasks` view; -1 line in simpleLists object)
 - `public/index.html` (cache bump)
 - `docs/11_build_specs/10_IMPLEMENTATION_PROGRESS.md` (this section + queue updates)
+
+## Task Workflow Browser-Test Bug Fixes — 2026-04-28
+
+Status: `COMPLETE — LIVE VERIFIED`
+
+External AI tool ran an automated browser test of the My Tasks workflow and surfaced two pre-existing bugs in adjacent task views that were blocking end-to-end testability of the new `task.my_tasks` view. Both fixed.
+
+### Bug A — Task Creation Missing `location_text` (Critical)
+
+**Symptom:** Clicking Create on the Task Management create modal threw `SQLSTATE[23000]: Integrity constraint violation: 1048 Column 'location_text' cannot be null`.
+
+**Root cause:** Schema requires `location_text NOT NULL` (per `02_CANONICAL_SCHEMA_ROADMAP.md` and confirmed in `tasks` DDL). API contract `task/create` lists `location_text` as a required field. The Create Task modal in `task.management` view was missing the input.
+
+**Fix:** Added `location_text` (required text field), plus `assigned_lead_user_id` and `start_date` (optional) to the Create Task form per the full API contract field list.
+
+### Bug B — Lead Assignment Silent Failure
+
+**Symptom:** Manage Lead modal accepted input, returned green "Lead assigned" success toast, but the assignment did not persist on refresh. Task continued to show "Unassigned".
+
+**Root cause:** Frontend was sending payload `{task_id, lead_user_id}` to `task/update`, but `TaskRepository::update()` only accepts the canonical schema field name `assigned_lead_user_id` (the `$allowed` whitelist drops unknown fields silently). Repository returned `true` because the SQL ran successfully — it just had nothing to update except `updated_at`.
+
+**Fix:** Frontend payload field renamed to `assigned_lead_user_id` to match the schema. Added explicit numeric coercion on both `task_id` and `assigned_lead_user_id` before submission.
+
+### Live Verification
+
+End-to-end run executed against XAMPP confirms both fixes:
+
+1. `task/create` with `location_text:"Sector 18 Noida"` → HTTP 200, task #27 created.
+2. `task/create` without `location_text` → HTTP 400 with the same SQL error (frontend `required: true` now prevents this from the UI side).
+3. `task/update` with `assigned_lead_user_id:3` → HTTP 200, response shows `"assigned_lead_user_id":3`.
+4. Subsequent `task/get` confirms persistence: `"assigned_lead_user_id":3`.
+5. `task/my` now returns task #27 in the items array — proving the My Tasks view will populate correctly once a lead is properly assigned.
+6. Lifecycle buttons exercised: `task/start` moved task to `RUNNING`; `task/progress` set `progress_percent:50` with `remark_1:"halfway done"`. Both persisted.
+
+### Cache Bump
+
+`public/index.html` script markers bumped from `?v=5` to `?v=6`.
+
+### Files Touched
+
+- `public/js/views/modules.js` — Create Task form (+3 fields), Manage Lead form (correct field name + numeric coercion)
+- `public/index.html` (cache bump)
+
+### Out of Scope (Still Open)
+
+- Backend defensive validation in `TaskService::createTask` to return clean 400 instead of leaking SQL error when `location_text` missing — minor polish, separate task.
+- `task.management` view still uses non-canonical status filter values (`PENDING`/`IN_PROGRESS`/`WORK_DONE`); does not block functionality but should be aligned to `OPEN`/`RUNNING`/`COMPLETED` per spec §6.

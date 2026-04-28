@@ -1096,6 +1096,9 @@ Views.register('task.management', {
         { name: 'vertical_type', label: 'Vertical', type: 'select', options: ['FABRICATION', 'PRINTING', 'MOUNTING', 'MAINTENANCE'], required: true },
         { name: 'priority', label: 'Priority', type: 'select', options: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'], required: true },
         { name: 'work_description', label: 'Work Description', type: 'textarea', required: true },
+        { name: 'location_text', label: 'Location', type: 'text', required: true },
+        { name: 'assigned_lead_user_id', label: 'Assigned Lead User ID', type: 'number' },
+        { name: 'start_date', label: 'Start Date', type: 'date' },
         { name: 'expected_close_date', label: 'Expected Close', type: 'date' }
       ], 'Create', (payload) => simpleAction('task/create', payload, 'Task created'));
     });
@@ -1252,12 +1255,15 @@ Views.register('task.detail', {
   async afterRender({ params = {} }) {
     document.querySelector('[data-back]')?.addEventListener('click', () => App.navigate('task.management'));
 
-    document.querySelector('[data-manage-lead]')?.addEventListener('click', async () => {
-      const leads = await Api.get('role/list'); // Not ideal, but let's assume we can find leads
+    document.querySelector('[data-manage-lead]')?.addEventListener('click', () => {
       openSimpleForm('Assign Lead', [
         { name: 'task_id', type: 'hidden', value: params.task_id },
-        { name: 'lead_user_id', label: 'Lead User ID', type: 'number', required: true }
-      ], 'Assign', (payload) => simpleAction('task/update', payload, 'Lead assigned'));
+        { name: 'assigned_lead_user_id', label: 'Lead User ID', type: 'number', required: true }
+      ], 'Assign', (payload) => {
+        payload.task_id = parseInt(payload.task_id, 10);
+        payload.assigned_lead_user_id = parseInt(payload.assigned_lead_user_id, 10);
+        return simpleAction('task/update', payload, 'Lead assigned');
+      });
     });
 
     document.querySelector('[data-assign-workers]')?.addEventListener('click', async () => {
