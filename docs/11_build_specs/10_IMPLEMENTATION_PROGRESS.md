@@ -1004,15 +1004,15 @@ Completed:
 
 ## Current Next Scoped Task
 
-`green_belt.upload_review full view`
+`green_belt.issue_management full view`
 
 ## Serial Scoped Task Queue
 
 Run these tasks in order, one per implementation turn.
 
-1. `task.my_tasks full view` — COMPLETE (2026-04-28, see "Task My Tasks Frontend" section below)
-2. `green_belt.upload_review full view` ← CURRENT
-3. `green_belt.issue_management full view`
+1. `task.my_tasks full view` — COMPLETE (2026-04-28)
+2. `green_belt.upload_review full view` — COMPLETE (2026-04-28, commit 5671e5d)
+3. `green_belt.issue_management full view` ← CURRENT
 4. `green_belt.authority_view full view`
 5. `governance.user_management full view`
 6. `governance.access_mappings full view`
@@ -1074,8 +1074,8 @@ Do not skip ahead unless the current task is blocked and that blocker is recorde
 11. `authority portal frontend` - COMPLETE
 12. `governance and reports frontend` - COMPLETE
 13. `task.my_tasks full view` - COMPLETE
-14. `green_belt.upload_review full view` ← CURRENT
-15. `green_belt.issue_management full view`
+14. `green_belt.upload_review full view` - COMPLETE
+15. `green_belt.issue_management full view` ← CURRENT
 16. `green_belt.authority_view full view`
 17. `governance.user_management full view`
 18. `governance.access_mappings full view`
@@ -1170,7 +1170,6 @@ The deferred backend-testing task (`backend http integration testing` at queue p
 These are confirmed gaps against `04_PAGE_FIELD_AND_ACTION_SPEC.md` and `09_MODULE_ACCEPTANCE_CHECKLISTS.md`. Not yet fixed. Each should be resolved during the relevant frontend view task or the final system walkthrough.
 
 ### Frontend View Gaps (simpleLists stubs with no action controls)
-- `green_belt.upload_review` — needs Approve, Reject, Bulk Approve, Bulk Reject. Without this Ops cannot process any field uploads.
 - `green_belt.issue_management` — needs Move to In Progress, Create Task, Link Task, Close Issue actions.
 - `green_belt.authority_view` — needs Download filtered view and WhatsApp helper share. Authority reps cannot do their core job without this.
 - `task.progress_read` — commercial roles (Sales, Client Servicing, Media Planning) need filtered read-only progress view.
@@ -1179,16 +1178,51 @@ These are confirmed gaps against `04_PAGE_FIELD_AND_ACTION_SPEC.md` and `09_MODU
 
 ---
 
+## Post-Review Bug Fixes — 2026-04-28
+
+Status: `COMPLETE — LIVE VERIFIED ON XAMPP`
+
+Five bugs identified during a spec review of the `task.my_tasks` implementation and fixed across two commits (`72f0134`, `aa12697`).
+
+### 8. `task/start` Returns 403 for FABRICATION_LEAD (commit `72f0134`)
+- **Problem:** Route `task/start` had `module_key: task.management`. FABRICATION_LEAD is seeded with `task.my_tasks`, `task.detail`, `task.worker_allocation` — not `task.management`. Middleware's `authorizeModuleAccess` checks `allowed_module_keys` and threw 403 before the controller ran. The "Start" button rendered but was dead for every Fabrication Lead.
+- **Fix:** Changed `module_key` from `task.management` to `task.my_tasks` in `config/route_registry.php`. Capability stays `upload`; `TaskService::markInProgress` still enforces the assigned-lead check server-side.
+- **Regression check:** `tests/http_integration_test.sh` 42/42 PASS after change.
+
+### 9. `task.management` Status Filter Non-Canonical Enum (commit `aa12697`)
+- **Problem:** Status filter options were `PENDING`, `IN_PROGRESS`, `WORK_DONE` — none of which exist in `tasks.status ENUM('OPEN','RUNNING','COMPLETED','CANCELLED','ARCHIVED')`. Filter queries returned empty results for any selection.
+- **Fix:** Corrected to `OPEN`, `RUNNING`, `COMPLETED`, `CANCELLED`, `ARCHIVED`.
+
+### 10. `task.management` / Create Task `vertical_type` Wrong Enum (commit `aa12697`)
+- **Problem:** Both the filter select and Create Task form offered `FABRICATION`, `PRINTING`, `MOUNTING`, `MAINTENANCE`. Schema is `tasks.vertical_type ENUM('GREEN_BELT','ADVERTISEMENT','MONITORING')`. Any create attempt with a wrong value would hit a DB constraint error.
+- **Fix:** Corrected to `GREEN_BELT`, `ADVERTISEMENT`, `MONITORING` in both the filter and the create form.
+
+### 11. `task.detail` Back Button Broken for FABRICATION_LEAD (commit `aa12697`)
+- **Problem:** Back button always navigated to `task.management`. FABRICATION_LEAD does not have `task.management` in their module scope — navigating there produced a blank/error page.
+- **Fix:** Back button now checks `Auth.getUser().role_key`: FABRICATION_LEAD goes to `task.my_tasks`; all other roles go to `task.management`.
+
+### 12. `TaskService::createTask` Leaks SQL Errors, Missing Required Field Validation (commit `aa12697`)
+- **Problem:** `work_description`, `location_text`, `task_category`, `vertical_type` were passed directly to the repository with `?? null`, so omitting any of them caused `SQLSTATE[23000]: Integrity constraint violation` to surface directly to the frontend.
+- **Fix:** Added explicit `InvalidArgumentException` checks for all four required fields before building the insert payload. Added enum validation for `vertical_type`. `start_date` (also `NOT NULL` in schema) now defaults to today's date when absent so the field is always satisfied without forcing callers to specify it.
+- **Live verification:** `missing location_text → 400 "location_text is required."`, `invalid vertical_type FABRICATION → 400 "vertical_type must be one of: GREEN_BELT, ADVERTISEMENT, MONITORING"`, `valid payload without start_date → 200 task created with start_date: 2026-04-28`.
+
+### Files Touched
+- `config/route_registry.php` — task/start module_key
+- `app/services/TaskService.php` — required field validation + start_date default
+- `public/js/views/modules.js` — status filter, vertical_type filter/form, Back button
+- `public/index.html` — cache bump `?v=6 → ?v=7`
+
+---
+
 ## Current Task Reference Docs
 
 Read only the docs needed for the current scoped task.
-For the current `green_belt.upload_review full view` task, start with:
+For the current `green_belt.issue_management full view` task, start with:
 
-- `docs/11_build_specs/03_API_AND_ROUTE_CONTRACT.md` — `upload/list`, `upload/approve`, `upload/reject`, bulk action payloads
-- `docs/11_build_specs/04_PAGE_FIELD_AND_ACTION_SPEC.md` — §13 Upload Review (filters, columns, approve/reject/bulk actions)
-- `docs/11_build_specs/05_WORKFLOW_STATE_MACHINE_SPEC.md` — Authority Visibility lifecycle (HIDDEN → APPROVED / REJECTED / NOT_ELIGIBLE)
-- `docs/11_build_specs/06_UPLOAD_STORAGE_RETENTION_SPEC.md` — review-state storage rules
-- `docs/11_build_specs/09_MODULE_ACCEPTANCE_CHECKLISTS.md` — §3 Green Belt Field Operations (upload review acceptance gates)
+- `docs/11_build_specs/03_API_AND_ROUTE_CONTRACT.md` — `issue/list`, `issue/get`, `issue/in-progress`, `issue/close`, `issue/link-task` payloads
+- `docs/11_build_specs/04_PAGE_FIELD_AND_ACTION_SPEC.md` — §14 Issue Management (filters, columns, actions)
+- `docs/11_build_specs/05_WORKFLOW_STATE_MACHINE_SPEC.md` — Issue lifecycle (OPEN → IN_PROGRESS → CLOSED)
+- `docs/11_build_specs/09_MODULE_ACCEPTANCE_CHECKLISTS.md` — §3 Green Belt Field Operations (issue acceptance gates)
 
 ## Task Update Rule
 
@@ -1392,10 +1426,9 @@ End-to-end run executed against XAMPP confirms both fixes:
 - `public/js/views/modules.js` — Create Task form (+3 fields), Manage Lead form (correct field name + numeric coercion)
 - `public/index.html` (cache bump)
 
-### Out of Scope (Still Open)
+### Items Resolved in Subsequent Pass
 
-- Backend defensive validation in `TaskService::createTask` to return clean 400 instead of leaking SQL error when `location_text` missing — minor polish, separate task.
-- `task.management` view still uses non-canonical status filter values (`PENDING`/`IN_PROGRESS`/`WORK_DONE`); does not block functionality but should be aligned to `OPEN`/`RUNNING`/`COMPLETED` per spec §6.
+Both deferred items were fixed in commit `aa12697` (see "Post-Review Bug Fixes — 2026-04-28" below).
 
 ## Upload Review Frontend Full View — 2026-04-28
 
