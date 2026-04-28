@@ -409,8 +409,8 @@ return [
     'task/start' => [
         'controller' => 'TaskController',
         'method'     => 'markInProgress',
-        'module_key' => 'task.management',
-        'capability' => 'upload', // Allows FABRICATION_LEAD (UPLOAD group); TaskService enforces further checks
+        'module_key' => 'task.my_tasks', // FABRICATION_LEAD has task.my_tasks; TaskService enforces assigned-lead check
+        'capability' => 'upload',
     ],
     'task/progress' => [
         'controller' => 'TaskProgressController',
