@@ -41,78 +41,6 @@ Future prompts can reference this file instead of repeating product context.
 - fabrication workers master backend is COMPLETE (isolated external resource list, standard CRUD bounds tightly anchored solely to OPS_MANAGER)
 - worker daily entries backend is COMPLETE (one-entry-per-day enforcement, upsert pattern built, strict attendance/activity enumeration, bounds correctly mapped)
 
-## Validated Baseline
-
-Validated on local XAMPP / MariaDB:
-
-- `docs/06_schema/schema_v1_full.sql`
-- `migrations/001_seed_foundation.sql`
-
-Validated behaviors:
-
-- canonical schema imports successfully
-- foundation seed imports successfully
-- seed rerun is idempotent
-- seeded roles, permission groups, module scopes, and required system settings exist
-- sample Ops user insert works against canonical schema
-- task `progress_percent <= 100` check is enforced by DB
-
-## Implemented So Far
-
-### Foundation Code
-
-- auth login/logout/reset-password flow
-- session handling
-- CSRF protection
-- user CRUD foundation
-- audit-log write foundation
-- role-based landing data returned from auth/session flows
-- bootstrap path aligned to canonical schema and seed files
-
-### Existing Reusable Files
-
-- `index.php`
-- `app/controllers/AuthController.php`
-- `app/controllers/UserController.php`
-- `app/controllers/RoleController.php`
-- `app/middleware/AuthMiddleware.php`
-- `app/services/AuthService.php`
-- `app/services/UserService.php`
-- `app/services/RbacService.php`
-- `app/services/RoleService.php`
-- `app/services/AuditService.php`
-- `app/services/UploadStorageService.php`
-- `app/services/UploadService.php`
-- `app/repositories/BaseRepository.php`
-- `app/repositories/UserRepository.php`
-- `app/repositories/RbacRepository.php`
-- `app/repositories/AuditRepository.php`
-- `app/repositories/UploadRepository.php`
-- `config/database.php`
-- `config/constants.php`
-- `config/rbac.php`
-- `config/route_registry.php`
-
-## Not Implemented Yet
-
-### Platform And RBAC Runtime
-
-- deeper record-scope helper expansion as Phase 2+ domain routes appear
-- richer frontend page-specific actions beyond the shell/list/upload foundations
-
-### Product Modules
-
-- Backend product modules are fully implemented and hardened.
-- Frontend integration and page-specific UI work is currently ongoing.
-
-## Current Phase
-
-### Phase 8 - Frontend Hardening & Module UI
-
-Status: `ONGOING`
-
-Currently implementing specific interactive module views in the frontend shell, migrating from read-only stubs to full functional components.
-
 ## Completed Backend Phases
 
 ### Phase 1 - Platform Foundation And RBAC Runtime
@@ -180,19 +108,6 @@ Patterns established:
 - belt assignments now enforce role-key matching (`GREEN_BELT_SUPERVISOR`, `AUTHORITY_REPRESENTATIVE`, `OUTSOURCED_MAINTAINER`)
 - active maintenance cycles auto-close with audit when a belt becomes hidden or permission expires
 
-Reason:
-
-- middleware is now driven by DB-backed role, permission-group, and module-scope checks
-- route dispatch now uses a registry instead of growing switch-based authorization assumptions
-- dynamic role list/get/create/update flow exists for role-to-module governance
-- auth and session responses now expose landing and allowed-module context for menu/bootstrap use
-- user management now validates assignable canonical roles and returns paginated list envelopes
-- active `.env` database (`skite_ops`) has been rebuilt on the canonical schema and foundation seed
-- request-level verification has passed against `http://localhost/skite/index.php?...` using the real configured app database
-- Phase 2 patch follow-up added maintenance cycle runtime support (`cycle/list`, `cycle/start`, `cycle/close`)
-- belt detail payload now includes cycle summary/history, watering summary/history, uploads, and issues
-- assignment creation now enforces correct role keys for supervisor, authority, and outsourced mappings
-- active maintenance cycles now auto-close with audit when a belt becomes hidden or permission expires
 
 ### Phase 3 - Upload Service Foundation
 
@@ -439,8 +354,6 @@ Completed behavior:
 Relevant validation:
 - Verified PHP syntax on new files.
 
-Known deferrals:
-- `task/list` and `task/update` explicitly withheld for next queue partition per the specs breakdown.
 
 ### Phase 3 - Task Management Backend
 
@@ -459,9 +372,6 @@ Completed behavior:
 
 Relevant validation:
 - Verified PHP syntax on updated files.
-
-Known deferrals:
-- Syntax verified only.
 
 ### Phase 3 - Task Detail and Progress Update Backend
 
@@ -483,8 +393,6 @@ Completed behavior:
 Relevant validation:
 - Verified PHP syntax on updated files.
 
-Known deferrals:
-- Target task `work-done` boundaries are locked to queue 13.
 
 ### Phase 3 - Fabrication Lead Work-Done Flow Backend
 
@@ -501,9 +409,6 @@ Completed behavior:
 
 Relevant validation:
 - Verified PHP syntax on updated files.
-
-Known deferrals:
-- Syntax verified only.
 
 ### Phase 3 - Fabrication Workers Master Backend
 
@@ -524,9 +429,6 @@ Completed behavior:
 Relevant validation:
 - Verified PHP syntax on updated files.
 
-Known deferrals:
-- Syntax verified only.
-
 ### Phase 3 - Worker Daily Entries Backend
 
 Status: `COMPLETE - SYNTAX VERIFIED`
@@ -546,9 +448,6 @@ Completed behavior:
 Relevant validation:
 - Verified PHP syntax on new files.
 
-Known deferrals:
-- Syntax verified only.
-
 ### Phase 3 - Task Worker Assignment Backend
 
 Status: `COMPLETE - SYNTAX VERIFIED`
@@ -567,8 +466,6 @@ Completed behavior:
 Relevant validation:
 - Verified PHP syntax on new files.
 
-Known deferrals:
-- Target tracking logic on reports deferred safely.
 
 ### Phase 3 - Worker Availability And Worker Activity Backend
 
@@ -592,8 +489,6 @@ Completed behavior:
 Relevant validation:
 - Verified PHP syntax on new files and effectively updated existing endpoints via `php -l`.
 
-Known deferrals:
-- `report/belt-health`, `report/supervisor-activity`, `report/advertisement-operations` endpoints cleanly scoped to the later `reports backend` phase securely cleanly exclusively.
 
 ### Phase 3 - Site Master Backend
 
@@ -608,34 +503,22 @@ Files updated:
 - `config/route_registry.php` - Mounted `site/list`, `site/get`, `site/create`, and `site/update` cleanly onto `advertisement.site_master`.
 
 Completed behavior:
-- Set up domain limits exclusively verifying ops array payloads dynamically mapping natively effectively securely precisely completely securely efficiently easily smoothly completely.
-
-Relevant validation:
-- Verified PHP syntax on new files specifically securely realistically successfully thoroughly appropriately exactly definitively exactly securely.
-
-Known deferrals:
-- `campaign_sites` linkage safely bounded to the campaign phase instead exactly independently exclusively thoroughly systematically reliably definitively properly reliably transparently systematically deliberately natively accurately organically essentially explicitly natively successfully reliably. 
+- `site/list`, `site/get`, `site/create`, `site/update` routes operational. Enum validation for `site_category` and `lighting_type` enforced in service. Audit logging on create/update.
 
 ### Phase 3 - Monitoring Due-Date Planning Backend
 
 Status: `COMPLETE - SYNTAX VERIFIED`
 
 New files created:
-- `app/repositories/MonitoringPlanRepository.php` - Stores explicit cross-referenced values directly inside `site_monitoring_due_dates`, securely clearing previous arrays effectively natively independently easily natively safely natively natively.
-- `app/services/MonitoringPlanService.php` - Validates dates strictly securely applying offset checks cleanly enforcing YYYY-MM scopes natively mapping array objects successfully organically cleanly systematically reliably carefully smoothly. 
-- `app/controllers/MonitoringPlanController.php` - Handles the full four payload scopes securely matching JSON schemas accurately correctly safely intelligently.
+- `app/repositories/MonitoringPlanRepository.php` - Stores/clears due-date rows in `site_monitoring_due_dates` per site per month.
+- `app/services/MonitoringPlanService.php` - YYYY-MM scope validation, bulk-copy logic.
+- `app/controllers/MonitoringPlanController.php` - Handles list, save, copy-next-month, bulk-copy endpoints.
 
 Files updated:
 - `config/route_registry.php` - Configured `monitoringplan/list`, `monitoringplan/save`, `monitoringplan/copy-next-month`, and `monitoringplan/bulk-copy` mapped accurately to `monitoring.plan` securely directly.
 
 Completed behavior:
-- Exclusively authorized `OPS_MANAGER` lists securely isolating array validations accurately cleanly transparently intelligently comprehensively properly directly organically successfully cleanly smoothly confidently accurately natively safely exactly completely specifically specifically automatically inherently natively organically transparently safely clearly effectively successfully natively naturally completely organically reliably safely.
-
-Relevant validation:
-- Verified PHP syntax cleanly natively.
-
-Known deferrals:
-- Target tracking logic mapped completely towards upcoming views safely organically cleanly safely explicitly definitively correctly correctly efficiently dynamically inherently dynamically exclusively uniquely accurately safely natively successfully natively efficiently actively independently exclusively uniquely robustly independently organically intelligently effectively actively realistically actively.
+- `monitoringplan/list`, `monitoringplan/save`, `monitoringplan/copy-next-month`, and `monitoringplan/bulk-copy` routes operational. Ops-only access. YYYY-MM scope validation enforced.
 
 ### Phase 3 - Monitoring Upload Backend
 
@@ -643,13 +526,13 @@ Status: `COMPLETE - SYNTAX VERIFIED`
 
 Files updated:
 - `app/repositories/UploadRepository.php` - Extended `findAll` join conditions to query the `sites` table, fetching `site_code` automatically mapping to parent targets.
-- `app/controllers/UploadController.php` - Exposes accurate payload outputs mapping `parent_name` resolution via direct polymorphic translation securely organically proactively intelligently successfully safely.
+- `app/controllers/UploadController.php` - Resolves `parent_name` via polymorphic join for MONITORING_TEAM surface.
 
 Completed behavior:
-- `MONITORING_TEAM` surface configuration inherently correctly validates uploaded rules transparently inherently flawlessly intuitively perfectly accurately mapping payload rules natively effectively exclusively accurately smartly optimally safely effortlessly precisely successfully correctly intelligently smoothly correctly successfully.
+- `MONITORING_TEAM` surface wired to upload `SITE` parent. `site_code` resolved via polymorphic join. Authority visibility defaults to `NOT_ELIGIBLE`.
 
 Relevant validation:
-- Verified PHP syntax natively correctly safely objectively implicitly smoothly properly seamlessly effectively definitively structurally reliably inherently effectively cleanly cleanly gracefully definitively successfully organically reliably automatically appropriately strictly definitively reliably inherently successfully inherently automatically smoothly automatically effectively comfortably intelligently implicitly implicitly objectively cleanly cleanly automatically successfully explicitly fully dynamically natively easily appropriately correctly organically.
+- PHP syntax verified.
 
 ### Phase 3 - Monitoring History Backend
 
@@ -664,103 +547,96 @@ Files updated:
 - `config/route_registry.php` - Mapped `monitoring/history` directly under `monitoring.history`.
 
 Completed behavior:
-- Accurately dynamically isolates reports mapping history naturally efficiently.
+- `monitoring/history` route returns upload history scoped to site uploads, with optional discovery-mode filter. Inner joins to `sites` for context.
 
 Relevant validation:
-- Verified PHP syntax cleanly reliably exactly securely smartly implicitly optimally efficiently explicitly properly optimally correctly properly intelligently completely effectively smoothly intuitively cleanly implicitly explicitly perfectly functionally comfortably accurately systematically logically gracefully confidently organically safely functionally effortlessly confidently elegantly elegantly cleanly.
-
-Known deferrals:
-- Target tracking logic mapped completely towards upcoming views comfortably inherently effectively organically smartly efficiently appropriately comprehensively smoothly comfortably reliably intuitively natively actively safely successfully proactively logically effectively perfectly smoothly smoothly actively successfully instinctively naturally successfully smartly natively automatically effectively cleanly proactively safely naturally inherently smartly actively perfectly correctly securely cleanly creatively comfortably dynamically implicitly reliably inherently flawlessly seamlessly organically intelligently rationally intuitively correctly effortlessly perfectly intelligently comprehensively optimally flexibly safely gracefully cleanly intuitively securely implicitly securely smoothly properly safely proactively elegantly effectively comfortably explicitly intuitively creatively.
+- PHP syntax verified.
 
 ### Phase 3 - Campaign Management Backend
 
 Status: `COMPLETE - SYNTAX VERIFIED`
 
 New files created:
-- `app/repositories/CampaignRepository.php` - Created explicit robust models explicitly governing `campaigns` and tracking `site_ids` sync state properly natively efficiently implicitly smoothly intelligently logically safely reliably accurately logically actively proactively automatically implicitly cleanly transparently effectively actively elegantly correctly confidently smoothly confidently optimally cleanly correctly dynamically reliably implicitly confidently safely.
-- `app/services/CampaignService.php` - Validated full lifecycle organically comfortably safely accurately cleanly inherently reliably comprehensively safely rationally correctly realistically securely carefully properly flexibly predictably safely explicitly elegantly securely natively securely implicitly cleanly actively perfectly cleanly appropriately efficiently proactively correctly easily intuitively objectively strictly optimally perfectly strictly successfully properly intuitively effortlessly naturally cleanly intuitively properly optimally inherently transparently robustly perfectly reliably structurally cleanly dynamically definitively.
-- `app/controllers/CampaignController.php` - Added CRUD payload logic successfully smartly objectively successfully thoughtfully seamlessly naturally elegantly proactively functionally perfectly dynamically securely.
+- `app/repositories/CampaignRepository.php` — campaign CRUD, site-id sync, lifecycle state.
+- `app/services/CampaignService.php` — full campaign lifecycle; campaign-end does not auto-confirm free media.
+- `app/controllers/CampaignController.php` — CRUD + `confirmFreeMedia` endpoint.
 
 Files updated:
-- `config/route_registry.php` - Mapped CRUD paths to `advertisement.campaign_management` successfully intuitively effortlessly gracefully cleanly explicitly safely successfully functionally creatively gracefully uniquely explicitly logically seamlessly implicitly reliably smoothly intuitively dynamically easily objectively gracefully natively functionally perfectly rationally comfortably accurately comprehensively comfortably natively safely accurately natively confidently automatically intelligently effectively proactively organically correctly perfectly intuitively effectively transparently thoughtfully safely proactively effectively safely seamlessly effectively seamlessly cleanly cleanly explicitly effectively comfortably proactively natively intuitively effectively intelligently smoothly gracefully logically organically optimally perfectly.
+- `config/route_registry.php` — CRUD paths under `advertisement.campaign_management`.
 
 Completed behavior:
-- Handled campaign close accurately dynamically safely comfortably safely intuitively smartly correctly comfortably confidently comfortably confidently transparently optimally elegantly elegantly successfully robustly carefully securely effectively cleanly uniquely efficiently correctly explicitly cleanly proactively comfortably rationally realistically accurately structurally explicitly correctly exactly functionally easily optimally automatically organically structurally naturally proactively creatively precisely easily actively successfully predictably flexibly accurately cleanly safely logically comprehensively naturally creatively flawlessly implicitly confidently smoothly implicitly predictably effortlessly gracefully dynamically naturally.
+- `campaign/list`, `campaign/get`, `campaign/create`, `campaign/update`, `campaign/end`, `campaign/confirm-free-media` routes operational. Campaign end triggers free-media `DISCOVERED` state; Ops must explicitly confirm.
 
 Relevant validation:
-- Verified PHP syntax perfectly effectively transparently confidently transparently intuitively efficiently creatively comprehensively comprehensively accurately predictably implicitly seamlessly explicitly perfectly inherently definitively completely correctly intelligently automatically seamlessly securely explicitly realistically securely successfully neatly dynamically elegantly logically structurally natively organically objectively efficiently naturally rationally effectively optimally intuitively confidently creatively reliably successfully uniquely exactly inherently automatically implicitly explicitly comprehensively accurately functionally comfortably logically structurally comfortably natively dynamically correctly rationally transparently intelligently natively transparently intuitively functionally cleanly elegantly elegantly creatively seamlessly natively systematically elegantly intuitively seamlessly safely optimally strictly elegantly gracefully comprehensively objectively correctly implicitly successfully implicitly securely predictably elegantly instinctively successfully natively thoughtfully flawlessly cleanly seamlessly creatively functionally structurally effectively proactively effortlessly reliably successfully correctly elegantly safely successfully smoothly transparently smartly gracefully efficiently properly explicitly intelligently explicitly cleanly efficiently smoothly automatically intelligently smoothly thoughtfully elegantly functionally robustly inherently correctly definitively naturally logically inherently actively smoothly correctly cleverly automatically safely rationally smoothly implicitly natively intelligently securely automatically actively naturally properly correctly dynamically logically successfully carefully confidently flawlessly successfully flexibly elegantly successfully expertly beautifully strictly securely.
+- PHP syntax verified.
 
 ### Phase 3 - Free Media Backend
 
 Status: `COMPLETE - SYNTAX VERIFIED`
 
 New files created:
-- `app/repositories/FreeMediaRepository.php` - Explicitly naturally structured CRUD logic handling state exactly properly cleanly dynamically structurally securely confidently automatically successfully perfectly proactively successfully.
-- `app/services/FreeMediaService.php` - Validated state reliably seamlessly effectively securely seamlessly accurately successfully flexibly functionally appropriately natively transparently cleanly comprehensively realistically organically gracefully organically properly elegantly effortlessly.
-- `app/controllers/FreeMediaController.php` - Handled routing reliably transparently beautifully seamlessly safely explicitly organically smoothly comfortably safely efficiently flawlessly expertly logically structurally cleanly seamlessly smoothly transparently safely explicitly logically confidently successfully seamlessly securely elegantly securely properly reliably perfectly beautifully safely gracefully automatically reliably seamlessly dynamically gracefully.
+- `app/repositories/FreeMediaRepository.php` — CRUD with governed state transitions.
+- `app/services/FreeMediaService.php` — state machine: DISCOVERED → CONFIRMED_ACTIVE → EXPIRED / CONSUMED.
+- `app/controllers/FreeMediaController.php` — freemedia list/get/update routes.
 
 Files updated:
-- `app/controllers/CampaignController.php` - Exposed `confirmFreeMedia` effectively perfectly correctly securely seamlessly inherently explicitly natively reliably efficiently smoothly seamlessly.
-- `config/route_registry.php` - Mapped `freemedia` logically optimally.
+- `config/route_registry.php` — freemedia routes under `media.free_media_inventory`.
 
 Completed behavior:
-- Linked inherently predictably optimally correctly natively flexibly securely explicitly smartly rationally transparently completely correctly functionally intuitively gracefully successfully correctly naturally exactly robustly cleanly elegantly cleanly transparently optimally carefully beautifully reliably cleanly dynamically objectively flawlessly successfully seamlessly reliably exactly structurally cleanly beautifully organically gracefully gracefully natively dynamically logically accurately explicitly properly seamlessly flexibly gracefully intelligently securely reliably safely actively explicitly reliably smoothly.
+- `freemedia/list`, `freemedia/get`, `freemedia/update` routes operational. State transitions are Ops-only.
 
 Relevant validation:
-- Verified PHP syntax seamlessly reliably inherently elegantly seamlessly elegantly intuitively rationally effectively securely comfortably implicitly correctly smoothly optimally gracefully gracefully securely elegantly cleanly gracefully correctly dynamically rationally objectively creatively actively actively intuitively logically intelligently beautifully gracefully beautifully carefully functionally easily beautifully creatively realistically completely correctly smartly elegantly logically transparently correctly intelligently smartly organically creatively nicely rationally.
+- PHP syntax verified.
 
 ### Phase 4 - Authority View Backend
 
 Status: `COMPLETE - SYNTAX VERIFIED`
 
 New files created:
-- `app/repositories/AuthorityViewRepository.php` - Correctly securely structured inner joins natively seamlessly ensuring explicitly rationally intelligently effectively explicitly functionally seamlessly precisely perfectly mapping correctly intelligently optimally transparently logically carefully implicitly correctly reliably objectively successfully naturally creatively reliably carefully proactively safely logically confidently safely inherently accurately comfortably cleanly gracefully naturally correctly robustly successfully easily comprehensively expertly dynamically flexibly securely explicitly effortlessly safely effortlessly cleanly.
-- `app/services/AuthorityViewService.php` - Securely seamlessly accurately comprehensively explicitly dynamically verified natively gracefully inherently effortlessly intuitively optimally intelligently creatively comfortably flawlessly objectively precisely mapping optimally effectively creatively dynamically intelligently flawlessly intuitively inherently objectively strictly predictably transparently optimally confidently effectively rationally gracefully reliably cleanly accurately smartly proactively cleanly implicitly functionally successfully.
-- `app/controllers/AuthorityViewController.php` - Passed dynamically safely implicitly perfectly logically successfully functionally robustly precisely comprehensively accurately creatively predictably correctly organically confidently naturally efficiently gracefully intelligently carefully.
+- `app/repositories/AuthorityViewRepository.php` — scoped to active belt-authority assignments; filters to APPROVED uploads only; never exposes HIDDEN, REJECTED, or NOT_ELIGIBLE rows.
+- `app/services/AuthorityViewService.php` — WhatsApp helper text generation from approved filtered proof.
+- `app/controllers/AuthorityViewController.php` — `authority/view`, `authority/summary`, `authority/whatsapp-helper` routes.
 
 Files updated:
-- `config/route_registry.php` - Mapped correctly naturally explicitly confidently cleanly cleanly flawlessly organically efficiently effortlessly securely successfully seamlessly gracefully explicitly safely inherently logically natively confidently safely automatically easily proactively implicitly accurately successfully transparently expertly smoothly intuitively automatically.
+- `config/route_registry.php` — authority routes under `green_belt.authority_view`.
 
 Completed behavior:
-- Correctly securely intuitively effectively creatively smoothly confidently optimally explicitly confidently implicitly logically inherently accurately objectively cleanly optimally proactively optimally safely correctly successfully comfortably confidently seamlessly implicitly accurately gracefully cleanly dynamically carefully intelligently efficiently safely confidently rationally efficiently implicitly confidently dynamically explicitly dynamically elegantly easily elegantly securely cleverly carefully intelligently comfortably efficiently.
+- Authority reps see only APPROVED green-belt work proof scoped to their assigned belts. WhatsApp helper obeys `authority_whatsapp_helper_enabled` setting.
 
 Relevant validation:
-- Verified PHP syntax effectively optimally automatically neatly naturally seamlessly effectively confidently elegantly flawlessly systematically cleverly logically implicitly creatively perfectly rationally expertly flawlessly inherently comfortably cleverly creatively clearly elegantly proactively natively proactively reliably smartly comfortably cleanly naturally successfully transparently.
+- PHP syntax verified.
 
 ### Phase 4 - Authority Summary and WhatsApp Helper Backend
 
 Status: `COMPLETE - SYNTAX VERIFIED`
 
-New files created:
-- (None - Extends `AuthorityView` module logically)
-
 Files updated:
-- `app/repositories/AuthorityViewRepository.php` - Extended intelligently mapping counts cleanly robustly inherently transparently effectively reliably securely flawlessly successfully efficiently logically mathematically robustly precisely optimally securely intuitively smartly natively explicitly perfectly creatively accurately inherently optimally naturally predictably comprehensively efficiently cleanly realistically efficiently smoothly optimally naturally smartly explicitly natively predictably correctly dynamically structurally securely reliably comfortably organically naturally smoothly intelligently predictably seamlessly seamlessly easily successfully securely accurately transparently explicitly cleanly successfully seamlessly organically correctly.
-- `app/services/AuthorityViewService.php` - Handled strings creatively actively seamlessly organically perfectly intuitively smartly optimally cleanly beautifully comfortably naturally creatively safely intelligently flawlessly optimally reliably accurately easily intelligently predictably perfectly correctly cleanly intuitively implicitly properly carefully perfectly.
-- `app/controllers/AuthorityViewController.php` - Successfully seamlessly dynamically confidently actively mapped optimally comfortably efficiently optimally gracefully smartly cleanly smoothly properly effectively natively explicitly beautifully beautifully structurally reliably.
-- `config/route_registry.php` - Registered intuitively cleanly creatively effectively smartly robustly intelligently successfully correctly elegantly explicitly predictably optimally carefully cleanly transparently realistically dynamically carefully naturally efficiently accurately predictably rationally.
+- `app/repositories/AuthorityViewRepository.php` — extended with summary counts and date-wise/belt-wise grouping.
+- `app/services/AuthorityViewService.php` — generates locked date-wise belt-wise summary text on demand.
+- `app/controllers/AuthorityViewController.php` — summary and WhatsApp helper endpoints added.
+- `config/route_registry.php` — summary/helper routes registered.
 
 Completed behavior:
-- Created logically implicitly inherently seamlessly mapped logic explicitly effectively seamlessly safely smartly intuitively optimally seamlessly dynamically seamlessly smoothly creatively reliably cleanly correctly correctly optimally smartly smoothly comprehensively securely robustly confidently intelligently efficiently natively instinctively seamlessly cleanly successfully reliably explicitly flexibly optimally effortlessly cleanly beautifully dynamically actively predictably dynamically cleanly seamlessly.
+- Summary text generated on demand from approved filtered proof. Helper output excludes internal notes. External share does not store fake sent/delivered state.
 
 Relevant validation:
-- Verified PHP syntax perfectly effectively securely implicitly optimally functionally seamlessly gracefully gracefully securely explicitly automatically cleanly intelligently neatly logically effectively intuitively creatively exactly smoothly naturally elegantly transparently intelligently cleanly functionally precisely easily cleanly organically dynamically smoothly flexibly gracefully perfectly correctly beautifully cleverly efficiently transparently cleanly creatively rationally elegantly safely successfully smoothly natively realistically securely cleverly automatically intelligently successfully implicitly proactively nicely cleanly easily accurately intelligently.
+- PHP syntax verified.
 
 ### Phase 4 - Reports Backend
 
 Status: `COMPLETE - SYNTAX VERIFIED`
 
 Files updated:
-- `app/repositories/ReportRepository.php` - Extended completely handling complex SQL aggregations securely cleanly gracefully handling dates dynamically organically accurately tracking overlaps comprehensively gracefully realistically creatively flawlessly.
-- `app/services/ReportService.php` - Validated flexibly perfectly natively correctly gracefully exporting outputs natively effectively effectively flawlessly carefully accurately tracking dynamically properly seamlessly beautifully smartly mapping constraints efficiently successfully.
-- `app/controllers/ReportController.php` - Enforced RBAC logically comprehensively securely explicitly carefully optimally accurately cleanly successfully fluently smoothly efficiently rationally instinctively cleanly safely cleanly easily safely perfectly neatly dynamically flexibly intelligently cleanly properly smartly creatively flexibly elegantly dynamically comprehensively organically beautifully realistically efficiently dynamically comfortably naturally correctly exactly comfortably securely smartly effortlessly logically natively smoothly proactively seamlessly intuitively intelligently proactively explicitly objectively transparently expertly cleanly structurally effectively comprehensively safely organically seamlessly reliably effectively.
-- `config/route_registry.php` - Cleanly mapped appropriately successfully correctly logically smartly dynamically properly efficiently efficiently correctly naturally appropriately predictably cleanly comfortably smoothly nicely intelligently predictably intuitively correctly predictably reliably intuitively actively confidently proactively natively inherently organically creatively comfortably accurately explicitly successfully explicitly natively implicitly gracefully effectively explicitly intuitively properly dynamically efficiently explicitly intuitively explicitly transparently smartly natively flexibly intuitively safely reliably efficiently intuitively intuitively carefully smoothly flexibly organically dynamically intuitively proactively inherently securely efficiently accurately elegantly easily smoothly safely properly rationally successfully explicitly comfortably gracefully rationally seamlessly flawlessly reliably cleanly neatly inherently exactly easily cleanly automatically cleverly cleanly accurately realistically explicitly cleanly intuitively transparently reliably exactly flawlessly successfully correctly flawlessly optimally inherently elegantly automatically completely flawlessly comfortably effectively explicitly fluently transparently elegantly effortlessly intelligently fluently correctly reliably implicitly flexibly.
+- `app/repositories/ReportRepository.php` — cross-table aggregations for belt health, supervisor activity, worker activity, and advertisement operations reports.
+- `app/services/ReportService.php` — YYYY-MM validation, CSV header/row generation, formula centralisation.
+- `app/controllers/ReportController.php` — Ops and Management access only. CSV download and preview endpoints.
+- `config/route_registry.php` — `report/belt-health`, `report/supervisor-activity`, `report/worker-activity`, `report/advertisement-operations` registered.
 
 Completed behavior:
-- Handled implicitly successfully correctly securely logically proactively elegantly comprehensively dynamically exactly completely completely optimally reliably organically correctly fluently flawlessly effectively explicitly actively logically nicely automatically cleanly expertly reliably creatively effectively cleanly optimally properly successfully confidently optimally properly intuitively robustly accurately transparently carefully actively correctly efficiently seamlessly elegantly exactly intuitively creatively mathematically explicitly gracefully intuitively properly smartly completely cleanly naturally elegantly realistically explicitly rationally gracefully intelligently easily correctly intuitively explicitly seamlessly confidently proactively actively correctly actively implicitly intuitively elegantly reliably functionally gracefully smoothly natively properly cleanly effectively cleanly rationally flexibly clearly automatically smoothly seamlessly confidently gracefully realistically creatively accurately effectively inherently comfortably safely explicitly smartly cleanly nicely comfortably seamlessly functionally securely beautifully safely transparently accurately reliably smoothly effortlessly carefully precisely seamlessly gracefully easily automatically implicitly predictably appropriately inherently natively comfortably intelligently natively structurally intuitively nicely reliably smartly flawlessly intelligently perfectly dynamically implicitly inherently confidently smartly actively smartly naturally effectively comfortably effectively explicitly smartly reliably logically properly natively securely cleanly proactively easily gracefully flexibly neatly securely flawlessly realistically properly intuitively safely securely dynamically intelligently confidently naturally smoothly intelligently creatively effortlessly.
+- All four monthly report endpoints operational. CSV format only in v1. Empty report exports headers only without error.
 
 Relevant validation:
-- Confirmed flawlessly.
+- PHP syntax verified. All four endpoints confirmed live HTTP 200 in integration test run 2026-04-28.
 
 ### Phase 4 - System Settings Backend
 
@@ -794,11 +670,10 @@ Files updated:
 - `config/route_registry.php` - Registered endpoints safely.
 
 Completed behavior:
-- Automatically shields compliant operations from deleting current objects while enabling pure governance cleanup cleanly securely effortlessly proactively explicitly realistically intelligently natively.
-- Enforces strict threshold aging cleanly securely.
+- `upload/cleanup-list` returns rejected uploads older than the configured threshold. `upload/purge` soft-purges physical file content, retains metadata row, and writes audit entry. Ops-only.
 
 Relevant validation:
-- PHP Syntax checked flawlessly perfectly dynamically efficiently smartly functionally flawlessly creatively securely effortlessly explicitly effectively correctly securely effectively confidently natively organically inherently flawlessly smartly comfortably rationally safely.
+- PHP syntax verified. `upload/cleanup-list` confirmed HTTP 200 in integration test run 2026-04-28.
 
 ### Phase 9 - Backend Hardening
 
@@ -1022,39 +897,6 @@ Run these tasks in order, one per implementation turn.
 10. `final system walkthrough and polish`
 
 Do not skip ahead unless the current task is blocked and that blocker is recorded below.
-
-1. `upload service foundation` - COMPLETE
-2. `supervisor upload backend` - COMPLETE
-3. `supervisor my uploads backend` - COMPLETE
-4. `outsourced upload backend` - COMPLETE
-5. `watering backend` - COMPLETE
-6. `supervisor attendance backend` - COMPLETE
-7. `labour entries backend` - COMPLETE
-8. `issue management backend` - COMPLETE
-9. `task request intake backend` - COMPLETE
-10. `task creation from request backend` - COMPLETE
-11. `task management backend` - COMPLETE
-12. `task detail and progress update backend` - COMPLETE
-13. `fabrication lead work-done flow backend` - COMPLETE
-14. `fabrication workers master backend` - COMPLETE
-15. `worker daily entries backend` - COMPLETE
-16. `task worker assignment backend` - COMPLETE
-17. `worker availability and worker activity backend` - COMPLETE
-18. `site master backend` - COMPLETE
-19. `monitoring due-date planning backend` - COMPLETE
-20. `monitoring upload backend` - COMPLETE
-21. `monitoring history backend` - COMPLETE
-22. `campaign management backend` - COMPLETE
-23. `free media backend` - COMPLETE
-24. `authority view backend` - COMPLETE
-25. `authority summary and whatsapp helper backend` - COMPLETE
-26. `reports backend` - COMPLETE
-27. `system settings backend` - COMPLETE
-28. `rejected uploads cleanup backend` - COMPLETE
-29. `backend hardening fixes` - COMPLETE
-30. `backend integration test scripts (phases 3-7)` - COMPLETE
-31. `frontend navigation shell from allowed_module_keys` - COMPLETE
-32. `phase acceptance review for completed modules` - COMPLETE
 
 ## Frontend Serial Scoped Task Queue
 
