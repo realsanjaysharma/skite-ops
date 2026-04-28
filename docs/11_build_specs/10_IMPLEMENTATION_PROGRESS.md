@@ -22,6 +22,7 @@ Future prompts can reference this file instead of repeating product context.
 - Phase 1 backend foundation is verified against the real configured app database on local XAMPP
 - reusable auth/user/audit/RBAC foundation exists, backend product modules are implemented, and frontend module UI is now the active workstream
 - Frontend shell hardening is COMPLETE: RBAC-filtered menu, view registry, shared UI primitives, mobile navigation, current-month defaults, and route-map validation are now in place
+- Upload Review frontend is COMPLETE: Interactive view with thumbnails, inline approve/reject with modals, and bulk actions for Ops.
 - BaseRepository transaction methods fixed to public for service-layer control
 - AI tool handoff guide created at `docs/AI_TOOL_HANDOFF_GUIDE.md` for multi-tool workflow
 - Phase 2 Green Belt Core backend is COMPLETE (9 files, 16 routes, detail payload aligned, syntax validated)
@@ -105,6 +106,14 @@ Validated behaviors:
 - Frontend integration and page-specific UI work is currently ongoing.
 
 ## Current Phase
+
+### Phase 8 - Frontend Hardening & Module UI
+
+Status: `ONGOING`
+
+Currently implementing specific interactive module views in the frontend shell, migrating from read-only stubs to full functional components.
+
+## Completed Backend Phases
 
 ### Phase 1 - Platform Foundation And RBAC Runtime
 
@@ -221,7 +230,7 @@ Known deferrals:
 
 - no upload HTTP routes or controllers added in this task
 - no surface-specific RBAC wiring added in this task
-- upload review, cleanup, and purge flows remain future scoped tasks
+- upload review, cleanup, and purge flows are now implemented.
 
 ### Phase 3 - Supervisor Upload Backend
 
@@ -244,7 +253,7 @@ Relevant validation:
 - PHP syntax checks passed for `UploadController.php`, `config/route_registry.php`, and `UploadService.php`.
 
 Known deferrals:
-- Upload review queue for Ops deferred to later scoped task.
+- Upload review queue for Ops is now implemented in the frontend.
 
 ### Phase 3 - Supervisor My Uploads Backend
 
@@ -1387,3 +1396,47 @@ End-to-end run executed against XAMPP confirms both fixes:
 
 - Backend defensive validation in `TaskService::createTask` to return clean 400 instead of leaking SQL error when `location_text` missing — minor polish, separate task.
 - `task.management` view still uses non-canonical status filter values (`PENDING`/`IN_PROGRESS`/`WORK_DONE`); does not block functionality but should be aligned to `OPEN`/`RUNNING`/`COMPLETED` per spec §6.
+
+## Upload Review Frontend Full View — 2026-04-28
+
+Status: `COMPLETE — SYNTAX VERIFIED`
+
+Promoted `green_belt.upload_review` from a generic simpleList stub to a full operational view in `public/js/views/modules.js`.
+
+### Spec Compliance (per §13 of `04_PAGE_FIELD_AND_ACTION_SPEC.md`)
+
+Required columns now present:
+- thumbnail (rendered via `upload/serve?id={id}`)
+- upload_id (`id`)
+- created_at
+- belt_name / parent_name
+- supervisor_name / created_by_user_name
+- upload_type
+- authority_visibility (UI.status pill)
+
+Required actions now present:
+- Approve (inline and modal)
+- Reject (inline and modal, prompts for reason)
+- Bulk Approve (via table checkboxes)
+- Bulk Reject (via table checkboxes, prompts for reason)
+- Detail Modal (opens on row click, displays full-size image and comment)
+
+### Lifecycle Controls Added
+
+- **ISSUE uploads**: Spec requires that issue uploads cannot become `APPROVED`. The UI now explicitly disables the approve/reject action buttons for `ISSUE` upload types.
+- **Completed rows**: Action buttons are hidden or disabled if the row is already `APPROVED` or `REJECTED`.
+
+### Filters
+
+- `date_from` and `date_to`
+- `upload_type`
+- `authority_visibility`
+
+### Removed
+
+- `green_belt.upload_review` entry removed from the `simpleLists` fallback object so the new full view is the only registered handler.
+
+### Files Touched
+
+- `public/js/views/modules.js` (Removed from simpleLists, added full `green_belt.upload_review` view)
+- `docs/11_build_specs/10_IMPLEMENTATION_PROGRESS.md` (Updated status and added this entry)

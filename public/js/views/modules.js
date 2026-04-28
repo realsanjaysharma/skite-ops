@@ -1472,9 +1472,168 @@ Views.register('governance.rejected_upload_cleanup', {
   }
 });
 
+Views.register('green_belt.upload_review', {
+  async render({ params = {} }) {
+    const data = await Api.get('upload/list', params);
+    const rows = normalizeItems(data);
+    
+    const columns = [
+      { 
+        key: 'thumbnail', 
+        label: '<input type="checkbox" id="selectAllUploads">', 
+        html: true, 
+        render: (row) => `<input type="checkbox" class="upload-select" value="${row.id}"> <img src="${Api.url('upload/serve', { id: row.id })}" alt="Proof" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px; vertical-align: middle;">` 
+      },
+      { key: 'id', label: 'ID' },
+      { key: 'created_at', label: 'Date/Time' },
+      { key: 'parent_name', label: 'Belt/Site', render: (row) => row.parent_name || `#${row.parent_id}` },
+      { key: 'created_by_user_name', label: 'Creator', render: (row) => row.created_by_user_name || 'System' },
+      { key: 'upload_type', label: 'Type' },
+      { key: 'authority_visibility', label: 'Visibility', html: true, render: (row) => UI.status(row.authority_visibility) },
+      {
+        key: 'actions',
+        label: 'Actions',
+        html: true,
+        render: (row) => {
+          if (row.upload_type === 'ISSUE') return '<span style="opacity:0.5;font-size:0.8rem;">ISSUE upload</span>';
+          if (row.authority_visibility === 'APPROVED') return '<span style="opacity:0.5;font-size:0.8rem;">Approved</span>';
+          if (row.authority_visibility === 'REJECTED') return '<span style="opacity:0.5;font-size:0.8rem;">Rejected</span>';
+          return `
+            <button class="btn btn-sm btn-primary" data-approve="${row.id}">Approve</button>
+            <button class="btn btn-sm btn-warn" data-reject="${row.id}">Reject</button>
+          `;
+        }
+      }
+    ];
+
+    const actions = UI.button('Bulk Approve', { icon: 'ph-check-circle', kind: 'btn-primary', attr: 'data-bulk-approve' }) +
+                    UI.button('Bulk Reject', { icon: 'ph-x-circle', kind: 'btn-warn', attr: 'data-bulk-reject' });
+
+    return UI.page('Upload Review', 'Review and process field proofs', actions)
+      + UI.panel('Filters', UI.filters([
+        { name: 'date_from', label: 'From', type: 'date', value: params.date_from },
+        { name: 'date_to', label: 'To', type: 'date', value: params.date_to },
+        { name: 'upload_type', label: 'Type', type: 'select', value: params.upload_type || '', options: ['', 'WORK', 'ISSUE'] },
+        { name: 'authority_visibility', label: 'Visibility', type: 'select', value: params.authority_visibility || 'PENDING', options: ['', 'PENDING', 'APPROVED', 'REJECTED', 'HIDDEN'] }
+      ], 'Search'))
+      + UI.panel('Review Queue', UI.table(columns, rows, {
+        empty: 'No uploads found for review',
+        rowAttr: (row) => `data-upload='${JSON.stringify(row).replace(/'/g, "&#39;")}'`
+      }));
+  },
+  async afterRender() {
+    attachRefresh();
+    wireFilters((payload) => App.navigate('green_belt.upload_review', payload));
+
+    const selectAll = document.getElementById('selectAllUploads');
+    selectAll?.addEventListener('change', (e) => {
+      document.querySelectorAll('.upload-select').forEach(cb => cb.checked = e.target.checked);
+    });
+
+    document.querySelectorAll('[data-upload]').forEach(row => {
+      row.addEventListener('click', (e) => {
+        if (e.target.closest('button') || e.target.closest('input')) return;
+        
+        const upload = JSON.parse(row.dataset.upload);
+        let actionButtons = '';
+        
+        if (upload.upload_type !== 'ISSUE' && upload.authority_visibility !== 'APPROVED' && upload.authority_visibility !== 'REJECTED') {
+          actionButtons = `
+            <div class="modal-actions" style="margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 1rem;">
+              <button type="button" class="btn btn-primary" data-modal-approve="${upload.id}">Approve</button>
+              <button type="button" class="btn btn-warn" data-modal-reject="${upload.id}">Reject</button>
+            </div>
+          `;
+        }
+
+        UI.showModal('Upload Detail', `
+          <div class="stack-form">
+            <div style="text-align: center; margin-bottom: 1rem;">
+              <img src="${Api.url('upload/serve', { id: upload.id })}" alt="Proof" style="max-width: 100%; max-height: 50vh; border-radius: 4px;">
+            </div>
+            <div class="form-grid">
+              <div class="field"><span>Type</span><input type="text" value="${upload.upload_type} (${upload.work_type || 'N/A'})" readonly></div>
+              <div class="field"><span>Visibility</span><input type="text" value="${upload.authority_visibility}" readonly></div>
+              <div class="field"><span>Belt/Site</span><input type="text" value="${upload.parent_name || upload.parent_id}" readonly></div>
+              <div class="field"><span>Creator</span><input type="text" value="${upload.created_by_user_name || 'System'}" readonly></div>
+              <div class="field full"><span>Comment</span><textarea readonly>${upload.comment_text || 'No comment'}</textarea></div>
+            </div>
+            ${actionButtons}
+          </div>
+        `);
+
+        const modal = document.getElementById('modal-root');
+        modal.querySelector('[data-modal-approve]')?.addEventListener('click', async () => {
+          await simpleAction('upload/review', { upload_ids: [upload.id], decision: 'APPROVED' }, 'Upload approved');
+          UI.closeModal();
+          App.refresh();
+        });
+
+        modal.querySelector('[data-modal-reject]')?.addEventListener('click', () => {
+          UI.closeModal();
+          openSimpleForm('Reject Upload', [
+            { name: 'decision', type: 'hidden', value: 'REJECTED' },
+            { name: 'upload_ids_json', type: 'hidden', value: JSON.stringify([upload.id]) },
+            { name: 'comment', label: 'Reason for Rejection', type: 'textarea', required: true }
+          ], 'Confirm Rejection', (payload) => {
+            payload.upload_ids = JSON.parse(payload.upload_ids_json);
+            delete payload.upload_ids_json;
+            return simpleAction('upload/review', payload, 'Upload rejected');
+          });
+        });
+      });
+    });
+
+    document.querySelectorAll('[data-approve]').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        await simpleAction('upload/review', { upload_ids: [parseInt(btn.dataset.approve)], decision: 'APPROVED' }, 'Upload approved');
+        App.refresh();
+      });
+    });
+
+    document.querySelectorAll('[data-reject]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openSimpleForm('Reject Upload', [
+          { name: 'decision', type: 'hidden', value: 'REJECTED' },
+          { name: 'upload_ids_json', type: 'hidden', value: JSON.stringify([parseInt(btn.dataset.reject)]) },
+          { name: 'comment', label: 'Reason for Rejection', type: 'textarea', required: true }
+        ], 'Confirm Rejection', (payload) => {
+          payload.upload_ids = JSON.parse(payload.upload_ids_json);
+          delete payload.upload_ids_json;
+          return simpleAction('upload/review', payload, 'Upload rejected');
+        });
+      });
+    });
+
+    document.querySelector('[data-bulk-approve]')?.addEventListener('click', async () => {
+      const selected = Array.from(document.querySelectorAll('.upload-select:checked')).map(cb => parseInt(cb.value));
+      if (selected.length === 0) return alert('Select at least one upload.');
+      if (confirm(`Approve ${selected.length} uploads?`)) {
+        await simpleAction('upload/review', { upload_ids: selected, decision: 'APPROVED' }, \`\${selected.length} uploads approved\`);
+        App.refresh();
+      }
+    });
+
+    document.querySelector('[data-bulk-reject]')?.addEventListener('click', () => {
+      const selected = Array.from(document.querySelectorAll('.upload-select:checked')).map(cb => parseInt(cb.value));
+      if (selected.length === 0) return alert('Select at least one upload.');
+      openSimpleForm(\`Reject \${selected.length} Uploads\`, [
+        { name: 'decision', type: 'hidden', value: 'REJECTED' },
+        { name: 'upload_ids_json', type: 'hidden', value: JSON.stringify(selected) },
+        { name: 'comment', label: 'Reason for Rejection', type: 'textarea', required: true }
+      ], 'Confirm Rejection', (payload) => {
+        payload.upload_ids = JSON.parse(payload.upload_ids_json);
+        delete payload.upload_ids_json;
+        return simpleAction('upload/review', payload, \`\${selected.length} uploads rejected\`);
+      });
+    });
+  }
+});
+
 const simpleLists = {
   'green_belt.maintenance_cycles': ['cycle/list', 'Maintenance Cycles', ['id', 'belt_code', 'common_name', 'start_date', 'end_date', 'status']],
-  'green_belt.upload_review': ['upload/list', 'Upload Review', ['id', 'parent_type', 'parent_id', 'upload_type', 'authority_visibility', 'created_by_user_name', 'created_at']],
   'green_belt.issue_management': ['issue/list', 'Issues', ['id', 'title', 'priority', 'status', 'belt_id', 'site_id', 'created_at']],
   'green_belt.authority_view': ['authority/view', 'Authority View', ['id', 'belt_name', 'upload_type', 'work_type', 'created_at']],
   'task.progress_read': ['taskprogress/list', 'Task Progress', ['id', 'work_description', 'status', 'progress_percent', 'assigned_lead_name']],
