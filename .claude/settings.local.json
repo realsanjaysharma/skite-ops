@@ -11,7 +11,13 @@
       "Bash(bash tests/http_integration_mutations.sh)",
       "Bash(curl -s -X POST 'http://localhost/skite/index.php?route=auth/login' -H 'Content-Type: application/json' -d '{\"email\":\"ops.test.phase2@skite.local\",\"password\":\"TestPass123!\"}' -c /tmp/skite_test_cookies2.txt)",
       "Bash(curl -s -X POST 'http://localhost/skite/index.php?route=watering/mark' -b /tmp/skite_test_cookies2.txt -H 'Content-Type: application/json' -H 'X-CSRF-Token: __CMDSUB_OUTPUT__')",
-      "Bash(C:/xampp/php/php.exe tests/syntax_scan.php)"
+      "Bash(C:/xampp/php/php.exe tests/syntax_scan.php)",
+      "Bash(C:/xampp/php/php.exe -l config/route_registry.php)",
+      "Bash(C:/xampp/php/php.exe -l app/services/TaskService.php)",
+      "Bash(curl -s -X POST 'http://localhost/skite/index.php?route=auth/login' -H 'Content-Type: application/json' -d '{\"email\":\"ops.test.phase2@skite.local\",\"password\":\"TestPass123!\"}' -c /tmp/skite_fix3.txt)",
+      "Bash(curl -s -X POST 'http://localhost/skite/index.php?route=auth/login' -H 'Content-Type: application/json' -d '{\"email\":\"ops.test.phase2@skite.local\",\"password\":\"TestPass123!\"}' -c /tmp/skite_fix3b.txt)",
+      "Bash(awk '/CREATE TABLE `tasks`/,/^\\\\\\)/' docs/06_schema/schema_v1_full.sql)",
+      "Bash(curl -s -X POST 'http://localhost/skite/index.php?route=auth/login' -H 'Content-Type: application/json' -d '{\"email\":\"ops.test.phase2@skite.local\",\"password\":\"TestPass123!\"}' -c /tmp/skite_v2.txt)"
     ]
   },
   "prefersReducedMotion": false

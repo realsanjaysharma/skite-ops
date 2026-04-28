@@ -289,6 +289,8 @@ class UploadService
      */
     public function reviewUploads(array $uploadIds, string $decision, int $actorUserId, ?string $comment = null): void
     {
+        $uploadIds = array_values(array_unique(array_filter(array_map('intval', $uploadIds), static fn ($id) => $id > 0)));
+
         if (empty($uploadIds)) {
             throw new InvalidArgumentException('No uploads provided for review.');
         }
@@ -309,9 +311,14 @@ class UploadService
             // Store old state for audit
             $oldUploads = $this->uploadRepository->getUploadsForReview($uploadIds);
 
-            if (empty($oldUploads)) {
-                $this->uploadRepository->rollBack();
-                throw new InvalidArgumentException('None of the provided uploads are eligible for review.');
+            if (count($oldUploads) !== count($uploadIds)) {
+                throw new InvalidArgumentException('One or more uploads are not available for review.');
+            }
+
+            foreach ($oldUploads as $oldUpload) {
+                if (($oldUpload['upload_type'] ?? '') !== 'WORK' || ($oldUpload['authority_visibility'] ?? '') === 'NOT_ELIGIBLE') {
+                    throw new InvalidArgumentException('Only authority-eligible work uploads can be reviewed.');
+                }
             }
 
             $this->uploadRepository->review($uploadIds, $decision, $actorUserId, $comment);

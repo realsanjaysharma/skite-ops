@@ -283,7 +283,11 @@ class UploadRepository extends BaseRepository
                  reviewed_by_user_id = ?,
                  reviewed_at = NOW(),
                  updated_at = NOW()
-             WHERE id IN ($placeholders) AND is_deleted = 0 AND is_purged = 0",
+             WHERE id IN ($placeholders)
+               AND upload_type = 'WORK'
+               AND authority_visibility <> 'NOT_ELIGIBLE'
+               AND is_deleted = 0
+               AND is_purged = 0",
             $params
         );
     }
@@ -405,7 +409,11 @@ class UploadRepository extends BaseRepository
         }
         $placeholders = implode(',', array_fill(0, count($uploadIds), '?'));
         return $this->fetchAll(
-            "SELECT id, authority_visibility FROM uploads WHERE id IN ($placeholders) AND is_deleted = 0 AND is_purged = 0",
+            "SELECT id, upload_type, authority_visibility
+             FROM uploads
+             WHERE id IN ($placeholders)
+               AND is_deleted = 0
+               AND is_purged = 0",
             $uploadIds
         );
     }

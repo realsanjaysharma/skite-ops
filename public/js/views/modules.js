@@ -49,6 +49,10 @@ function valueForDisplay(value) {
   return value;
 }
 
+function isReviewableWorkUpload(upload) {
+  return upload?.upload_type === 'WORK' && upload?.authority_visibility === 'HIDDEN';
+}
+
 function inferColumns(rows, preferred = []) {
   const first = rows[0] || {};
   const keys = preferred.length ? preferred.filter((key) => key in first) : Object.keys(first).slice(0, 8);
@@ -1485,7 +1489,10 @@ Views.register('green_belt.upload_review', {
         key: 'thumbnail', 
         label: '<input type="checkbox" id="selectAllUploads">', 
         html: true, 
-        render: (row) => `<input type="checkbox" class="upload-select" value="${row.id}"> <img src="${Api.url('upload/serve', { id: row.id })}" alt="Proof" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px; vertical-align: middle;">` 
+        render: (row) => {
+          const disabled = isReviewableWorkUpload(row) ? '' : 'disabled';
+          return `<input type="checkbox" class="upload-select" value="${row.id}" ${disabled}> <img src="${Api.url('upload/serve', { id: row.id })}" alt="Proof" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px; vertical-align: middle;">`;
+        }
       },
       { key: 'id', label: 'ID' },
       { key: 'created_at', label: 'Date/Time' },
@@ -1498,9 +1505,7 @@ Views.register('green_belt.upload_review', {
         label: 'Actions',
         html: true,
         render: (row) => {
-          if (row.upload_type === 'ISSUE') return '<span style="opacity:0.5;font-size:0.8rem;">ISSUE upload</span>';
-          if (row.authority_visibility === 'APPROVED') return '<span style="opacity:0.5;font-size:0.8rem;">Approved</span>';
-          if (row.authority_visibility === 'REJECTED') return '<span style="opacity:0.5;font-size:0.8rem;">Rejected</span>';
+          if (!isReviewableWorkUpload(row)) return '<span style="opacity:0.5;font-size:0.8rem;">Not reviewable</span>';
           return `
             <button class="btn btn-sm btn-primary" data-approve="${row.id}">Approve</button>
             <button class="btn btn-sm btn-warn" data-reject="${row.id}">Reject</button>
@@ -1530,7 +1535,7 @@ Views.register('green_belt.upload_review', {
 
     const selectAll = document.getElementById('selectAllUploads');
     selectAll?.addEventListener('change', (e) => {
-      document.querySelectorAll('.upload-select').forEach(cb => cb.checked = e.target.checked);
+      document.querySelectorAll('.upload-select:not(:disabled)').forEach(cb => cb.checked = e.target.checked);
     });
 
     document.querySelectorAll('[data-upload]').forEach(row => {
@@ -1540,7 +1545,7 @@ Views.register('green_belt.upload_review', {
         const upload = JSON.parse(row.dataset.upload);
         let actionButtons = '';
         
-        if (upload.upload_type !== 'ISSUE' && upload.authority_visibility !== 'APPROVED' && upload.authority_visibility !== 'REJECTED') {
+        if (isReviewableWorkUpload(upload)) {
           actionButtons = `
             <div class="modal-actions" style="margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 1rem;">
               <button type="button" class="btn btn-primary" data-modal-approve="${upload.id}">Approve</button>
@@ -1555,11 +1560,11 @@ Views.register('green_belt.upload_review', {
               <img src="${Api.url('upload/serve', { id: upload.id })}" alt="Proof" style="max-width: 100%; max-height: 50vh; border-radius: 4px;">
             </div>
             <div class="form-grid">
-              <div class="field"><span>Type</span><input type="text" value="${upload.upload_type} (${upload.work_type || 'N/A'})" readonly></div>
-              <div class="field"><span>Visibility</span><input type="text" value="${upload.authority_visibility}" readonly></div>
-              <div class="field"><span>Belt/Site</span><input type="text" value="${upload.parent_name || upload.parent_id}" readonly></div>
-              <div class="field"><span>Creator</span><input type="text" value="${upload.created_by_user_name || 'System'}" readonly></div>
-              <div class="field full"><span>Comment</span><textarea readonly>${upload.comment_text || 'No comment'}</textarea></div>
+              <div class="field"><span>Type</span><input type="text" value="${UI.escape(`${upload.upload_type || ''} (${upload.work_type || 'N/A'})`)}" readonly></div>
+              <div class="field"><span>Visibility</span><input type="text" value="${UI.escape(upload.authority_visibility || '')}" readonly></div>
+              <div class="field"><span>Belt/Site</span><input type="text" value="${UI.escape(upload.parent_name || upload.parent_id || '')}" readonly></div>
+              <div class="field"><span>Creator</span><input type="text" value="${UI.escape(upload.created_by_user_name || 'System')}" readonly></div>
+              <div class="field full"><span>Comment</span><textarea readonly>${UI.escape(upload.comment_text || 'No comment')}</textarea></div>
             </div>
             ${actionButtons}
           </div>
@@ -1611,25 +1616,25 @@ Views.register('green_belt.upload_review', {
     });
 
     document.querySelector('[data-bulk-approve]')?.addEventListener('click', async () => {
-      const selected = Array.from(document.querySelectorAll('.upload-select:checked')).map(cb => parseInt(cb.value));
+      const selected = Array.from(document.querySelectorAll('.upload-select:checked:not(:disabled)')).map(cb => parseInt(cb.value));
       if (selected.length === 0) return alert('Select at least one upload.');
       if (confirm(`Approve ${selected.length} uploads?`)) {
-        await simpleAction('upload/review', { upload_ids: selected, decision: 'APPROVED' }, \`\${selected.length} uploads approved\`);
+        await simpleAction('upload/review', { upload_ids: selected, decision: 'APPROVED' }, `${selected.length} uploads approved`);
         App.refresh();
       }
     });
 
     document.querySelector('[data-bulk-reject]')?.addEventListener('click', () => {
-      const selected = Array.from(document.querySelectorAll('.upload-select:checked')).map(cb => parseInt(cb.value));
+      const selected = Array.from(document.querySelectorAll('.upload-select:checked:not(:disabled)')).map(cb => parseInt(cb.value));
       if (selected.length === 0) return alert('Select at least one upload.');
-      openSimpleForm(\`Reject \${selected.length} Uploads\`, [
+      openSimpleForm(`Reject ${selected.length} Uploads`, [
         { name: 'decision', type: 'hidden', value: 'REJECTED' },
         { name: 'upload_ids_json', type: 'hidden', value: JSON.stringify(selected) },
         { name: 'comment', label: 'Reason for Rejection', type: 'textarea', required: true }
       ], 'Confirm Rejection', (payload) => {
         payload.upload_ids = JSON.parse(payload.upload_ids_json);
         delete payload.upload_ids_json;
-        return simpleAction('upload/review', payload, \`\${selected.length} uploads rejected\`);
+        return simpleAction('upload/review', payload, `${selected.length} uploads rejected`);
       });
     });
   }

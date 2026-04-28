@@ -108,17 +108,26 @@ check('Fetch Uploads List', $uploads);
 // We need an upload ID to review
 $items = $uploads['body']['data']['items'] ?? [];
 if (count($items) > 0) {
-    $uploadIdToReview = $items[0]['id'];
-    echo "   Found upload ID $uploadIdToReview to review.\n";
-    
-    // Check if it's already approved/rejected, if so, we can just review it again
-    $reviewReq = request($baseUrl . 'upload/review', 'POST', [
-        'upload_ids' => [$uploadIdToReview],
-        'decision' => 'APPROVED',
-        'comment' => 'Integration test approval'
-    ], $cookieFile, $csrf);
-    
-    check('Review Upload as APPROVED', $reviewReq);
+    $reviewableItems = array_values(array_filter($items, static function ($item) {
+        return ($item['upload_type'] ?? null) === 'WORK'
+            && ($item['authority_visibility'] ?? null) !== 'NOT_ELIGIBLE';
+    }));
+
+    if (count($reviewableItems) === 0) {
+        echo "   [SKIP] Uploads exist, but none are authority-eligible WORK uploads.\n";
+    } else {
+        $uploadIdToReview = $reviewableItems[0]['id'];
+        echo "   Found upload ID $uploadIdToReview to review.\n";
+
+        // Check if it's already approved/rejected, if so, we can just review it again
+        $reviewReq = request($baseUrl . 'upload/review', 'POST', [
+            'upload_ids' => [$uploadIdToReview],
+            'decision' => 'APPROVED',
+            'comment' => 'Integration test approval'
+        ], $cookieFile, $csrf);
+
+        check('Review Upload as APPROVED', $reviewReq);
+    }
 } else {
     echo "   [SKIP] No uploads found to review in the database.\n";
 }

@@ -1,88 +1,94 @@
-# AI Tool Handoff Guide — Skite Ops
+# AI Tool Handoff Guide - Skite Ops
 
 ## Purpose
 
-This file exists so any AI coding tool (Antigravity, Cursor, Codex, Claude, ChatGPT) can pick up this project mid-build without losing context. Read this file FIRST before doing any work.
+This is the evergreen handoff guide for AI coding tools working on Skite Ops. It documents stable patterns, commands, and doc authority. It does not track current project status.
+
+Current status and the next task live only in:
+
+- `docs/11_build_specs/10_IMPLEMENTATION_PROGRESS.md`
 
 ## How To Start Any Session
 
-```
-1. Read this file (docs/AI_TOOL_HANDOFF_GUIDE.md)
-2. Read docs/11_build_specs/10_IMPLEMENTATION_PROGRESS.md
-3. Identify the "Current Recommended Next Task" section
-4. Read ONLY the doc files listed under that task
-5. Begin work
-```
+1. Read this file.
+2. Read `docs/11_build_specs/10_IMPLEMENTATION_PROGRESS.md`.
+3. Follow `Current Next Scoped Task`.
+4. Read only the reference docs listed for that task.
+5. Implement only that task, validate, update the progress file, then stop.
 
-Do NOT re-read the entire docs folder every session. The progress file tells you exactly which docs matter for the current task.
+Do not re-read the whole docs folder every session.
 
 ## Project Identity
 
-- **Name:** Skite Ops
-- **Stack:** PHP 8+ / MySQL (MariaDB) / XAMPP local dev
-- **Entry point:** `index.php` — query-string router (`?route=module/action`)
-- **Architecture:** Controller → Service → Repository → Database
-- **API style:** JSON-only REST-like API, no server-rendered HTML yet
-- **DB name:** `skite_ops` (configured in `.env`)
-- **PHP path:** `C:\xampp\php\php.exe`
-- **Base URL:** `http://localhost/skite/index.php?route=`
+- Name: Skite Ops
+- Stack: PHP 8+ / MySQL or MariaDB / XAMPP local dev
+- Frontend: vanilla JS app shell in `public/`
+- Entry point: `index.php`
+- Router style: query-string route, for example `?route=module/action`
+- Backend architecture: Controller -> Service -> Repository -> Database
+- API style: JSON REST-like endpoints
+- DB name: `skite_ops` from `.env`
+- PHP path: `C:\xampp\php\php.exe`
+- Base URL: `http://localhost/skite/index.php?route=`
 
-## Documentation Authority Rules
+## Documentation Authority
 
 When docs conflict, use this precedence:
 
-1. `docs/10_recovered_product/*` — wins on WHAT the system should do
-2. `docs/11_build_specs/*` — wins on HOW it should be implemented
-3. Legacy docs (`01_structure`, `02_interface`, etc.) — mirrors only, never override canon
+1. `docs/10_recovered_product/*` controls product intent and behavior.
+2. `docs/11_build_specs/*` controls implementation contracts.
+3. Legacy docs are historical mirrors only.
+4. Code is checked against the canonical docs, not the old legacy docs.
 
-## Established Code Patterns
+## Backend Patterns
 
-Every new module MUST follow these patterns. Do not invent new ones.
+Every backend module follows Controller -> Service -> Repository.
 
-### File Structure Per Module
+### Files
 
-```
-app/
-  controllers/<ModuleName>Controller.php    — HTTP validation + response shaping only
-  services/<ModuleName>Service.php          — Business rules, validation, lifecycle
-  repositories/<ModuleName>Repository.php   — SQL queries only, extends BaseRepository
+```text
+app/controllers/<ModuleName>Controller.php
+app/services/<ModuleName>Service.php
+app/repositories/<ModuleName>Repository.php
 ```
 
 ### Route Registration
 
-Add routes to `config/route_registry.php` following this exact format:
+Add protected routes to `config/route_registry.php`:
 
 ```php
 'module/action' => [
     'controller' => 'ModuleNameController',
     'method'     => 'methodName',
-    'module_key' => 'domain.module_key',       // from config/rbac.php module_catalog
+    'module_key' => 'domain.module_key',
     'capability' => 'read|upload|approve|manage',
 ],
 ```
 
+Use `module_key => null` only for intentionally dynamic routes such as shared upload surfaces where the controller/service resolves access from role context.
+
 ### Controller Pattern
 
+Controllers should extend `BaseController` when possible.
+
 ```php
-class ExampleController {
-    public function actionName(): void {
-        // 1. Check HTTP method
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            Response::error('Method not allowed', 405);
-            return;
-        }
-        // 2. Parse input (JSON body or query params)
-        $input = json_decode(file_get_contents('php://input'), true);
-        // 3. Validate required fields exist (format only, not business rules)
-        if (empty($input['field_name'])) {
-            Response::error('field_name is required', 400);
-            return;
-        }
-        // 4. Call service
+class ExampleController extends BaseController
+{
+    public function actionName(): void
+    {
+        if (!$this->requireMethod('POST')) return;
+
+        $input = $this->getInput();
+        $actor = $this->getActor();
+
         try {
             $service = new ExampleService();
-            $result = $service->doSomething($input, $_SESSION['user_id']);
+            $result = $service->doSomething($input, $actor['user_id'], $actor['role_key']);
             Response::success($result);
+        } catch (DomainException $e) {
+            Response::error($e->getMessage(), 403);
+        } catch (InvalidArgumentException $e) {
+            Response::error($e->getMessage(), 400);
         } catch (Throwable $e) {
             Response::error($e->getMessage(), 400);
         }
@@ -90,215 +96,262 @@ class ExampleController {
 }
 ```
 
+Controller responsibility:
+
+- HTTP method checks
+- input shape parsing
+- response shaping
+- no deep business rules
+- no SQL
+
 ### Service Pattern
 
+Services own business rules, state transitions, record-scope checks, transactions, and audit logging.
+
 ```php
-class ExampleService {
+class ExampleService
+{
     private ExampleRepository $repo;
     private AuditService $auditService;
 
-    public function __construct() {
+    public function __construct()
+    {
         $this->repo = new ExampleRepository();
         $this->auditService = new AuditService();
     }
 
-    public function doSomething(array $data, int $actorUserId): array {
-        // 1. Business validation (not HTTP format validation)
-        // 2. Execute business logic
-        // 3. Use transactions for multi-table mutations
-        //    $this->repo->beginTransaction();
-        //    try { ... $this->repo->commit(); }
-        //    catch (...) { $this->repo->rollback(); throw; }
-        // 4. Write audit log for governed mutations
-        // 5. Return result array
+    public function doSomething(array $data, int $actorUserId, string $actorRoleKey): array
+    {
+        $this->repo->beginTransaction();
+        try {
+            // validate business rules
+            // mutate through repository
+            // audit governed changes
+            $this->repo->commit();
+            return [];
+        } catch (Throwable $e) {
+            $this->repo->rollback();
+            throw $e;
+        }
     }
 }
 ```
+
+Important: do not call `rollback()` manually before throwing inside the `try`; the catch block rolls back once.
 
 ### Repository Pattern
 
+Repositories own SQL only and extend `BaseRepository`.
+
 ```php
-class ExampleRepository extends BaseRepository {
-    public function findById(int $id): ?array {
-        return $this->fetchOne("SELECT * FROM table WHERE id = ?", [$id]);
+class ExampleRepository extends BaseRepository
+{
+    public function findById(int $id): ?array
+    {
+        return $this->fetchOne('SELECT * FROM table_name WHERE id = ?', [$id]);
     }
 
-    public function findAll(array $filters, int $page, int $limit): array {
-        // Build WHERE clause from filters
-        // Return $this->fetchAll(...)
+    public function findAll(array $filters, int $page, int $limit): array
+    {
+        return $this->fetchAll('SELECT ...', []);
     }
 
-    public function create(array $data): int {
-        $this->execute("INSERT INTO table (...) VALUES (...)", [...]);
+    public function create(array $data): int
+    {
+        $this->execute('INSERT INTO table_name (...) VALUES (...)', []);
         return (int) $this->lastInsertId();
-    }
-
-    public function update(int $id, array $data): bool {
-        return $this->execute("UPDATE table SET ... WHERE id = ?", [...]);
-    }
-
-    public function countAll(array $filters): int {
-        $row = $this->fetchOne("SELECT COUNT(*) as total FROM table WHERE ...", [...]);
-        return (int) ($row['total'] ?? 0);
     }
 }
 ```
 
-### Response Envelope
+`BaseRepository` exposes public `beginTransaction()`, `commit()`, and `rollback()` methods. All repositories share the same PDO singleton.
 
-Always use `Response::success($data)` and `Response::error($message, $statusCode)`.
+### Response Shape
 
-Success: `{ "success": true, "data": {...} }`
-Error: `{ "success": false, "error": "Message" }`
+Use `Response::success($data)` and `Response::error($message, $statusCode)`.
 
-### List Response Shape
+List endpoints return:
 
 ```php
 Response::success([
     'items' => $items,
     'pagination' => [
-        'page'  => $page,
+        'page' => $page,
         'limit' => $limit,
         'total' => $total,
-    ]
+    ],
 ]);
 ```
 
 ### Audit Logging
 
-For any governed mutation (create, update, delete, lifecycle change, override):
+For governed mutations:
 
 ```php
 $this->auditService->log(
     $actorUserId,
-    'ACTION_TYPE',      // e.g. BELT_CREATED, ASSIGNMENT_CLOSED
-    'entity_type',      // e.g. green_belt, belt_supervisor_assignment
+    'ACTION_TYPE',
+    'entity_type',
     $entityId,
-    $oldValues,         // array or null
-    $newValues,         // array or null
-    $overrideReason     // string or null
+    $oldValues,
+    $newValues,
+    $reason
 );
 ```
 
-### Constants
-
-All magic numbers must come from `config/constants.php`. Never hardcode values.
-
 ### RBAC
 
-- Module keys are in `config/rbac.php` under `module_catalog`
-- Landing routes are in `config/rbac.php` under `landing_routes`
-- Capability matrix: VIEW→read, UPLOAD→read+upload, APPROVE→read+approve, MANAGE→all
-- Middleware handles module-level access automatically via route_registry `module_key`
-- Record-scope filtering is the SERVICE layer's responsibility
+- Module keys live in `config/rbac.php`.
+- Routes and capabilities live in `config/route_registry.php`.
+- Middleware enforces module-level access.
+- Services enforce record-scope rules.
+- Capability groups: `VIEW -> read`, `UPLOAD -> read/upload`, `APPROVE -> read/approve`, `MANAGE -> read/upload/approve/manage`.
 
-## Transaction Method Access
+## Frontend Patterns
 
-`BaseRepository` exposes `beginTransaction()`, `commit()`, and `rollback()` as **public** methods. Services call these on any repository instance since all repos share the same PDO singleton.
+The frontend is vanilla JS. Do not migrate to React/Vue unless the project owner explicitly reopens the frontend architecture decision.
 
-## Multi-Tool Workflow
+### Files
 
-### Before Ending Any Session
-
-Update `docs/11_build_specs/10_IMPLEMENTATION_PROGRESS.md` with:
-
-1. **What was just completed** — files created, routes added, tests passed
-2. **File patterns established** — any new patterns introduced (note them here too)
-3. **Current recommended next task** — what to build next, which docs to read
-4. **Known issues** — anything broken or deferred
-
-### Tool Selection Guide
-
-| Task Type | Best Tool | Why |
-|---|---|---|
-| Full module scaffolding (controller+service+repo) | Antigravity or Codex | Filesystem access, can read existing patterns |
-| Small edits, route additions | Cursor + Copilot | In-editor, fast |
-| Complex business logic planning | Claude.ai or ChatGPT | Paste doc sections, discuss logic |
-| Debugging PHP errors | Any chat tool | Paste error + code, get fix |
-| Report formula implementation | Antigravity | Needs to read multiple doc files simultaneously |
-
-### Session Start Prompt Template
-
-Use this when opening any AI tool for this project:
-
-```
-Read docs/AI_TOOL_HANDOFF_GUIDE.md and docs/11_build_specs/10_IMPLEMENTATION_PROGRESS.md
-from the Skite Ops project at c:\xampp\htdocs\skite.
-
-Continue from the current recommended next task.
-Follow the established code patterns documented in the handoff guide.
+```text
+public/index.html
+public/css/style.css
+public/js/app.js
+public/js/core/api.js
+public/js/core/auth.js
+public/js/core/navigation.js
+public/js/core/ui.js
+public/js/views/modules.js
 ```
 
-## Current Project Status
+### View Registration
 
-### Completed
+Each page/module should be registered in `public/js/views/modules.js`:
 
-- Phase 0: Doc and contract alignment — LOCKED
-- Phase 1: Platform foundation and RBAC — VERIFIED ON LIVE DB
-- BaseRepository transaction fix — DONE (methods now public)
-
-### In Progress
-
-- Phase 2: Green Belt Core — NOT STARTED
-
-### Build Phase Order
-
-```
-Phase 2  → Green Belt Master + assignments
-Phase 3  → Field operations (upload, watering, attendance, labour, issues)
-Phase 4  → Request → Task → Fabrication execution
-Phase 5  → Advertisement sites, monitoring, campaigns, free media
-Phase 6  → Authority view, read portals
-Phase 7  → Reports, alerts, dashboards, settings
-Phase 8  → Hardening, pagination, transaction coverage, deployment
-Frontend → Technology decision still pending
+```js
+Views.register('domain.module_key', {
+  async render({ params = {} }) {
+    const data = await Api.get('route/list', params);
+    return UI.page('Title', 'Subtitle')
+      + UI.panel('Records', UI.table(columns, normalizeItems(data)));
+  },
+  async afterRender() {
+    attachRefresh();
+    wireFilters((payload) => App.navigate('domain.module_key', payload));
+  }
+});
 ```
 
-### Infrastructure Items To Build Alongside Modules
+### UI Helpers
 
-These should be built when first needed, not as a separate phase:
+Prefer existing helpers:
 
-- [ ] **Pagination helper** — build during Phase 2 `belt/list`
-- [ ] **Record-scope helper** — build during Phase 3 when supervisor/authority scoping begins
-- [ ] **Upload service** — build during Phase 3 supervisor upload
-- [ ] **Settings service** — build during Phase 7 or when first setting is needed
-- [ ] **Frontend architecture decision** — must be made before Phase 6
+- `UI.page(title, subtitle, actions)`
+- `UI.panel(title, body, actions)`
+- `UI.table(columns, rows, options)`
+- `UI.filters(fields, label)`
+- `UI.field(field)`
+- `UI.showModal(title, body)`
+- `UI.toast(message, type)`
+- `UI.status(value)`
+
+Use `UI.escape()` before injecting user-controlled strings into `innerHTML`.
+
+### Form and Action Helpers
+
+- `openSimpleForm(title, fields, submitLabel, handler)` for simple modal forms.
+- `simpleAction(route, payload, successMessage)` for POST mutations.
+- `simpleAction()` already closes modal, shows toast, and calls `App.refresh()`.
+- `App.navigate(moduleKey, params)` for navigation.
+
+### Navigation and RBAC
+
+- `public/js/core/navigation.js` maps frontend module keys to backend routes.
+- Keep `NavMap` aligned with `config/rbac.php` and `config/route_registry.php`.
+- Detail modules should be hidden from sidebar and opened through rows/cards.
+- Role-specific landing modules should stay hidden from unrelated roles.
+- Run `tests/test_frontend_route_map.php` after navigation changes.
+
+### Cache Marker
+
+Current cache version is listed in `10_IMPLEMENTATION_PROGRESS.md`.
+
+If you change frontend JS, bump the relevant `?v=N` in `public/index.html`.
+
+## Codebase Pitfalls
+
+- Use exact schema/API field names. Unknown payload keys may be silently dropped by repositories.
+- Lead assignment field is `assigned_lead_user_id`, not `lead_user_id`.
+- Labour fields are `labour_count`, `gardener_count`, `night_guard_count`.
+- Task statuses are `OPEN`, `RUNNING`, `COMPLETED`, `CANCELLED`, `ARCHIVED`.
+- Task `vertical_type` values are `GREEN_BELT`, `ADVERTISEMENT`, `MONITORING`.
+- Watering stores only `DONE` and `NOT_REQUIRED`; `PENDING` is derived.
+- Site categories are `GREEN_BELT`, `CITY`, `HIGHWAY`.
+- Lighting values are `LIT`, `NON_LIT`.
+- Issue uploads and `NOT_ELIGIBLE` uploads must never become authority `APPROVED`.
+- `task/start` uses module key `task.my_tasks` so Fabrication Lead can start assigned tasks.
+- `upload/create` is a shared dynamic route; do not force one static module key onto it.
+
+## Validation Commands
+
+Run only the checks relevant to the task, but always run syntax checks after edits.
+
+```powershell
+C:\xampp\php\php.exe tests\syntax_scan.php
+node --check public\js\app.js
+node --check public\js\core\api.js
+node --check public\js\core\auth.js
+node --check public\js\core\navigation.js
+node --check public\js\core\ui.js
+node --check public\js\views\modules.js
+C:\xampp\php\php.exe tests\test_frontend_route_map.php
+C:\xampp\php\php.exe tests\test_frontend_nav.php
+C:\xampp\php\php.exe tests\test_gap_resolution.php
+C:\xampp\php\php.exe tests\test_upload_review_safety.php
+```
+
+HTTP integration scripts:
+
+```bash
+bash tests/http_integration_test.sh
+bash tests/http_integration_mutations.sh
+```
+
+Local test credentials commonly used:
+
+- Base URL: `http://localhost/skite/index.php?route=`
+- Ops email: `ops.test.phase2@skite.local`
+- Password: `TestPass123!`
 
 ## Key Doc Quick Reference
 
-| Need to know... | Read this |
+| Need | Read |
 |---|---|
-| What tables exist and their columns | `docs/11_build_specs/02_CANONICAL_SCHEMA_ROADMAP.md` |
-| What routes/endpoints to create | `docs/11_build_specs/03_API_AND_ROUTE_CONTRACT.md` |
-| What fields/filters each page needs | `docs/11_build_specs/04_PAGE_FIELD_AND_ACTION_SPEC.md` |
-| What state transitions are allowed | `docs/11_build_specs/05_WORKFLOW_STATE_MACHINE_SPEC.md` |
-| Upload rules and storage layout | `docs/11_build_specs/06_UPLOAD_STORAGE_RETENTION_SPEC.md` |
-| Dashboard/report formulas | `docs/11_build_specs/07_REPORTS_ALERTS_AND_FORMULAS.md` |
-| System settings and external actions | `docs/11_build_specs/08_SYSTEM_SETTINGS_AND_EXTERNAL_ACTIONS.md` |
-| Module done-when criteria | `docs/11_build_specs/09_MODULE_ACCEPTANCE_CHECKLISTS.md` |
-| Current progress and next task | `docs/11_build_specs/10_IMPLEMENTATION_PROGRESS.md` |
-| RBAC role→module→capability mapping | `docs/11_build_specs/01_RBAC_PERMISSION_GROUP_SPEC.md` |
-| Build phase order | `docs/11_build_specs/00_IMPLEMENTATION_MASTER_PLAN.md` |
-| Product intent and scope | `docs/10_recovered_product/00_FINAL_PRODUCT_BEHAVIOR_MODEL.md` |
+| Current task and queue | `docs/11_build_specs/10_IMPLEMENTATION_PROGRESS.md` |
+| RBAC roles, permission groups, landing pages | `docs/11_build_specs/01_RBAC_PERMISSION_GROUP_SPEC.md` |
+| Schema/tables/fields | `docs/11_build_specs/02_CANONICAL_SCHEMA_ROADMAP.md` |
+| API/routes/payloads | `docs/11_build_specs/03_API_AND_ROUTE_CONTRACT.md` |
+| Page fields/actions | `docs/11_build_specs/04_PAGE_FIELD_AND_ACTION_SPEC.md` |
+| State transitions | `docs/11_build_specs/05_WORKFLOW_STATE_MACHINE_SPEC.md` |
+| Upload/storage/retention | `docs/11_build_specs/06_UPLOAD_STORAGE_RETENTION_SPEC.md` |
+| Reports/formulas | `docs/11_build_specs/07_REPORTS_ALERTS_AND_FORMULAS.md` |
+| Settings/external actions | `docs/11_build_specs/08_SYSTEM_SETTINGS_AND_EXTERNAL_ACTIONS.md` |
+| Acceptance criteria | `docs/11_build_specs/09_MODULE_ACCEPTANCE_CHECKLISTS.md` |
+| Product intent | `docs/10_recovered_product/00_FINAL_PRODUCT_BEHAVIOR_MODEL.md` |
 
-## File Naming Conventions
+## Session Start Prompt
 
-- Controllers: `<EntityName>Controller.php` — PascalCase, singular (e.g., `BeltController.php`)
-- Services: `<EntityName>Service.php` — PascalCase, singular (e.g., `BeltService.php`)
-- Repositories: `<EntityName>Repository.php` — PascalCase, singular (e.g., `BeltRepository.php`)
-- Route modules: lowercase, matching route prefix (e.g., `belt/list` → `BeltController`)
-
-## PHP Syntax Check Command
-
-Always validate PHP files after creation:
-
-```
-C:\xampp\php\php.exe -l <filepath>
+```text
+Read docs/AI_TOOL_HANDOFF_GUIDE.md and docs/11_build_specs/10_IMPLEMENTATION_PROGRESS.md.
+Continue only the current next scoped task.
+Use locked docs only.
+Run relevant validation, update progress, then stop.
 ```
 
 ## Update Rule
 
-Any AI tool that modifies this project should update:
+Any AI tool that modifies this project must update:
 
-1. This file if new patterns are established
-2. `docs/11_build_specs/10_IMPLEMENTATION_PROGRESS.md` if any module work is completed
+1. `docs/11_build_specs/10_IMPLEMENTATION_PROGRESS.md` when task status, validation, blockers, or next task changes.
+2. This file only when stable reusable patterns change.
+
