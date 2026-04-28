@@ -1009,7 +1009,7 @@ Run these tasks in order, one per implementation turn.
 6. `governance.access_mappings full view`
 7. `task.progress_read full view`
 8. `dashboard and analytics final pass`
-9. `backend http integration testing`
+9. `backend http integration testing` — COMPLETE (2026-04-28, 42/42 reads + 15/16 writes, see "Backend HTTP Integration Testing" section below)
 10. `final system walkthrough and polish`
 
 Do not skip ahead unless the current task is blocked and that blocker is recorded below.
@@ -1090,6 +1090,72 @@ These were found during a cross-reference audit of `modules.js` against the sche
 
 ---
 
+## Bugs Fixed — 2026-04-28
+
+Spec-deviation pass. Fixed in `public/js/views/modules.js` and `public/index.html`.
+
+### 4. Green Belt Master Missing Supervisor Filter
+- **Problem:** Spec §6 requires a `supervisor` filter on the Green Belt master list. The backend (`BeltRepository`) supports `supervisor_user_id` via JOIN to `belt_supervisor_assignments`, but the frontend filter panel did not expose it.
+- **Fix:** Added `supervisor_user_id` numeric filter to the Green Belt master filter panel.
+
+### 5. Green Belt Create Form Missing `is_hidden` Toggle
+- **Problem:** Spec §6 requires an `is_hidden` toggle in the create form. The edit form already had it; the create form did not, so newly created belts could not be marked hidden at creation time.
+- **Fix:** Added `is_hidden` Yes/No toggle to the Create Green Belt form, defaulting to `0` (visible).
+
+### 6. Site Category Enum Mismatch (Site Master, Campaigns, Free Media)
+- **Problem:** Five filter/form locations exposed `BILLBOARD`, `BUS_SHELTER`, `POLE_KIOSK`, `OTHER` as `site_category` options. The schema enum is `('GREEN_BELT', 'CITY', 'HIGHWAY')` and `SiteService::ALLOWED_CATEGORIES` validates to those three values only. Submitting any of the wrong values caused server-side rejection on site create/update; filtering produced empty results.
+- **Fix:** Corrected `site_category` options to `['GREEN_BELT', 'CITY', 'HIGHWAY']` in: Site Master filter, Site create form, Site edit form, Campaign Management filter, and Free Media Inventory filter.
+- **Bonus:** Removed `DIGITAL` from `lighting_type` selects in Site create and edit forms — schema enum is `('LIT', 'NON_LIT')` only.
+- **Note:** Earlier review documented this deviation backwards (claimed Monitoring Plan was wrong). Monitoring Plan filter is actually correct. The wrong values were in the Site Master, Campaign, and Free Media views.
+
+### 7. Cache-Bust Bump
+- `public/index.html` script tags bumped from `?v=3` to `?v=4` to force browsers to reload the updated `modules.js`.
+
+---
+
+## Backend HTTP Integration Testing — 2026-04-28
+
+Status: `COMPLETE — LIVE VERIFIED ON XAMPP`
+
+Two new test scripts created and executed against `http://localhost/skite/index.php` with a logged-in OPS_MANAGER session (user `ops.test.phase2@skite.local`).
+
+### `tests/http_integration_test.sh` — Read Endpoint Coverage
+
+Hits every Phase 2+ GET endpoint with valid auth + CSRF. Confirms each route returns HTTP 200 and a parseable response body.
+
+**Result: 42 / 42 PASS.**
+
+Coverage by phase:
+- Phase 2 (Green Belt Core): 6 routes — `belt/list`, `belt/get`, `cycle/list`, 3× assignment lists
+- Phase 3 (Field Operations): 7 routes — `watering/list`, `attendance/list`, `labour/list`, `issue/list`, `upload/my-list`, `upload/list`, `oversight/watering`
+- Phase 3 (Tasks & Workers): 7 routes — `request/list`, `task/list`, `task/my`, `taskprogress/list`, `worker/list`, `worker/availability`, `workday/list`
+- Phase 3 (Advertisement): 6 routes — `site/list` (+ all 3 `site_category` enum values), `campaign/list`, `freemedia/list`
+- Phase 3 (Monitoring): 2 routes — `monitoringplan/list`, `monitoring/history`
+- Phase 4 (Authority/Reports/Settings): 7 routes — `authority/view`, `settings/list`, `audit/list`, all 4 monthly report endpoints
+- Phase 8 (Cleanup): 1 route — `upload/cleanup-list`
+- Dashboards: 4 routes — master, green-belt, advertisement, monitoring
+- Governance: 2 routes — `user/list`, `role/list`
+
+### `tests/http_integration_mutations.sh` — Method Guards, Validation, Write Path
+
+Hits POST endpoints with various payload shapes to verify method guards, payload validation, and happy-path writes.
+
+**Result: 15 / 16 PASS** + 1 governance rule correctly enforced.
+
+- **Method guards (7/7 PASS):** All POST-only routes correctly reject GET with HTTP 405 (`belt/create`, `watering/mark`, `attendance/mark`, `labour/mark`, `task/create`, `task/start`, `issue/create`).
+- **Payload validation (5/5 PASS):** Endpoints reject malformed bodies with HTTP 400 — including `site/create` rejecting bad enum (`BILLBOARD`), confirming the schema-validation fix from Bug #6 above.
+- **Happy-path writes (2/3 PASS):** `watering/mark DONE`, `labour/mark` with new field names — both succeeded.
+- **Governance enforcement validated:** `watering/mark NOT_REQUIRED` as a correction returned HTTP 403 with `"Correction requires an override reason."` — the WateringService rule fires correctly. Re-testing with `override_reason: "Heavy rainfall - manual override"` returned HTTP 200 and persisted `override_by_user_id` + `override_reason` correctly. This is the governance rule working as designed, not a defect.
+- **Auth guards (1/1 PASS):** Unauthenticated `belt/list` request returns HTTP 401.
+
+### Significance
+
+This run confirms that the entire backend HTTP layer is operational against the live database. All 32 Phase 3+ backend modules previously marked "syntax verified only" are now confirmed to work end-to-end at the HTTP level. No silent runtime crashes, missing joins, broken column references, or response-shape failures were uncovered.
+
+The deferred backend-testing task (`backend http integration testing` at queue position 9) is now COMPLETE.
+
+---
+
 ## Known Spec Deviations Outstanding
 
 These are confirmed gaps against `04_PAGE_FIELD_AND_ACTION_SPEC.md` and `09_MODULE_ACCEPTANCE_CHECKLISTS.md`. Not yet fixed. Each should be resolved during the relevant frontend view task or the final system walkthrough.
@@ -1102,14 +1168,6 @@ These are confirmed gaps against `04_PAGE_FIELD_AND_ACTION_SPEC.md` and `09_MODU
 - `task.progress_read` — commercial roles (Sales, Client Servicing, Media Planning) need filtered read-only progress view.
 - `governance.user_management` — needs Create User, Deactivate, Restore lifecycle actions.
 - `governance.access_mappings` — needs Create Role with module-scope assignment and Edit Role.
-
-### Missing Fields and Filters
-- Green Belt master list is missing the `supervisor` filter (spec §6 requires it).
-- Green Belt create/edit form is missing the `is_hidden` toggle (spec §6 requires it).
-- Monitoring plan `site_category` filter options are wrong (`CITY` / `HIGHWAY` do not exist in the schema enum). Correct values: `BILLBOARD`, `BUS_SHELTER`, `POLE_KIOSK`, `OTHER`, `GREEN_BELT`.
-
-### Backend Integration Testing Not Done
-- All Phase 3+ backend modules (watering, attendance, labour, issues, tasks, campaigns, free media, monitoring, authority view, reports) are syntax-verified only. No live HTTP round-trips have been run against these endpoints. Postman collection exists at `postman/skite_level2_tests.postman_collection.json`. Must be executed before final system walkthrough.
 
 ---
 

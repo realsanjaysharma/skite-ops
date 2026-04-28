@@ -185,7 +185,8 @@ Views.register('green_belt.master', {
       ]},
       { name: 'hidden', label: 'Hidden', type: 'select', value: params.hidden || '', options: [
         { value: '', label: 'All' }, { value: '0', label: 'Visible' }, { value: '1', label: 'Hidden' }
-      ]}
+      ]},
+      { name: 'supervisor_user_id', label: 'Supervisor ID', type: 'number', value: params.supervisor_user_id || '' }
     ], 'Apply Filter'));
 
     const actions = UI.button('Refresh', { icon: 'ph-arrows-clockwise', attr: 'data-refresh' }) +
@@ -214,7 +215,8 @@ Views.register('green_belt.master', {
         { name: 'permission_end_date', label: 'Permission End', type: 'date' },
         { name: 'permission_status', label: 'Permission Status', type: 'select', value: 'AGREEMENT_SIGNED', options: ['APPLIED', 'AGREEMENT_SIGNED', 'EXPIRED'] },
         { name: 'maintenance_mode', label: 'Maintenance Mode', type: 'select', value: 'MAINTAINED', options: ['MAINTAINED', 'OUTSOURCED'] },
-        { name: 'watering_frequency', label: 'Watering Frequency', type: 'select', value: 'DAILY', options: ['DAILY', 'ALTERNATE_DAY', 'WEEKLY'] }
+        { name: 'watering_frequency', label: 'Watering Frequency', type: 'select', value: 'DAILY', options: ['DAILY', 'ALTERNATE_DAY', 'WEEKLY'] },
+        { name: 'is_hidden', label: 'Hidden', type: 'select', value: '0', options: [{value: '0', label: 'No'}, {value: '1', label: 'Yes'}] }
       ], 'Create Belt', (payload) => simpleAction('belt/create', payload, 'Green belt created'));
     });
   }
@@ -424,8 +426,8 @@ Views.register('advertisement.site_master', {
     ];
 
     const filterUI = UI.panel('Filters', UI.filters([
-      { name: 'site_category', label: 'Category', type: 'select', value: params.site_category, options: ['', 'GREEN_BELT', 'BILLBOARD', 'BUS_SHELTER', 'POLE_KIOSK', 'OTHER'] },
-      { name: 'lighting_type', label: 'Lighting', type: 'select', value: params.lighting_type, options: ['', 'NON_LIT', 'LIT', 'DIGITAL'] },
+      { name: 'site_category', label: 'Category', type: 'select', value: params.site_category, options: ['', 'GREEN_BELT', 'CITY', 'HIGHWAY'] },
+      { name: 'lighting_type', label: 'Lighting', type: 'select', value: params.lighting_type, options: ['', 'NON_LIT', 'LIT'] },
       { name: 'is_active', label: 'Active Status', type: 'select', value: params.is_active, options: [{ value: '', label: 'All' }, { value: '1', label: 'Active' }, { value: '0', label: 'Inactive' }] }
     ], 'Load'));
 
@@ -447,12 +449,12 @@ Views.register('advertisement.site_master', {
       openSimpleForm('Create Site', [
         { name: 'site_code', label: 'Site Code', required: true },
         { name: 'location_text', label: 'Location' },
-        { name: 'site_category', label: 'Category', type: 'select', value: 'BILLBOARD', options: ['GREEN_BELT', 'BILLBOARD', 'BUS_SHELTER', 'POLE_KIOSK', 'OTHER'] },
+        { name: 'site_category', label: 'Category', type: 'select', value: 'CITY', options: ['GREEN_BELT', 'CITY', 'HIGHWAY'] },
         { name: 'green_belt_id', label: 'Linked Belt ID (if Green Belt)', type: 'number' },
         { name: 'route_or_group', label: 'Route/Group' },
         { name: 'ownership_name', label: 'Ownership' },
         { name: 'board_type', label: 'Board Type' },
-        { name: 'lighting_type', label: 'Lighting', type: 'select', value: 'NON_LIT', options: ['NON_LIT', 'LIT', 'DIGITAL'] },
+        { name: 'lighting_type', label: 'Lighting', type: 'select', value: 'NON_LIT', options: ['NON_LIT', 'LIT'] },
         { name: 'latitude', label: 'Latitude', type: 'number' },
         { name: 'longitude', label: 'Longitude', type: 'number' },
         { name: 'is_active', label: 'Is Active', type: 'select', value: '1', options: [{ value: '1', label: 'Yes' }, { value: '0', label: 'No' }] }
@@ -469,12 +471,12 @@ Views.register('advertisement.site_master', {
           { name: 'site_id', type: 'hidden', value: site.site_id },
           { name: 'site_code', label: 'Site Code', value: site.site_code, required: true },
           { name: 'location_text', label: 'Location', value: site.location_text },
-          { name: 'site_category', label: 'Category', type: 'select', value: site.site_category, options: ['GREEN_BELT', 'BILLBOARD', 'BUS_SHELTER', 'POLE_KIOSK', 'OTHER'] },
+          { name: 'site_category', label: 'Category', type: 'select', value: site.site_category, options: ['GREEN_BELT', 'CITY', 'HIGHWAY'] },
           { name: 'green_belt_id', label: 'Linked Belt ID', type: 'number', value: site.green_belt_id || '' },
           { name: 'route_or_group', label: 'Route/Group', value: site.route_or_group },
           { name: 'ownership_name', label: 'Ownership', value: site.ownership_name },
           { name: 'board_type', label: 'Board Type', value: site.board_type },
-          { name: 'lighting_type', label: 'Lighting', type: 'select', value: site.lighting_type, options: ['NON_LIT', 'LIT', 'DIGITAL'] },
+          { name: 'lighting_type', label: 'Lighting', type: 'select', value: site.lighting_type, options: ['NON_LIT', 'LIT'] },
           { name: 'latitude', label: 'Latitude', type: 'number', value: site.latitude || '' },
           { name: 'longitude', label: 'Longitude', type: 'number', value: site.longitude || '' },
           { name: 'is_active', label: 'Is Active', type: 'select', value: site.is_active ? '1' : '0', options: [{ value: '1', label: 'Yes' }, { value: '0', label: 'No' }] }
@@ -504,7 +506,7 @@ Views.register('advertisement.campaign_management', {
     const filterUI = UI.panel('Filters', UI.filters([
       { name: 'status', label: 'Status', type: 'select', value: params.status, options: ['', 'UPCOMING', 'ACTIVE', 'ENDED'] },
       { name: 'client_name', label: 'Client', value: params.client_name },
-      { name: 'site_category', label: 'Site Category', type: 'select', value: params.site_category, options: ['', 'GREEN_BELT', 'BILLBOARD', 'BUS_SHELTER', 'POLE_KIOSK', 'OTHER'] }
+      { name: 'site_category', label: 'Site Category', type: 'select', value: params.site_category, options: ['', 'GREEN_BELT', 'CITY', 'HIGHWAY'] }
     ], 'Load'));
 
     const actions = UI.button('Refresh', { icon: 'ph-arrows-clockwise', attr: 'data-refresh' }) +
@@ -620,7 +622,7 @@ Views.register('media.free_media_inventory', {
 
     const filterUI = UI.panel('Filters', UI.filters([
       { name: 'status', label: 'Status', type: 'select', value: params.status, options: ['', 'DISCOVERED', 'CONFIRMED_ACTIVE', 'EXPIRED', 'CONSUMED'] },
-      { name: 'site_category', label: 'Category', type: 'select', value: params.site_category, options: ['', 'GREEN_BELT', 'BILLBOARD', 'BUS_SHELTER', 'POLE_KIOSK', 'OTHER'] },
+      { name: 'site_category', label: 'Category', type: 'select', value: params.site_category, options: ['', 'GREEN_BELT', 'CITY', 'HIGHWAY'] },
       { name: 'route_or_group', label: 'Route/Group', value: params.route_or_group }
     ], 'Apply'));
 
