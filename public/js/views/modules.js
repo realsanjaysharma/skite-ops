@@ -1108,6 +1108,117 @@ Views.register('task.management', {
   }
 });
 
+Views.register('task.my_tasks', {
+  async render({ params = {} }) {
+    const filters = {};
+    if (params.status) filters.status = params.status;
+
+    const data = await Api.get('task/my', filters);
+    const rows = normalizeItems(data);
+
+    const columns = [
+      { key: 'id', label: 'Task ID' },
+      { key: 'work_description', label: 'Description' },
+      { key: 'location_text', label: 'Location' },
+      { key: 'priority', label: 'Priority', html: true, render: (row) => UI.status(row.priority) },
+      { key: 'status', label: 'Status', html: true, render: (row) => UI.status(row.status) },
+      { key: 'progress_percent', label: 'Progress', render: (row) => `${row.progress_percent || 0}%` },
+      { key: 'expected_close_date', label: 'Due By' },
+      {
+        key: 'actions',
+        label: 'Actions',
+        html: true,
+        render: (row) => {
+          const taskId = row.id;
+          let buttons = '';
+          if (row.status === 'OPEN') {
+            buttons += `<button class="btn btn-sm btn-primary" data-start-task="${taskId}">Start</button> `;
+          }
+          if (row.status === 'RUNNING') {
+            buttons += `<button class="btn btn-sm" data-update-progress="${taskId}" data-progress="${row.progress_percent || 0}">Progress</button> `;
+            buttons += `<button class="btn btn-sm btn-primary" data-mark-done="${taskId}">Mark Done</button> `;
+          }
+          buttons += `<button class="btn btn-sm btn-ghost" data-open-detail="${taskId}">Detail</button>`;
+          return buttons;
+        }
+      }
+    ];
+
+    const filterUI = UI.panel('Filters', UI.filters([
+      { name: 'status', label: 'Status', type: 'select', value: params.status || '', options: [
+        { value: '', label: 'All' }, 'OPEN', 'RUNNING', 'COMPLETED', 'CANCELLED', 'ARCHIVED'
+      ]}
+    ], 'Apply'));
+
+    const actions = UI.button('Refresh', { icon: 'ph-arrows-clockwise', attr: 'data-refresh' }) +
+                    UI.button('Worker Allocation', { icon: 'ph-users', attr: 'data-open-workers' });
+
+    return UI.page('My Tasks', 'Tasks assigned to you for execution', actions)
+      + filterUI
+      + UI.panel('Records', UI.table(columns, rows, { empty: 'No tasks assigned to you' }));
+  },
+  async afterRender() {
+    attachRefresh();
+    wireFilters((payload) => App.navigate('task.my_tasks', payload));
+
+    document.querySelector('[data-open-workers]')?.addEventListener('click', () => {
+      App.navigate('task.worker_allocation');
+    });
+
+    document.querySelectorAll('[data-open-detail]').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        App.navigate('task.detail', { task_id: btn.dataset.openDetail });
+      });
+    });
+
+    document.querySelectorAll('[data-start-task]').forEach((btn) => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const taskId = btn.dataset.startTask;
+        if (!confirm('Start this task? Status will transition from OPEN to RUNNING.')) return;
+        await simpleAction('task/start', { task_id: parseInt(taskId, 10) }, 'Task started');
+        App.refresh();
+      });
+    });
+
+    document.querySelectorAll('[data-update-progress]').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const taskId = btn.dataset.updateProgress;
+        const currentProgress = parseInt(btn.dataset.progress, 10) || 0;
+        openSimpleForm('Update Task Progress', [
+          { name: 'task_id', type: 'hidden', value: taskId },
+          { name: 'progress_percent', label: 'Progress %', type: 'number', value: String(currentProgress), required: true },
+          { name: 'remark_1', label: 'Remark 1', type: 'text' },
+          { name: 'remark_2', label: 'Remark 2', type: 'text' },
+          { name: 'completion_note', label: 'Note', type: 'textarea' }
+        ], 'Save Progress', (payload) => {
+          payload.task_id = parseInt(payload.task_id, 10);
+          payload.progress_percent = Math.max(0, Math.min(100, parseInt(payload.progress_percent, 10) || 0));
+          return simpleAction('task/progress', payload, 'Progress updated');
+        });
+      });
+    });
+
+    document.querySelectorAll('[data-mark-done]').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const taskId = btn.dataset.markDone;
+        openSimpleForm('Mark Work Done', [
+          { name: 'task_id', type: 'hidden', value: taskId },
+          { name: 'progress_percent', label: 'Final Progress %', type: 'number', value: '100', required: true },
+          { name: 'completion_note', label: 'Completion Note', type: 'textarea', required: true }
+        ], 'Mark Done', (payload) => {
+          payload.task_id = parseInt(payload.task_id, 10);
+          payload.progress_percent = Math.max(0, Math.min(100, parseInt(payload.progress_percent, 10) || 0));
+          return simpleAction('task/work-done', payload, 'Work marked done — awaiting Ops completion');
+        });
+      });
+    });
+  }
+});
+
 Views.register('task.detail', {
   async render({ params = {} }) {
     const task = await Api.get('task/get', { task_id: params.task_id });
@@ -1361,7 +1472,6 @@ const simpleLists = {
   'green_belt.issue_management': ['issue/list', 'Issues', ['id', 'title', 'priority', 'status', 'belt_id', 'site_id', 'created_at']],
   'green_belt.authority_view': ['authority/view', 'Authority View', ['id', 'belt_name', 'upload_type', 'work_type', 'created_at']],
   'task.progress_read': ['taskprogress/list', 'Task Progress', ['id', 'work_description', 'status', 'progress_percent', 'assigned_lead_name']],
-  'task.my_tasks': ['task/my', 'My Tasks', ['id', 'work_description', 'task_category', 'priority', 'status', 'progress_percent']],
   'governance.user_management': ['user/list', 'Users', ['id', 'full_name', 'email', 'role_name', 'is_active']],
   'governance.access_mappings': ['role/list', 'Roles & Access', ['id', 'role_key', 'role_name', 'permission_group_key', 'landing_module_key', 'is_active']],
 };

@@ -995,14 +995,14 @@ Completed:
 
 ## Current Next Scoped Task
 
-`task.my_tasks full view`
+`green_belt.upload_review full view`
 
 ## Serial Scoped Task Queue
 
 Run these tasks in order, one per implementation turn.
 
-1. `task.my_tasks full view` ← CURRENT
-2. `green_belt.upload_review full view`
+1. `task.my_tasks full view` — COMPLETE (2026-04-28, see "Task My Tasks Frontend" section below)
+2. `green_belt.upload_review full view` ← CURRENT
 3. `green_belt.issue_management full view`
 4. `green_belt.authority_view full view`
 5. `governance.user_management full view`
@@ -1064,8 +1064,8 @@ Do not skip ahead unless the current task is blocked and that blocker is recorde
 10. `campaigns and free media frontend` - COMPLETE
 11. `authority portal frontend` - COMPLETE
 12. `governance and reports frontend` - COMPLETE
-13. `task.my_tasks full view` ← CURRENT
-14. `green_belt.upload_review full view`
+13. `task.my_tasks full view` - COMPLETE
+14. `green_belt.upload_review full view` ← CURRENT
 15. `green_belt.issue_management full view`
 16. `green_belt.authority_view full view`
 17. `governance.user_management full view`
@@ -1164,7 +1164,6 @@ These are confirmed gaps against `04_PAGE_FIELD_AND_ACTION_SPEC.md` and `09_MODU
 - `green_belt.upload_review` — needs Approve, Reject, Bulk Approve, Bulk Reject. Without this Ops cannot process any field uploads.
 - `green_belt.issue_management` — needs Move to In Progress, Create Task, Link Task, Close Issue actions.
 - `green_belt.authority_view` — needs Download filtered view and WhatsApp helper share. Authority reps cannot do their core job without this.
-- `task.my_tasks` — FABRICATION_LEAD landing page. Needs progress update form, work-done upload trigger, and task status display. Blocks fabrication lead entirely.
 - `task.progress_read` — commercial roles (Sales, Client Servicing, Media Planning) need filtered read-only progress view.
 - `governance.user_management` — needs Create User, Deactivate, Restore lifecycle actions.
 - `governance.access_mappings` — needs Create Role with module-scope assignment and Edit Role.
@@ -1174,12 +1173,13 @@ These are confirmed gaps against `04_PAGE_FIELD_AND_ACTION_SPEC.md` and `09_MODU
 ## Current Task Reference Docs
 
 Read only the docs needed for the current scoped task.
-For the current `task.my_tasks full view` task, start with:
+For the current `green_belt.upload_review full view` task, start with:
 
-- `docs/11_build_specs/03_API_AND_ROUTE_CONTRACT.md` — task routes, progress update payload shape
-- `docs/11_build_specs/04_PAGE_FIELD_AND_ACTION_SPEC.md` — §17 My Tasks (fabrication lead view spec)
-- `docs/11_build_specs/05_WORKFLOW_STATE_MACHINE_SPEC.md` — task state machine (OPEN→RUNNING→COMPLETED)
-- `docs/11_build_specs/09_MODULE_ACCEPTANCE_CHECKLISTS.md` — §5 Task acceptance gates
+- `docs/11_build_specs/03_API_AND_ROUTE_CONTRACT.md` — `upload/list`, `upload/approve`, `upload/reject`, bulk action payloads
+- `docs/11_build_specs/04_PAGE_FIELD_AND_ACTION_SPEC.md` — §13 Upload Review (filters, columns, approve/reject/bulk actions)
+- `docs/11_build_specs/05_WORKFLOW_STATE_MACHINE_SPEC.md` — Authority Visibility lifecycle (HIDDEN → APPROVED / REJECTED / NOT_ELIGIBLE)
+- `docs/11_build_specs/06_UPLOAD_STORAGE_RETENTION_SPEC.md` — review-state storage rules
+- `docs/11_build_specs/09_MODULE_ACCEPTANCE_CHECKLISTS.md` — §3 Green Belt Field Operations (upload review acceptance gates)
 
 ## Task Update Rule
 
@@ -1282,3 +1282,61 @@ The older "recommended next order" and ad hoc prompt style are now superseded by
 - `Static Prompt Workflow`
 
 Any AI tool should follow those sections instead of inventing a fresh plan.
+
+## Task My Tasks Frontend — 2026-04-28
+
+Status: `COMPLETE — SYNTAX AND ENDPOINT VERIFIED`
+
+Promoted `task.my_tasks` from a generic simpleList stub to a full operational view in `public/js/views/modules.js` (inserted between `task.management` and `task.detail`).
+
+### Spec Compliance (per §25 of `04_PAGE_FIELD_AND_ACTION_SPEC.md`)
+
+Required columns now present:
+- task_id (`id`)
+- work_description
+- location_text
+- priority (UI.status pill)
+- status (UI.status pill)
+- progress_percent (formatted as `XX%`)
+- expected_close_date
+
+Required actions now present:
+- "Detail" inline button on every row → navigates to `task.detail`
+- "Worker Allocation" page-level button → navigates to `task.worker_allocation`
+
+### Lifecycle Controls Added (per §6 Task Lifecycle of `05_WORKFLOW_STATE_MACHINE_SPEC.md`)
+
+Inline action column renders state-specific buttons so the Fabrication Lead can drive task lifecycle without leaving the page:
+
+- **OPEN** rows: `Start` button → POST `task/start` (transitions OPEN → RUNNING via `TaskService::markInProgress`)
+- **RUNNING** rows: `Progress` button (modal: progress_percent 0-100, remark_1, remark_2, completion_note) → POST `task/progress`
+- **RUNNING** rows: `Mark Done` button (modal: progress_percent default 100, completion_note required) → POST `task/work-done` (verifies AFTER_WORK proof exists; sets completion metadata; final COMPLETED transition still requires Ops acceptance per spec)
+
+### Filters
+
+- `status` select with all 5 lifecycle values: OPEN, RUNNING, COMPLETED, CANCELLED, ARCHIVED. Backend `TaskController::myTasks` already scopes results to `assigned_lead_user_id = $actorUserId` so leads only see their own tasks.
+
+### Removed
+
+- `task.my_tasks` entry removed from the `simpleLists` fallback object so the new full view is the only registered handler.
+
+### Cache Bump
+
+- `public/index.html` script markers bumped from `?v=4` to `?v=5`.
+
+### Validation Run
+
+- `tests/syntax_scan.php` PASSED across all 103 PHP files (no backend code touched, ran as cross-check).
+- Live HTTP smoke test against `http://localhost/skite/index.php?route=task/my` returned `200` with correct envelope `{success:true, data:{items:[], pagination:{...}}}` for both unfiltered and `status=RUNNING` queries (logged-in OPS_MANAGER session, empty result expected since OPS user is not the assigned lead).
+- `task/start`, `task/progress`, `task/work-done` method guards already verified in `tests/http_integration_mutations.sh` (commit `2a3b7a7`).
+
+### Out of Scope (Not Touched)
+
+- `task.detail` view was NOT modified. Per spec §24 it should expose `AFTER_WORK` upload, `BEFORE_WORK` upload, and Call Ops helper for the assigned lead. That is a separate enhancement and was deferred to keep this turn scoped.
+- `task.management` enum drift (uses `'PENDING','IN_PROGRESS','WORK_DONE'` instead of canonical `'OPEN','RUNNING','COMPLETED'`) was noticed but left untouched — separate scoped task required.
+
+### Files Touched
+
+- `public/js/views/modules.js` (+110 lines, full `task.my_tasks` view; -1 line in simpleLists object)
+- `public/index.html` (cache bump)
+- `docs/11_build_specs/10_IMPLEMENTATION_PROGRESS.md` (this section + queue updates)
