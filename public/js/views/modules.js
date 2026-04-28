@@ -1077,9 +1077,9 @@ Views.register('task.management', {
 
     return UI.page('Task Management', 'Monitor and assign fabrication tasks', actions)
       + UI.panel('Filters', UI.filters([
-        { name: 'status', label: 'Status', type: 'select', value: params.status, options: ['', 'PENDING', 'IN_PROGRESS', 'WORK_DONE', 'COMPLETED', 'ARCHIVED'] },
+        { name: 'status', label: 'Status', type: 'select', value: params.status, options: ['', 'OPEN', 'RUNNING', 'COMPLETED', 'CANCELLED', 'ARCHIVED'] },
         { name: 'priority', label: 'Priority', type: 'select', value: params.priority, options: ['', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] },
-        { name: 'vertical_type', label: 'Vertical', type: 'select', value: params.vertical_type, options: ['', 'FABRICATION', 'PRINTING', 'MOUNTING', 'MAINTENANCE'] }
+        { name: 'vertical_type', label: 'Vertical', type: 'select', value: params.vertical_type, options: ['', 'GREEN_BELT', 'ADVERTISEMENT', 'MONITORING'] }
       ], 'Apply'))
       + UI.panel('Tasks', UI.table(columns, rows, {
         empty: 'No tasks found',
@@ -1093,12 +1093,12 @@ Views.register('task.management', {
     document.querySelector('[data-create-task]')?.addEventListener('click', () => {
       openSimpleForm('Create Task', [
         { name: 'task_category', label: 'Category', type: 'select', options: ['GENERAL', 'CLIENT_CAMPAIGN', 'SITE_REPAIR'], required: true },
-        { name: 'vertical_type', label: 'Vertical', type: 'select', options: ['FABRICATION', 'PRINTING', 'MOUNTING', 'MAINTENANCE'], required: true },
+        { name: 'vertical_type', label: 'Vertical', type: 'select', options: ['GREEN_BELT', 'ADVERTISEMENT', 'MONITORING'], required: true },
         { name: 'priority', label: 'Priority', type: 'select', options: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'], required: true },
         { name: 'work_description', label: 'Work Description', type: 'textarea', required: true },
         { name: 'location_text', label: 'Location', type: 'text', required: true },
         { name: 'assigned_lead_user_id', label: 'Assigned Lead User ID', type: 'number' },
-        { name: 'start_date', label: 'Start Date', type: 'date' },
+        { name: 'start_date', label: 'Start Date', type: 'date', value: UI.currentDate() },
         { name: 'expected_close_date', label: 'Expected Close', type: 'date' }
       ], 'Create', (payload) => simpleAction('task/create', payload, 'Task created'));
     });
@@ -1253,7 +1253,10 @@ Views.register('task.detail', {
         ], task.allocations || [], { empty: 'No workers allocated' }));
   },
   async afterRender({ params = {} }) {
-    document.querySelector('[data-back]')?.addEventListener('click', () => App.navigate('task.management'));
+    document.querySelector('[data-back]')?.addEventListener('click', () => {
+      const role = Auth.getUser()?.role_key;
+      App.navigate(role === 'FABRICATION_LEAD' ? 'task.my_tasks' : 'task.management');
+    });
 
     document.querySelector('[data-manage-lead]')?.addEventListener('click', () => {
       openSimpleForm('Assign Lead', [

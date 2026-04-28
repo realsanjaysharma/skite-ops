@@ -47,6 +47,22 @@ class TaskService
             }
         }
 
+        if (empty($data['work_description'])) {
+            throw new InvalidArgumentException("work_description is required.");
+        }
+        if (empty($data['location_text'])) {
+            throw new InvalidArgumentException("location_text is required.");
+        }
+        if (empty($data['task_category'])) {
+            throw new InvalidArgumentException("task_category is required.");
+        }
+        $allowedVerticals = ['GREEN_BELT', 'ADVERTISEMENT', 'MONITORING'];
+        if (empty($data['vertical_type']) || !in_array($data['vertical_type'], $allowedVerticals, true)) {
+            throw new InvalidArgumentException("vertical_type must be one of: " . implode(', ', $allowedVerticals));
+        }
+
+        $startDate = !empty($data['start_date']) ? $data['start_date'] : date('Y-m-d');
+
         // Prepare insertion payload
         $insertData = [
             'request_id' => $requestId,
@@ -54,12 +70,12 @@ class TaskService
             'task_source_type' => $sourceType,
             'assigned_by_user_id' => $actorUserId,
             'assigned_lead_user_id' => !empty($data['assigned_lead_user_id']) ? (int) $data['assigned_lead_user_id'] : null,
-            'task_category' => $data['task_category'] ?? null,
-            'vertical_type' => $data['vertical_type'] ?? null,
-            'work_description' => $data['work_description'] ?? null,
-            'location_text' => $data['location_text'] ?? null,
+            'task_category' => $data['task_category'],
+            'vertical_type' => $data['vertical_type'],
+            'work_description' => $data['work_description'],
+            'location_text' => $data['location_text'],
             'priority' => $data['priority'] ?? 'MEDIUM',
-            'start_date' => $data['start_date'] ?? null,
+            'start_date' => $startDate,
             'expected_close_date' => $data['expected_close_date'] ?? null,
             'status' => 'OPEN'
         ];
