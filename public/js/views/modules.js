@@ -1640,12 +1640,302 @@ Views.register('green_belt.upload_review', {
   }
 });
 
+Views.register('green_belt.issue_management', {
+  async render({ params = {} }) {
+    const data = await Api.get('issue/list', params);
+    const rows = normalizeItems(data);
+    const columns = [
+      { key: 'id', label: 'ID' },
+      { key: 'title', label: 'Title' },
+      { key: 'priority', label: 'Priority', html: true, render: (row) => UI.status(row.priority) },
+      { key: 'status', label: 'Status', html: true, render: (row) => UI.status(row.status) },
+      { key: 'source_type', label: 'Source Type' },
+      { key: 'belt_or_site_reference', label: 'Belt/Site Ref', render: (row) => row.belt_or_site_reference || '-' },
+      { key: 'linked_task_id', label: 'Task ID', render: (row) => row.linked_task_id || '-' }
+    ];
+
+    const filterUI = UI.panel('Filters', UI.filters([
+      { name: 'status', label: 'Status', type: 'select', value: params.status || '', options: ['', 'OPEN', 'IN_PROGRESS', 'CLOSED'] },
+      { name: 'priority', label: 'Priority', type: 'select', value: params.priority || '', options: ['', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] },
+      { name: 'source_type', label: 'Source Type', type: 'select', value: params.source_type || '', options: ['', 'UPLOAD', 'DIRECT'] },
+      { name: 'belt_id', label: 'Belt ID', type: 'number', value: params.belt_id || '' },
+      { name: 'site_id', label: 'Site ID', type: 'number', value: params.site_id || '' }
+    ], 'Apply'));
+
+    const actions = UI.button('Refresh', { icon: 'ph-arrows-clockwise', attr: 'data-refresh' });
+
+    return UI.page('Issue Management', 'Manage operational issues and task links', actions)
+      + filterUI
+      + UI.panel('Records', UI.table(columns, rows, {
+        empty: 'No issues found',
+        rowAttr: (row) => `data-issue-id="${row.id}"`
+      }));
+  },
+  async afterRender() {
+    attachRefresh();
+    wireFilters((payload) => App.navigate('green_belt.issue_management', payload));
+
+    document.querySelectorAll('[data-issue-id]').forEach(row => {
+      row.addEventListener('click', async () => {
+        const issueId = row.dataset.issueId;
+        const issue = await Api.get('issue/get', { issue_id: issueId });
+        if (!issue) return UI.toast('Issue not found', 'bad');
+
+        const isOps = Auth.getUser()?.role_key === 'OPS_MANAGER';
+        const isHeadSuper = Auth.getUser()?.role_key === 'HEAD_SUPERVISOR';
+        
+        let actionsHtml = '';
+        if (issue.status === 'OPEN' && (isOps || isHeadSuper)) {
+            actionsHtml += `<button type="button" class="btn btn-primary" data-in-progress="${issue.id}">Mark In Progress</button> `;
+        }
+        if (issue.status !== 'CLOSED' && isOps) {
+            actionsHtml += `<button type="button" class="btn btn-warn" data-close="${issue.id}">Close Issue</button> `;
+        }
+        if (isOps) {
+            actionsHtml += `<button type="button" class="btn btn-ghost" data-link-task="${issue.id}">Link Task</button> `;
+            actionsHtml += `<button type="button" class="btn btn-ghost" data-create-task="${issue.id}">Create Task</button>`;
+        }
+
+        const actionPanel = actionsHtml ? `<div class="modal-actions" style="margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 1rem;">${actionsHtml}</div>` : '';
+
+        UI.showModal('Issue Detail', `
+          <div class="stack-form">
+            <div class="form-grid">
+              <div class="field"><span>ID</span><input type="text" value="${issue.id}" readonly></div>
+              <div class="field"><span>Title</span><input type="text" value="${UI.escape(issue.title)}" readonly></div>
+              <div class="field"><span>Status</span><input type="text" value="${issue.status}" readonly></div>
+              <div class="field"><span>Priority</span><input type="text" value="${issue.priority}" readonly></div>
+              <div class="field"><span>Source Type</span><input type="text" value="${issue.source_type}" readonly></div>
+              <div class="field"><span>Source Ref ID</span><input type="text" value="${issue.source_reference_id || '-'}" readonly></div>
+              <div class="field"><span>Belt ID</span><input type="text" value="${issue.belt_id || '-'}" readonly></div>
+              <div class="field"><span>Site ID</span><input type="text" value="${issue.site_id || '-'}" readonly></div>
+              <div class="field"><span>Linked Task ID</span><input type="text" value="${issue.linked_task_id || '-'}" readonly></div>
+              <div class="field full"><span>Description</span><textarea readonly>${UI.escape(issue.description || '')}</textarea></div>
+            </div>
+            ${actionPanel}
+          </div>
+        `);
+
+        const modal = document.getElementById('modal-root');
+
+        modal.querySelector('[data-in-progress]')?.addEventListener('click', async () => {
+            await simpleAction('issue/in-progress', { issue_id: issue.id }, 'Issue marked in progress');
+        });
+
+        modal.querySelector('[data-close]')?.addEventListener('click', () => {
+            UI.closeModal();
+            openSimpleForm('Close Issue', [
+                { name: 'issue_id', type: 'hidden', value: issue.id }
+            ], 'Confirm Close', (payload) => simpleAction('issue/close', payload, 'Issue closed'));
+        });
+
+        modal.querySelector('[data-link-task]')?.addEventListener('click', () => {
+            UI.closeModal();
+            openSimpleForm('Link Task', [
+                { name: 'issue_id', type: 'hidden', value: issue.id },
+                { name: 'task_id', label: 'Task ID', type: 'number', required: true }
+            ], 'Link', (payload) => simpleAction('issue/link-task', payload, 'Task linked to issue'));
+        });
+
+        modal.querySelector('[data-create-task]')?.addEventListener('click', () => {
+            UI.closeModal();
+            openSimpleForm('Create & Link Task', [
+                { name: 'task_category', label: 'Category', type: 'select', options: ['SITE_REPAIR', 'GENERAL', 'CLIENT_CAMPAIGN'], value: 'SITE_REPAIR', required: true },
+                { name: 'vertical_type', label: 'Vertical', type: 'select', options: ['GREEN_BELT', 'ADVERTISEMENT', 'MONITORING'], value: issue.belt_id ? 'GREEN_BELT' : 'ADVERTISEMENT', required: true },
+                { name: 'priority', label: 'Priority', type: 'select', options: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'], value: issue.priority, required: true },
+                { name: 'work_description', label: 'Work Description', type: 'textarea', value: \`Fix issue: \${issue.title}\`, required: true },
+                { name: 'location_text', label: 'Location', type: 'text', value: issue.belt_id ? \`Belt #\${issue.belt_id}\` : (issue.site_id ? \`Site #\${issue.site_id}\` : ''), required: true },
+                { name: 'assigned_lead_user_id', label: 'Assigned Lead User ID', type: 'number' },
+                { name: 'start_date', label: 'Start Date', type: 'date', value: UI.currentDate() },
+                { name: 'expected_close_date', label: 'Expected Close', type: 'date' }
+            ], 'Create Task', async (payload) => {
+                const taskResult = await Api.post('task/create', payload);
+                const newTaskId = typeof taskResult === 'object' ? (taskResult.id || taskResult.task_id) : taskResult;
+                await Api.post('issue/link-task', { issue_id: issue.id, task_id: newTaskId });
+                UI.closeModal();
+                UI.toast('Task created and linked', 'good');
+                App.refresh();
+            });
+        });
+    });
+  }
+});
+
+Views.register('green_belt.authority_view', {
+  async render({ params = {} }) {
+    const summary = await Api.get('authority/summary', params);
+    const data = await Api.get('authority/view', params);
+    const rows = normalizeItems(data);
+    const share = await Api.get('authority/share-helper', params);
+
+    const columns = [
+      { key: 'upload_id', label: 'ID' },
+      { key: 'preview_photo', label: 'Photo', html: true, render: (row) => `<img src="${Api.url('upload/serve', { id: row.upload_id })}" alt="Proof" data-preview-id="${row.upload_id}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px; cursor: pointer;">` },
+      { key: 'timestamp', label: 'Date/Time' },
+      { key: 'time_of_day', label: 'Time of Day' },
+      { key: 'work_type', label: 'Work Type', html: true, render: (row) => UI.status(row.work_type) },
+      { key: 'supervisor_name', label: 'Supervisor' },
+      { key: 'gps_string', label: 'GPS', render: (row) => row.gps_string || '-' },
+      { key: 'photo_label', label: 'Label', render: (row) => row.photo_label || '-' }
+    ];
+
+    const filterUI = UI.panel('Filters', UI.filters([
+      { name: 'date', label: 'Date', type: 'date', value: params.date || '' },
+      { name: 'belt_id', label: 'Belt ID', type: 'number', value: params.belt_id || '' },
+      { name: 'supervisor_user_id', label: 'Supervisor ID', type: 'number', value: params.supervisor_user_id || '' },
+      { name: 'work_type', label: 'Work Type', type: 'select', value: params.work_type || '', options: ['', 'ROUTINE_MAINTENANCE', 'REPAIR', 'PLANTING', 'WATERING', 'CLEANING'] }
+    ], 'Apply Filters'));
+
+    const summaryHtml = `
+      <div class="stat-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+        <div class="stat-card" style="padding: 1rem; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px;">
+          <div style="font-size: 0.8rem; color: var(--text-muted);">Active Belts</div>
+          <div style="font-size: 1.5rem; font-weight: bold;">${summary.total_belts}</div>
+        </div>
+        <div class="stat-card" style="padding: 1rem; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px;">
+          <div style="font-size: 0.8rem; color: var(--text-muted);">Morning Photos</div>
+          <div style="font-size: 1.5rem; font-weight: bold;">${summary.total_morning_photos}</div>
+        </div>
+        <div class="stat-card" style="padding: 1rem; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px;">
+          <div style="font-size: 0.8rem; color: var(--text-muted);">Evening Photos</div>
+          <div style="font-size: 1.5rem; font-weight: bold;">${summary.total_evening_photos}</div>
+        </div>
+        <div class="stat-card" style="padding: 1rem; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px;">
+          <div style="font-size: 0.8rem; color: var(--text-muted);">Total Photos</div>
+          <div style="font-size: 1.5rem; font-weight: bold;">${summary.total_photos}</div>
+        </div>
+      </div>
+    `;
+
+    const actions = UI.button('Refresh', { icon: 'ph-arrows-clockwise', attr: 'data-refresh' }) +
+                    `<a href="${share.whatsapp_url}" target="_blank" class="btn btn-primary" style="text-decoration: none;"><i class="ph ph-whatsapp-logo"></i><span>Share on WhatsApp</span></a>`;
+
+    return UI.page('Authority View', 'Review approved green belt work submissions', actions)
+      + filterUI
+      + UI.panel('Summary Statistics', summaryHtml)
+      + UI.panel('Work Photos', UI.table(columns, rows, { empty: 'No approved work photos found for these filters' }));
+  },
+  async afterRender() {
+    attachRefresh();
+    wireFilters((payload) => App.navigate('green_belt.authority_view', payload));
+
+    document.querySelectorAll('[data-preview-id]').forEach(img => {
+      img.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const url = Api.url('upload/serve', { id: img.dataset.previewId });
+        UI.showModal('Photo Details', \`<div style="text-align: center;"><img src="\${url}" style="max-width: 100%; max-height: 70vh; border-radius: 4px;"></div>\`);
+      });
+    });
+  }
+});
+
+Views.register('governance.user_management', {
+  async render({ params = {} }) {
+    const data = await Api.get('user/list', params);
+    const rows = normalizeItems(data);
+    const roles = await Api.get('role/list').then(normalizeItems);
+
+    const columns = [
+      { key: 'id', label: 'ID' },
+      { key: 'full_name', label: 'Full Name' },
+      { key: 'email', label: 'Email' },
+      { key: 'role_name', label: 'Role' },
+      { key: 'is_active', label: 'Active', html: true, render: (row) => UI.status(row.is_active ? 'ACTIVE' : 'INACTIVE') },
+      { key: 'force_password_reset', label: 'Reset Req', html: true, render: (row) => row.force_password_reset ? '<span class="status-pill status-warn">Yes</span>' : '-' },
+      { key: 'actions', label: 'Actions', html: true, render: (row) => {
+          let buttons = `<button class="btn btn-icon btn-ghost" title="Edit" data-edit-id="${row.id}"><i class="ph ph-pencil"></i></button>`;
+          if (row.is_active) {
+            buttons += `<button class="btn btn-icon btn-ghost" title="Deactivate" data-deactivate-id="${row.id}"><i class="ph ph-pause"></i></button>`;
+          } else {
+            buttons += `<button class="btn btn-icon btn-ghost" title="Activate" data-activate-id="${row.id}"><i class="ph ph-play"></i></button>`;
+          }
+          buttons += `<button class="btn btn-icon btn-ghost" title="Delete" data-delete-id="${row.id}"><i class="ph ph-trash"></i></button>`;
+          return `<div style="display: flex; gap: 0.5rem;">${buttons}</div>`;
+      }}
+    ];
+
+    const filterUI = UI.panel('Filters', UI.filters([
+      { name: 'role_id', label: 'Role', type: 'select', value: params.role_id || '', options: [{value:'', label:'All Roles'}, ...roles.map(r => ({value:r.id, label:r.role_name}))] },
+      { name: 'is_active', label: 'Status', type: 'select', value: params.is_active || '', options: [{value:'', label:'All'}, {value:'1', label:'Active'}, {value:'0', label:'Inactive'}] }
+    ], 'Apply Filters'));
+
+    const actions = UI.button('Create User', { icon: 'ph-plus', attr: 'data-create' }) +
+                    UI.button('Restore User', { icon: 'ph-arrow-counter-clockwise', attr: 'data-restore' });
+
+    return UI.page('User Management', 'Manage operations and field personnel', actions)
+      + filterUI
+      + UI.panel('Users', UI.table(columns, rows, { empty: 'No users found.' }));
+  },
+  async afterRender() {
+    wireFilters((payload) => App.navigate('governance.user_management', payload));
+
+    const createBtn = document.querySelector('[data-create]');
+    if (createBtn) {
+        createBtn.addEventListener('click', async () => {
+            const roles = await Api.get('role/list').then(normalizeItems);
+            const roleOptions = roles.map(r => ({ value: r.id, label: r.role_name }));
+            openSimpleForm('user/create', [
+                { name: 'full_name', label: 'Full Name', type: 'text', required: true },
+                { name: 'email', label: 'Email', type: 'email', required: true },
+                { name: 'password', label: 'Password', type: 'password', required: true },
+                { name: 'role_id', label: 'Role', type: 'select', options: roleOptions, required: true }
+            ], 'Create User');
+        });
+    }
+
+    const restoreBtn = document.querySelector('[data-restore]');
+    if (restoreBtn) {
+        restoreBtn.addEventListener('click', () => {
+            openSimpleForm('user/restore', [
+                { name: 'user_id', label: 'User ID to Restore', type: 'number', required: true }
+            ], 'Restore User');
+        });
+    }
+
+    document.querySelectorAll('[data-edit-id]').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            const id = e.currentTarget.dataset.editId;
+            const roles = await Api.get('role/list').then(normalizeItems);
+            const roleOptions = roles.map(r => ({ value: r.id, label: r.role_name }));
+            const user = await Api.get('user/get', { user_id: id });
+            
+            openSimpleForm('user/update', [
+                { name: 'user_id', type: 'hidden', value: id },
+                { name: 'full_name', label: 'Full Name', type: 'text', value: user.full_name, required: true },
+                { name: 'email', label: 'Email', type: 'email', value: user.email, required: true },
+                { name: 'role_id', label: 'Role', type: 'select', options: roleOptions, value: user.role_id, required: true }
+            ], 'Edit User');
+        });
+    });
+
+    document.querySelectorAll('[data-deactivate-id]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            if (confirm('Are you sure you want to deactivate this user?')) {
+                simpleAction('user/deactivate', { user_id: e.currentTarget.dataset.deactivateId }, 'User deactivated');
+            }
+        });
+    });
+
+    document.querySelectorAll('[data-activate-id]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            simpleAction('user/activate', { user_id: e.currentTarget.dataset.activateId }, 'User activated');
+        });
+    });
+
+    document.querySelectorAll('[data-delete-id]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            if (confirm('Are you sure you want to soft delete this user?')) {
+                simpleAction('user/delete', { user_id: e.currentTarget.dataset.deleteId }, 'User deleted');
+            }
+        });
+    });
+  }
+});
+
 const simpleLists = {
   'green_belt.maintenance_cycles': ['cycle/list', 'Maintenance Cycles', ['id', 'belt_code', 'common_name', 'start_date', 'end_date', 'status']],
-  'green_belt.issue_management': ['issue/list', 'Issues', ['id', 'title', 'priority', 'status', 'belt_id', 'site_id', 'created_at']],
-  'green_belt.authority_view': ['authority/view', 'Authority View', ['id', 'belt_name', 'upload_type', 'work_type', 'created_at']],
   'task.progress_read': ['taskprogress/list', 'Task Progress', ['id', 'work_description', 'status', 'progress_percent', 'assigned_lead_name']],
-  'governance.user_management': ['user/list', 'Users', ['id', 'full_name', 'email', 'role_name', 'is_active']],
+
   'governance.access_mappings': ['role/list', 'Roles & Access', ['id', 'role_key', 'role_name', 'permission_group_key', 'landing_module_key', 'is_active']],
 };
 

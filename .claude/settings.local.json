@@ -17,7 +17,11 @@
       "Bash(curl -s -X POST 'http://localhost/skite/index.php?route=auth/login' -H 'Content-Type: application/json' -d '{\"email\":\"ops.test.phase2@skite.local\",\"password\":\"TestPass123!\"}' -c /tmp/skite_fix3.txt)",
       "Bash(curl -s -X POST 'http://localhost/skite/index.php?route=auth/login' -H 'Content-Type: application/json' -d '{\"email\":\"ops.test.phase2@skite.local\",\"password\":\"TestPass123!\"}' -c /tmp/skite_fix3b.txt)",
       "Bash(awk '/CREATE TABLE `tasks`/,/^\\\\\\)/' docs/06_schema/schema_v1_full.sql)",
-      "Bash(curl -s -X POST 'http://localhost/skite/index.php?route=auth/login' -H 'Content-Type: application/json' -d '{\"email\":\"ops.test.phase2@skite.local\",\"password\":\"TestPass123!\"}' -c /tmp/skite_v2.txt)"
+      "Bash(curl -s -X POST 'http://localhost/skite/index.php?route=auth/login' -H 'Content-Type: application/json' -d '{\"email\":\"ops.test.phase2@skite.local\",\"password\":\"TestPass123!\"}' -c /tmp/skite_v2.txt)",
+      "Bash(sed -n '57,62p' docs/11_build_specs/10_IMPLEMENTATION_PROGRESS.md)",
+      "Bash(sed -n '60,75p' docs/11_build_specs/10_IMPLEMENTATION_PROGRESS.md)",
+      "Bash(sed -n '153,166p' docs/11_build_specs/10_IMPLEMENTATION_PROGRESS.md)",
+      "Bash(sed -n '354,368p' docs/AI_TOOL_HANDOFF_GUIDE.md)"
     ]
   },
   "prefersReducedMotion": false

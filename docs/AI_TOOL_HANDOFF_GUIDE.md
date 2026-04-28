@@ -278,7 +278,9 @@ Current cache version is listed in `10_IMPLEMENTATION_PROGRESS.md`.
 
 If you change frontend JS, bump the relevant `?v=N` in `public/index.html`.
 
-## Codebase Pitfalls
+## Codebase Pitfalls and Safety Rules
+
+This section is the single place for all recurring traps, enum facts, field name rules, RBAC edges, and security/safety constraints. Add here when any of these are discovered — do not scatter them across the progress file.
 
 - Use exact schema/API field names. Unknown payload keys may be silently dropped by repositories.
 - Lead assignment field is `assigned_lead_user_id`, not `lead_user_id`.
@@ -289,6 +291,9 @@ If you change frontend JS, bump the relevant `?v=N` in `public/index.html`.
 - Site categories are `GREEN_BELT`, `CITY`, `HIGHWAY`.
 - Lighting values are `LIT`, `NON_LIT`.
 - Issue uploads and `NOT_ELIGIBLE` uploads must never become authority `APPROVED`.
+- Upload review bulk selection must disable rows that are already approved, rejected, issue-type, or `NOT_ELIGIBLE`. Backend also rejects these before any visibility update.
+- Always escape user-controlled strings with `UI.escape()` before injecting into `innerHTML` in upload or comment modals.
+- `tests/test_upload_review_safety.php` verifies that mixed ISSUE + WORK batch approval is blocked at the backend.
 - `task/start` uses module key `task.my_tasks` so Fabrication Lead can start assigned tasks.
 - `upload/create` is a shared dynamic route; do not force one static module key onto it.
 
@@ -353,5 +358,8 @@ Run relevant validation, update progress, then stop.
 Any AI tool that modifies this project must update:
 
 1. `docs/11_build_specs/10_IMPLEMENTATION_PROGRESS.md` when task status, validation, blockers, or next task changes.
-2. This file only when stable reusable patterns change.
+2. This file when stable reusable knowledge changes — specifically:
+   - Add to **Codebase Pitfalls and Safety Rules** when any of the following is discovered: field name mismatch, wrong enum value, RBAC gap, silent failure, missing validation, XSS risk, approval bypass, or any other repeatable trap or security constraint.
+   - Add to **Frontend Patterns** or **Backend Patterns** when a new reusable approach is established.
+   - Do not add transient task notes, test results, or completion history to this file; those belong in the progress file.
 

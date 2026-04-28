@@ -12,7 +12,7 @@
 
 Current status: backend modules are implemented and pass syntax plus HTTP smoke coverage used so far. The vanilla JS frontend shell is implemented and RBAC-aware. Most frontend modules have custom views, but several remaining views still need full action-level completion and final browser polish.
 
-Current frontend asset cache marker: `?v=7`.
+Current frontend asset cache marker: `?v=8`.
 If you change `public/js/views/modules.js`, `public/js/core/*.js`, or `public/js/app.js`, bump the matching script version in `public/index.html`.
 
 ## Static Prompt Workflow
@@ -27,7 +27,7 @@ Run only relevant validation, update docs/11_build_specs/10_IMPLEMENTATION_PROGR
 
 ## Current Next Scoped Task
 
-`green_belt.issue_management full view`
+`governance.access_mappings full view`
 
 ## Remaining Frontend Task Queue
 
@@ -35,10 +35,10 @@ Run these tasks in order, one per implementation turn. Do not skip ahead unless 
 
 1. `task.my_tasks full view` - COMPLETE
 2. `green_belt.upload_review full view` - COMPLETE
-3. `green_belt.issue_management full view` - CURRENT
-4. `green_belt.authority_view full view`
-5. `governance.user_management full view`
-6. `governance.access_mappings full view`
+3. `green_belt.issue_management full view` - COMPLETE
+4. `green_belt.authority_view full view` - COMPLETE
+5. `governance.user_management full view` - COMPLETE
+6. `governance.access_mappings full view` - CURRENT
 7. `task.progress_read full view`
 8. `dashboard and analytics final pass`
 9. `final browser walkthrough and polish`
@@ -56,21 +56,7 @@ Run these tasks in order, one per implementation turn. Do not skip ahead unless 
 
 ## Critical Gotchas
 
-- Frontend payload names must match schema/API exactly. Unknown fields may be silently dropped by repositories.
-- Lead assignment field is `assigned_lead_user_id`, not `lead_user_id`.
-- Labour fields are `labour_count`, `gardener_count`, `night_guard_count`, not male/female counts.
-- Task statuses are `OPEN`, `RUNNING`, `COMPLETED`, `CANCELLED`, `ARCHIVED`.
-- Task `vertical_type` values are `GREEN_BELT`, `ADVERTISEMENT`, `MONITORING`.
-- Watering stored statuses are `DONE` and `NOT_REQUIRED`; `PENDING` is derived and never stored.
-- Site category values are `GREEN_BELT`, `CITY`, `HIGHWAY`.
-- Lighting values are `LIT`, `NON_LIT`; do not introduce `DIGITAL`.
-- `upload/create` has `module_key => null`; controller/service resolve upload surface from `role_key`.
-- Authority review can only approve authority-eligible green-belt `WORK` uploads. `ISSUE` and `NOT_ELIGIBLE` uploads must never become `APPROVED`.
-- `task/start` is mapped to `task.my_tasks`, not `task.management`, so Fabrication Lead can start assigned work.
-- `task.detail` back behavior should route Fabrication Lead to `task.my_tasks`; other roles go to `task.management`.
-- `simpleAction()` already calls `App.refresh()` after success. Do not add extra refreshes unless there is a specific modal/navigation reason.
-- Detail modules are not sidebar destinations; open them from row clicks/cards with required IDs.
-- After JS changes, run `node --check` and bump the relevant `?v=N` asset marker.
+Full list is in `docs/AI_TOOL_HANDOFF_GUIDE.md` under **Codebase Pitfalls and Safety Rules**. Read that section before writing any payload, enum value, or route key. Task-specific warnings are noted inline in **Current Task Reference Docs** below.
 
 ## Test Commands
 
@@ -114,7 +100,7 @@ Backend detail is intentionally compressed to reduce agent token usage. Use `con
 | Field operations | Implemented | `UploadController`, `WateringController`, `AttendanceController`, `LabourController`, `OversightController`; related services/repos | `upload/*`, `watering/*`, `attendance/*`, `labour/*`, `oversight/watering` |
 | Issues, requests, tasks | Implemented | `IssueController`, `RequestController`, `TaskController`, `TaskProgressController`; related services/repos | `issue/*`, `request/*`, `task/*`, `taskprogress/*` |
 | Fabrication workers | Implemented | `WorkerController`, `WorkerEntryController`, `TaskWorkerController`; related services/repos | `worker/*`, `workday/*`, `taskworker/*` |
-| Advertisement, monitoring, media | Implemented | `SiteController`, `MonitoringPlanController`, `MonitoringHistoryController`, `MonitoringUploadController`, `CampaignController`, `FreeMediaController`; related services/repos | `site/*`, `monitoringplan/*`, `monitoring/upload`, `monitoring/history`, `campaign/*`, `freemedia/list`, `freemedia/confirm`, `freemedia/expire`, `freemedia/consume` |
+| Advertisement, monitoring, media | Implemented | `SiteController`, `MonitoringPlanController`, `MonitoringHistoryController`, `MonitoringUploadController`, `CampaignController`, `FreeMediaController`; related services/repos | `site/*`, `monitoringplan/*`, `monitoring/upload`, `monitoring/history`, `campaign/*`, `freemedia/*` |
 | Authority portal | Implemented | `AuthorityViewController`, `AuthorityViewService`, `AuthorityViewRepository` | `authority/view`, `authority/summary`, `authority/share-helper` |
 | Reports, settings, cleanup, audit | Implemented | `ReportController`, `SystemSettingsController`, `AuditController`, extended upload cleanup flow | `report/*`, `settings/*`, `upload/cleanup-list`, `upload/purge`, `audit/list` |
 | Backend hardening | Implemented | `BaseController`; centralized audit and transaction patterns | fixed route registry, class loading, task state transitions, upload review safety |
@@ -152,24 +138,18 @@ Backend detail is intentionally compressed to reduce agent token usage. Use `con
 | Task request, task management, task detail, workers | Custom views complete |
 | Upload review and cleanup | Custom view complete with backend safety guard |
 | Settings and audit logs | Custom views complete |
-| Remaining | issue management, authority view, user management, access mappings, task progress read, final dashboard/browser polish |
-
-## Recent Safety Fixes
-
-- Upload review bulk selection now disables issue, approved, rejected, and `NOT_ELIGIBLE` rows.
-- Backend upload review rejects non-work and `NOT_ELIGIBLE` uploads before any visibility update.
-- Upload modal values escape user-controlled strings before injection.
-- `tests/test_upload_review_safety.php` verifies mixed ISSUE + WORK approval is blocked.
-- `tests/test_gap_resolution.php` now selects only authority-eligible WORK uploads for approval checks.
+| Issue management | Custom view complete with modal drill-in and task linking |
+| Authority view | Custom view complete with summary cards, image gallery modal, and whatsapp share button |
+| User management | Custom view complete with create, edit, activate, deactivate, soft delete, and restore actions |
+| Remaining | access mappings, task progress read, final dashboard/browser polish |
 
 ## Current Task Reference Docs
 
-For `green_belt.issue_management full view`, start with:
+For `governance.user_management full view`, start with:
 
-- `docs/11_build_specs/03_API_AND_ROUTE_CONTRACT.md`
-- `docs/11_build_specs/04_PAGE_FIELD_AND_ACTION_SPEC.md`
-- `docs/11_build_specs/05_WORKFLOW_STATE_MACHINE_SPEC.md`
-- `docs/11_build_specs/09_MODULE_ACCEPTANCE_CHECKLISTS.md`
+- `docs/11_build_specs/03_API_AND_ROUTE_CONTRACT.md` — `user/list`, `user/create`, `user/update`, `user/deactivate`, `user/activate`, `user/delete`, `user/restore` payloads
+- `docs/11_build_specs/04_PAGE_FIELD_AND_ACTION_SPEC.md` — §27 User Management (columns, actions)
+- `docs/11_build_specs/09_MODULE_ACCEPTANCE_CHECKLISTS.md` — §1 Platform Foundation and RBAC (user management acceptance gates)
 
 ## Task Update Rule
 
@@ -180,3 +160,4 @@ After each task:
 - add a short result note with files changed and validation run
 - record blockers only if they stop the current task
 - stop instead of continuing into the next queue item
+- if a new pitfall or safety fix was discovered (wrong field name, enum mismatch, RBAC gap, silent failure, missing validation, XSS risk, approval bypass, etc.) add it to the **Codebase Pitfalls and Safety Rules** section of `docs/AI_TOOL_HANDOFF_GUIDE.md`, not here
