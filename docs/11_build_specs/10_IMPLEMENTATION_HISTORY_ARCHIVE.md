@@ -1,4 +1,4 @@
-﻿# Implementation History Archive
+# Implementation History Archive
 
 ## Archive Note
 
@@ -1179,3 +1179,65 @@ Required actions now present:
 
 - `public/js/views/modules.js` (Removed from simpleLists, added full `green_belt.upload_review` view)
 - `docs/11_build_specs/10_IMPLEMENTATION_PROGRESS.md` (Updated status and added this entry)
+
+### Frontend Phase Completion Summary (Archived 2026-04-29)
+
+Status: `ALL ORIGINAL FRONTEND TASKS COMPLETE`
+
+The following tables were the completion state at the end of the original frontend build phase, before the gap-closure phase queue was defined. They are preserved here for historical reference.
+
+#### Completed Backend Summary
+
+| Area | Status | Main controllers/services/repos | Key routes |
+|---|---|---|---|
+| Auth, RBAC, users, roles | Implemented, live smoke verified | `AuthController`, `UserController`, `RoleController`; `AuthService`, `RbacService`, `UserService`, `RoleService`; `UserRepository`, `RbacRepository` | `auth/*`, `user/*`, `role/*` |
+| Green Belt core and assignments | Implemented | `BeltController`, `BeltAssignmentController`, `MaintenanceCycleController`; belt and assignment services/repos | `belt/*`, `supervisorassignment/*`, `authorityassignment/*`, `outsourcedassignment/*`, `cycle/*` |
+| Field operations | Implemented | `UploadController`, `WateringController`, `AttendanceController`, `LabourController`, `OversightController`; related services/repos | `upload/*`, `watering/*`, `attendance/*`, `labour/*`, `oversight/watering` |
+| Issues, requests, tasks | Implemented | `IssueController`, `RequestController`, `TaskController`, `TaskProgressController`; related services/repos | `issue/*`, `request/*`, `task/*`, `taskprogress/*` |
+| Fabrication workers | Implemented | `WorkerController`, `WorkerEntryController`, `TaskWorkerController`; related services/repos | `worker/*`, `workday/*`, `taskworker/*` |
+| Advertisement, monitoring, media | Implemented | `SiteController`, `MonitoringPlanController`, `MonitoringHistoryController`, `MonitoringUploadController`, `CampaignController`, `FreeMediaController`; related services/repos | `site/*`, `monitoringplan/*`, `monitoring/upload`, `monitoring/history`, `campaign/*`, `freemedia/*` |
+| Authority portal | Implemented | `AuthorityViewController`, `AuthorityViewService`, `AuthorityViewRepository` | `authority/view`, `authority/summary`, `authority/share-helper` |
+| Reports, settings, cleanup, audit | Implemented | `ReportController`, `SystemSettingsController`, `AuditController`, extended upload cleanup flow | `report/*`, `settings/*`, `upload/cleanup-list`, `upload/purge`, `audit/list` |
+| Backend hardening | Implemented | `BaseController`; centralized audit and transaction patterns | fixed route registry, class loading, task state transitions, upload review safety |
+
+#### Completed Frontend Summary
+
+| Area | Status |
+|---|---|
+| Shell, auth bootstrap, RBAC sidebar, mobile nav | Complete |
+| Dashboard base screens | Complete, needs final analytics polish |
+| Green Belt master/detail | Custom view complete |
+| Field upload, my uploads, outsourced upload, monitoring upload | Base custom views complete |
+| Watering, attendance, labour | Custom views complete |
+| Site master, campaigns, free media | Custom views complete |
+| Monitoring plan/history | Custom views complete |
+| Task request, task management, task detail, workers | Custom views complete |
+| Upload review and cleanup | Custom view complete with backend safety guard |
+| Settings and audit logs | Custom views complete |
+| Issue management | Custom view complete with modal drill-in and task linking |
+| Authority view | Custom view complete with summary cards, image gallery modal, and whatsapp share button |
+| User management | Custom view complete with create, edit, activate, deactivate, soft delete, and restore actions |
+| Access mappings | Custom view complete with role create, module scope management |
+| Task progress read | Custom view complete with read-only list and modal drill-in |
+
+#### Final Polish Note
+
+Validation: syntax_scan 104/104 PASS, test_frontend_route_map 190/190 PASS. Changes: removed duplicate `reports.monthly` stub that was overriding the full view; fixed all undefined CSS custom properties (`--border`→`--line`, `--text-muted`→`--ink-500`, `--bg-surface`→`--surface-soft`/`--surface`); replaced non-existent `btn-warn` class with `btn-danger` on destructive actions and `btn` on neutral state transitions; added `btn-sm` utility class to CSS. Assets bumped to `modules.js?v=14`, `style.css?v=3`.
+
+#### View Quick Reference (Historical)
+
+| Module | Main routes | Required UI actions | Key constraints |
+|---|---|---|---|
+| `green_belt.issue_management` | `issue/list`, `issue/get`, `issue/in-progress`, `issue/close`, `issue/link-task` | view detail, mark in progress, link task, close issue | Ops and Head Supervisor scope rules stay service-enforced; issue evidence never becomes authority-approved |
+| `green_belt.authority_view` | `authority/view`, `authority/summary`, `authority/share-helper` | filters, summary, download/share helper | show only `APPROVED` green-belt `WORK` uploads scoped to assigned authority belts |
+| `governance.user_management` | `user/list`, `user/get`, `user/create`, `user/update`, `user/deactivate`, `user/activate`, `user/delete`, `user/restore` | create/edit, activate/deactivate, soft delete/restore | Ops governance only; use canonical role IDs/keys from backend payloads |
+| `governance.access_mappings` | `role/list`, `role/get`, `role/create`, `role/update` | create/edit dynamic roles and module scope | one role = one permission group; landing module must be inside selected module scope |
+| `task.progress_read` | `taskprogress/list`, `taskprogress/get` | read-only list and detail drill-in | no fabrication execution controls; Sales/Client Servicing/Media Planning use this for progress tracking |
+
+#### Task Reference Docs (Historical)
+
+For `governance.user_management full view`:
+- `docs/11_build_specs/03_API_AND_ROUTE_CONTRACT.md` — `user/list`, `user/create`, `user/update`, `user/deactivate`, `user/activate`, `user/delete`, `user/restore` payloads
+- `docs/11_build_specs/04_PAGE_FIELD_AND_ACTION_SPEC.md` — §27 User Management (columns, actions)
+- `docs/11_build_specs/09_MODULE_ACCEPTANCE_CHECKLISTS.md` — §1 Platform Foundation and RBAC (user management acceptance gates)
+

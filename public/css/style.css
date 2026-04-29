@@ -386,6 +386,12 @@ textarea {
   background: transparent;
 }
 
+.btn-sm {
+  min-height: 30px;
+  padding: 5px 9px;
+  font-size: 0.82rem;
+}
+
 .btn-block {
   justify-content: center;
   width: 100%;

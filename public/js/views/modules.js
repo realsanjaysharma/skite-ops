@@ -587,7 +587,7 @@ Views.register('advertisement.campaign_management', {
         if (campaign.status === 'ACTIVE' || campaign.status === 'UPCOMING') {
           extraHTML = `
             <div class="field full">
-              <button type="button" class="btn btn-warn" data-end-campaign="${campaign.campaign_id}">End Campaign</button>
+              <button type="button" class="btn btn-danger" data-end-campaign="${campaign.campaign_id}">End Campaign</button>
             </div>
           `;
         } else if (campaign.status === 'ENDED') {
@@ -691,8 +691,8 @@ Views.register('media.free_media_inventory', {
           `;
         } else if (record.status === 'CONFIRMED_ACTIVE') {
           extraHTML = `
-            <div class="modal-actions" style="margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 1rem;">
-              <button type="button" class="btn btn-warn" data-expire-record="${record.record_id}">Mark Expired</button>
+            <div class="modal-actions" style="margin-top: 1rem; border-top: 1px solid var(--line); padding-top: 1rem;">
+              <button type="button" class="btn btn-danger" data-expire-record="${record.record_id}">Mark Expired</button>
               <button type="button" class="btn btn-ghost" data-consume-record="${record.record_id}">Mark Consumed</button>
             </div>
           `;
@@ -845,27 +845,6 @@ Views.register('green_belt.watering_oversight', {
   }
 });
 
-Views.register('reports.monthly', {
-  async render({ params }) {
-    const month = params.month || UI.currentMonth();
-    const data = await Api.get('report/belt-health', { month });
-    return UI.page('Monthly Reports', 'Calendar-month exports and summaries')
-      + UI.panel('Filters', UI.filters([{ name: 'month', label: 'Month', type: 'month', value: month }], 'Load'))
-      + UI.panel('Belt Health Summary', UI.table(inferColumns(normalizeItems(data)), normalizeItems(data), { empty: 'No report rows' }), `
-        <a class="btn" href="${Api.url('report/belt-health', { month, format: 'csv' })}"><i class="ph ph-download-simple"></i><span>CSV</span></a>
-      `)
-      + UI.panel('Other Reports', `
-        <div class="inline-actions">
-          <a class="btn" href="${Api.url('report/supervisor-activity', { month, format: 'csv' })}"><i class="ph ph-download-simple"></i><span>Supervisor Activity CSV</span></a>
-          <a class="btn" href="${Api.url('report/worker-activity', { month, format: 'csv' })}"><i class="ph ph-download-simple"></i><span>Worker Activity CSV</span></a>
-          <a class="btn" href="${Api.url('report/advertisement-operations', { month, format: 'csv' })}"><i class="ph ph-download-simple"></i><span>Ad Ops CSV</span></a>
-        </div>
-      `);
-  },
-  async afterRender() {
-    wireFilters((payload) => App.navigate('reports.monthly', payload));
-  }
-});
 
 Views.register('monitoring.plan', {
   async render({ params = {} }) {
@@ -930,7 +909,7 @@ Views.register('monitoring.plan', {
           const dateStr = `${month}-${String(d).padStart(2, '0')}`;
           const checked = site.due_dates.includes(dateStr) ? 'checked' : '';
           html += `
-            <label style="border: 1px solid var(--border); padding: 0.5rem; text-align: center; cursor: pointer; border-radius: 4px;">
+            <label style="border: 1px solid var(--line); padding: 0.5rem; text-align: center; cursor: pointer; border-radius: 4px;">
               <input type="checkbox" name="due_dates" value="${dateStr}" ${checked} style="display: block; margin: 0 auto 0.2rem;">
               <span style="font-size: 0.75rem;">${d}</span>
             </label>
@@ -944,7 +923,7 @@ Views.register('monitoring.plan', {
             ${html}
             <div class="modal-actions">
               <button type="button" class="btn btn-ghost" data-modal-close>Cancel</button>
-              <button type="button" class="btn btn-warn" data-copy-next>Copy to Next Month</button>
+              <button type="button" class="btn" data-copy-next>Copy to Next Month</button>
               <button type="submit" class="btn btn-primary">Save Changes</button>
             </div>
           </form>
@@ -1060,9 +1039,9 @@ Views.register('task.request_intake', {
         let extraHTML = '';
         if (request.status === 'PENDING') {
           extraHTML = `
-            <div class="modal-actions" style="margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 1rem;">
+            <div class="modal-actions" style="margin-top: 1rem; border-top: 1px solid var(--line); padding-top: 1rem;">
               <button type="button" class="btn btn-primary" data-approve="${request.id}">Approve & Create Task</button>
-              <button type="button" class="btn btn-warn" data-reject="${request.id}">Reject</button>
+              <button type="button" class="btn btn-danger" data-reject="${request.id}">Reject</button>
             </div>
           `;
         }
@@ -1413,7 +1392,7 @@ Views.register('governance.audit_logs', {
     document.querySelectorAll('[data-audit]').forEach(row => {
       row.addEventListener('click', () => {
         const audit = JSON.parse(row.dataset.audit);
-        const formatJson = (obj) => obj ? `<pre style="font-size: 0.8rem; background: var(--bg-surface); padding: 0.5rem; border-radius: 4px; border: 1px solid var(--border); overflow: auto; max-height: 200px;">${JSON.stringify(obj, null, 2)}</pre>` : 'None';
+        const formatJson = (obj) => obj ? `<pre style="font-size: 0.8rem; background: var(--surface-soft); padding: 0.5rem; border-radius: 4px; border: 1px solid var(--line); overflow: auto; max-height: 200px;">${JSON.stringify(obj, null, 2)}</pre>` : 'None';
         
         UI.showModal('Audit Detail', `
           <div class="stack-form">
@@ -1481,7 +1460,7 @@ Views.register('governance.rejected_upload_cleanup', {
       { key: 'created_at', label: 'Created' }
     ];
 
-    const actions = UI.button('Purge All Filtered', { icon: 'ph-trash', kind: 'btn-warn', attr: 'data-purge-all' });
+    const actions = UI.button('Purge All Filtered', { icon: 'ph-trash', kind: 'btn-danger', attr: 'data-purge-all' });
 
     return UI.page('Rejected Uploads Cleanup', 'Manage and purge old rejected media', actions)
       + UI.panel('Filters', UI.filters([
@@ -1543,14 +1522,14 @@ Views.register('green_belt.upload_review', {
           if (!isReviewableWorkUpload(row)) return '<span style="opacity:0.5;font-size:0.8rem;">Not reviewable</span>';
           return `
             <button class="btn btn-sm btn-primary" data-approve="${row.id}">Approve</button>
-            <button class="btn btn-sm btn-warn" data-reject="${row.id}">Reject</button>
+            <button class="btn btn-sm btn-danger" data-reject="${row.id}">Reject</button>
           `;
         }
       }
     ];
 
     const actions = UI.button('Bulk Approve', { icon: 'ph-check-circle', kind: 'btn-primary', attr: 'data-bulk-approve' }) +
-                    UI.button('Bulk Reject', { icon: 'ph-x-circle', kind: 'btn-warn', attr: 'data-bulk-reject' });
+                    UI.button('Bulk Reject', { icon: 'ph-x-circle', kind: 'btn-danger', attr: 'data-bulk-reject' });
 
     return UI.page('Upload Review', 'Review and process field proofs', actions)
       + UI.panel('Filters', UI.filters([
@@ -1582,9 +1561,9 @@ Views.register('green_belt.upload_review', {
         
         if (isReviewableWorkUpload(upload)) {
           actionButtons = `
-            <div class="modal-actions" style="margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 1rem;">
+            <div class="modal-actions" style="margin-top: 1rem; border-top: 1px solid var(--line); padding-top: 1rem;">
               <button type="button" class="btn btn-primary" data-modal-approve="${upload.id}">Approve</button>
-              <button type="button" class="btn btn-warn" data-modal-reject="${upload.id}">Reject</button>
+              <button type="button" class="btn btn-danger" data-modal-reject="${upload.id}">Reject</button>
             </div>
           `;
         }
@@ -1724,14 +1703,14 @@ Views.register('green_belt.issue_management', {
             actionsHtml += `<button type="button" class="btn btn-primary" data-in-progress="${issue.id}">Mark In Progress</button> `;
         }
         if (issue.status !== 'CLOSED' && isOps) {
-            actionsHtml += `<button type="button" class="btn btn-warn" data-close="${issue.id}">Close Issue</button> `;
+            actionsHtml += `<button type="button" class="btn btn-danger" data-close="${issue.id}">Close Issue</button> `;
         }
         if (isOps) {
             actionsHtml += `<button type="button" class="btn btn-ghost" data-link-task="${issue.id}">Link Task</button> `;
             actionsHtml += `<button type="button" class="btn btn-ghost" data-create-task="${issue.id}">Create Task</button>`;
         }
 
-        const actionPanel = actionsHtml ? `<div class="modal-actions" style="margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 1rem;">${actionsHtml}</div>` : '';
+        const actionPanel = actionsHtml ? `<div class="modal-actions" style="margin-top: 1rem; border-top: 1px solid var(--line); padding-top: 1rem;">${actionsHtml}</div>` : '';
 
         UI.showModal('Issue Detail', `
           <div class="stack-form">
@@ -1823,20 +1802,20 @@ Views.register('green_belt.authority_view', {
 
     const summaryHtml = `
       <div class="stat-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
-        <div class="stat-card" style="padding: 1rem; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px;">
-          <div style="font-size: 0.8rem; color: var(--text-muted);">Active Belts</div>
+        <div class="stat-card" style="padding: 1rem; background: var(--surface); border: 1px solid var(--line); border-radius: 8px;">
+          <div style="font-size: 0.8rem; color: var(--ink-500);">Active Belts</div>
           <div style="font-size: 1.5rem; font-weight: bold;">${summary.total_belts}</div>
         </div>
-        <div class="stat-card" style="padding: 1rem; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px;">
-          <div style="font-size: 0.8rem; color: var(--text-muted);">Morning Photos</div>
+        <div class="stat-card" style="padding: 1rem; background: var(--surface); border: 1px solid var(--line); border-radius: 8px;">
+          <div style="font-size: 0.8rem; color: var(--ink-500);">Morning Photos</div>
           <div style="font-size: 1.5rem; font-weight: bold;">${summary.total_morning_photos}</div>
         </div>
-        <div class="stat-card" style="padding: 1rem; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px;">
-          <div style="font-size: 0.8rem; color: var(--text-muted);">Evening Photos</div>
+        <div class="stat-card" style="padding: 1rem; background: var(--surface); border: 1px solid var(--line); border-radius: 8px;">
+          <div style="font-size: 0.8rem; color: var(--ink-500);">Evening Photos</div>
           <div style="font-size: 1.5rem; font-weight: bold;">${summary.total_evening_photos}</div>
         </div>
-        <div class="stat-card" style="padding: 1rem; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px;">
-          <div style="font-size: 0.8rem; color: var(--text-muted);">Total Photos</div>
+        <div class="stat-card" style="padding: 1rem; background: var(--surface); border: 1px solid var(--line); border-radius: 8px;">
+          <div style="font-size: 0.8rem; color: var(--ink-500);">Total Photos</div>
           <div style="font-size: 1.5rem; font-weight: bold;">${summary.total_photos}</div>
         </div>
       </div>
@@ -1999,7 +1978,7 @@ Views.register('governance.access_mappings', {
           if (row.start_date > now) status = 'UPCOMING';
           return UI.status(status);
       }},
-      { key: 'actions', label: 'Actions', html: true, render: (row) => `<button class="btn btn-sm btn-warn" data-close-\${type}="\${row.id}">Close</button>` }
+      { key: 'actions', label: 'Actions', html: true, render: (row) => `<button class="btn btn-sm btn-danger" data-close-\${type}="\${row.id}">Close</button>` }
     ];
 
     const actions = UI.button('Create Role', { icon: 'ph-plus', attr: 'data-create-role' }) +
@@ -2143,7 +2122,7 @@ Views.register('task.progress_read', {
         if (!taskProgress) return UI.toast('Task progress not found', 'bad');
         
         // Fetch proofs
-        let proofsHtml = '<p style="color:var(--text-muted);">No proofs uploaded yet.</p>';
+        let proofsHtml = '<p style="color:var(--ink-500);">No proofs uploaded yet.</p>';
         try {
           const uploads = await Api.get('upload/list', { parent_type: 'TASK', parent_id: taskId });
           const items = normalizeItems(uploads);
@@ -2181,7 +2160,7 @@ Views.register('task.progress_read', {
               <div class="field full"><span>Remark 2</span><textarea readonly>\${UI.escape(taskProgress.remark_2 || '-')}</textarea></div>
               <div class="field full"><span>Completion Note</span><textarea readonly>\${UI.escape(taskProgress.completion_note || '-')}</textarea></div>
             </div>
-            <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border);">
+            <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--line);">
               <h4>Execution Proofs</h4>
               \${proofsHtml}
             </div>

@@ -24,43 +24,56 @@ If you change `public/js/views/modules.js`, `public/js/core/*.js`, or `public/js
 Use the same prompt every implementation turn:
 
 ```text
-Continue from docs/11_build_specs/10_IMPLEMENTATION_PROGRESS.md and implement only the current next scoped task.
-Use only the locked docs and docs/AI_TOOL_HANDOFF_GUIDE.md; do not restate context, redesign behavior, or touch unrelated modules.
-Run only relevant validation, update docs/11_build_specs/10_IMPLEMENTATION_PROGRESS.md with status/results/blockers, then stop.
+Continue the last agent's work in this Skite Ops repo.
+
+Read these two files first:
+1. docs/AI_TOOL_HANDOFF_GUIDE.md — read only the "Codebase Pitfalls and Safety Rules" section
+2. docs/11_build_specs/10_IMPLEMENTATION_PROGRESS.md — this is the active execution tracker
+
+From 10_IMPLEMENTATION_PROGRESS.md, identify and implement only the current next scoped task (one phase from the Gap Closure Phase Queue).
+
+For detailed phase instructions, read only the matching phase section from the implementation plan file referenced in the progress file under "Implementation Plan Reference" — do not read the entire plan file.
+
+Use only the locked docs. Do not redesign product behavior, skip ahead, or touch unrelated modules unless a real blocker appears.
+
+After finishing the current phase:
+- run the relevant validation commands listed in the progress file
+- update docs/11_build_specs/10_IMPLEMENTATION_PROGRESS.md: set next scoped task, mark the completed phase, add validation results
+- update docs/AI_TOOL_HANDOFF_GUIDE.md only if a new pitfall was discovered
+- stop — do not continue into the next phase
 ```
 
 ## Current Next Scoped Task
 
-`final browser walkthrough and polish`
+Phase 1: Backend report formula correctness (ReportService + ReportRepository)
 
-## Remaining Frontend Task Queue
+## Implementation Plan Reference
 
-Run these tasks in order, one per implementation turn. Do not skip ahead unless the current task is blocked and the blocker is recorded here.
+The detailed step-by-step instructions for each phase are in:
 
-1. `task.my_tasks full view` - COMPLETE
-2. `green_belt.upload_review full view` - COMPLETE
-3. `green_belt.issue_management full view` - COMPLETE
-4. `green_belt.authority_view full view` - COMPLETE
-5. `governance.user_management full view` - COMPLETE
-6. `governance.access_mappings full view` - COMPLETE
-7. `task.progress_read full view` - COMPLETE
-8. `dashboard and analytics final pass` - COMPLETE
-9. `final browser walkthrough and polish` - CURRENT
+```
+C:\Users\radhi\.gemini\antigravity\brain\676b78f8-8bdc-45ba-abe9-cab84768198f\implementation_plan.md
+```
 
-## Remaining View Quick Reference
+**Instructions for agents:** When starting a phase, open this file, find the section matching the current phase number (e.g. "Phase 1 — Backend: Report Formula Correctness"), and follow only that section's instructions. Do not read the entire file.
 
-| Module | Main routes | Required UI actions | Key constraints |
-|---|---|---|---|
-| `green_belt.issue_management` | `issue/list`, `issue/get`, `issue/in-progress`, `issue/close`, `issue/link-task` | view detail, mark in progress, link task, close issue | Ops and Head Supervisor scope rules stay service-enforced; issue evidence never becomes authority-approved |
-| `green_belt.authority_view` | `authority/view`, `authority/summary`, `authority/share-helper` | filters, summary, download/share helper | show only `APPROVED` green-belt `WORK` uploads scoped to assigned authority belts |
-| `governance.user_management` | `user/list`, `user/get`, `user/create`, `user/update`, `user/deactivate`, `user/activate`, `user/delete`, `user/restore` | create/edit, activate/deactivate, soft delete/restore | Ops governance only; use canonical role IDs/keys from backend payloads |
-| `governance.access_mappings` | `role/list`, `role/get`, `role/create`, `role/update` | create/edit dynamic roles and module scope | one role = one permission group; landing module must be inside selected module scope |
-| `task.progress_read` | `taskprogress/list`, `taskprogress/get` | read-only list and detail drill-in | no fabrication execution controls; Sales/Client Servicing/Media Planning use this for progress tracking |
-| `dashboard and analytics final pass` | dashboard routes, report routes | polish cards, drill-ins, CSV links | metrics must come from backend routes/services, not duplicated frontend formulas |
+## Gap Closure Phase Queue
+
+Run these phases in order, one per implementation turn.
+
+1. `Phase 1: Backend report formula correctness` — fix hardcoded watering compliance (0/0/100%), historical supervisor attribution, and monitoring coverage in ReportService/ReportRepository. Files: `app/services/ReportService.php`, `app/repositories/ReportRepository.php`. Spec: `docs/11_build_specs/07_REPORTS_ALERTS_AND_FORMULAS.md`.
+2. `Phase 2: Backend task completion guard` — enforce AFTER_WORK proof requirement before task completion in TaskService. Confirm self-delete window source. Files: `app/services/TaskService.php`, `config/constants.php`.
+3. `Phase 3: Backend dashboard formula correctness` — add 3 missing Master Ops cards (campaign_ending_soon, free_media_active, monitoring_due_today), fix Green Belt dashboard (add active_cycle_count, watering_pending), fix Monitoring dashboard qualifying completion logic. Files: `app/services/DashboardService.php`.
+4. `Phase 4: Frontend monitoring pipeline` — add discovery mode toggle to monitoring.upload, add discovery_mode filter to monitoring.history, add bulk-copy panel to monitoring.plan. Files: `public/js/views/modules.js`. Backend routes already exist.
+5. `Phase 5: Frontend dashboard upgrades` — replace generic dashboardView() for master_ops, green_belt, monitoring with custom views showing labeled cards, clickable drill-ins, and GB filters. Files: `public/js/views/modules.js`.
+6. `Phase 6: Frontend belt detail UX` — auto-detect active cycle for close modal, add End Assignment buttons to assignment rows, register standalone maintenance_cycles view. Files: `public/js/views/modules.js`. Backend routes: `supervisorassignment/close`, `authorityassignment/close`, `outsourcedassignment/close`.
+7. `Phase 7: Frontend Head Supervisor landing + GPS + request UX` — unify watering_oversight into 4-section daily surface, add GPS capture to upload forms, split task.request_intake by role. Files: `public/js/views/modules.js`.
+8. `Phase 8: Frontend global polish` — add pagination helper, supervisor name dropdowns, free media raise-request link, WhatsApp toggle guard. Files: `public/js/views/modules.js`, possibly `public/js/core/ui.js`.
+9. `Phase 9: New v1 surfaces` — add 4 new modules end-to-end: governance.alert_panel, task.worker_daily_entry, commercial.client_media_library, commercial.media_planning_inventory. Files: `config/rbac.php`, `config/route_registry.php`, `app/controllers/DashboardController.php`, `app/controllers/SiteController.php`, `app/controllers/FreeMediaController.php`, `app/services/DashboardService.php`, `public/js/core/navigation.js`, `public/js/views/modules.js`, `migrations/003_new_modules_seed.sql`. Run migration SQL on live DB.
 
 ## Critical Gotchas
 
-Full list is in `docs/AI_TOOL_HANDOFF_GUIDE.md` under **Codebase Pitfalls and Safety Rules**. Read that section before writing any payload, enum value, or route key. Task-specific warnings are noted inline in **Current Task Reference Docs** below.
+Full list is in `docs/AI_TOOL_HANDOFF_GUIDE.md` under **Codebase Pitfalls and Safety Rules**. Read that section before writing any payload, enum value, or route key.
 
 ## Test Commands
 
@@ -76,92 +89,41 @@ node --check public\js\core\ui.js
 node --check public\js\views\modules.js
 C:\xampp\php\php.exe tests\test_frontend_route_map.php
 C:\xampp\php\php.exe tests\test_frontend_nav.php
-C:\xampp\php\php.exe tests\test_gap_resolution.php
-C:\xampp\php\php.exe tests\test_upload_review_safety.php
 ```
 
-HTTP integration scripts exist and may require the right shell/runtime:
-
-```bash
-bash tests/http_integration_test.sh
-bash tests/http_integration_mutations.sh
-```
-
-Local test credentials commonly used by scripts:
+Local test credentials:
 
 - Base URL: `http://localhost/skite/index.php?route=`
 - Ops email: `ops.test.phase2@skite.local`
 - Password: `TestPass123!`
 
-## Completed Backend Summary
-
-Backend detail is intentionally compressed to reduce agent token usage. Use `config/route_registry.php` as the source of truth for route names.
-
-| Area | Status | Main controllers/services/repos | Key routes |
-|---|---|---|---|
-| Auth, RBAC, users, roles | Implemented, live smoke verified | `AuthController`, `UserController`, `RoleController`; `AuthService`, `RbacService`, `UserService`, `RoleService`; `UserRepository`, `RbacRepository` | `auth/*`, `user/*`, `role/*` |
-| Green Belt core and assignments | Implemented | `BeltController`, `BeltAssignmentController`, `MaintenanceCycleController`; belt and assignment services/repos | `belt/*`, `supervisorassignment/*`, `authorityassignment/*`, `outsourcedassignment/*`, `cycle/*` |
-| Field operations | Implemented | `UploadController`, `WateringController`, `AttendanceController`, `LabourController`, `OversightController`; related services/repos | `upload/*`, `watering/*`, `attendance/*`, `labour/*`, `oversight/watering` |
-| Issues, requests, tasks | Implemented | `IssueController`, `RequestController`, `TaskController`, `TaskProgressController`; related services/repos | `issue/*`, `request/*`, `task/*`, `taskprogress/*` |
-| Fabrication workers | Implemented | `WorkerController`, `WorkerEntryController`, `TaskWorkerController`; related services/repos | `worker/*`, `workday/*`, `taskworker/*` |
-| Advertisement, monitoring, media | Implemented | `SiteController`, `MonitoringPlanController`, `MonitoringHistoryController`, `MonitoringUploadController`, `CampaignController`, `FreeMediaController`; related services/repos | `site/*`, `monitoringplan/*`, `monitoring/upload`, `monitoring/history`, `campaign/*`, `freemedia/*` |
-| Authority portal | Implemented | `AuthorityViewController`, `AuthorityViewService`, `AuthorityViewRepository` | `authority/view`, `authority/summary`, `authority/share-helper` |
-| Reports, settings, cleanup, audit | Implemented | `ReportController`, `SystemSettingsController`, `AuditController`, extended upload cleanup flow | `report/*`, `settings/*`, `upload/cleanup-list`, `upload/purge`, `audit/list` |
-| Backend hardening | Implemented | `BaseController`; centralized audit and transaction patterns | fixed route registry, class loading, task state transitions, upload review safety |
-
 ## Established Backend Patterns
 
-- Controllers extend `BaseController` when possible and use `$this->requireMethod()`, `$this->getInput()`, and `$this->getActor()`.
+- Controllers extend `BaseController` and use `$this->requireMethod()`, `$this->getInput()`, `$this->getActor()`.
 - Services own business rules, record scope, transactions, and audit logging.
 - Repositories own SQL only and extend `BaseRepository`.
 - List responses use `{ items, pagination: { page, limit, total } }`.
 - Use `AuditService` for governed mutations.
-- Do not put role-only decisions in controllers when middleware/service scope can enforce them.
 
 ## Established Frontend Patterns
 
-- Frontend remains vanilla JS for now.
 - Register pages with `Views.register(moduleKey, { render, afterRender })` in `public/js/views/modules.js`.
-- Use `UI.page`, `UI.panel`, `UI.table`, `UI.filters`, `UI.field`, `UI.showModal`, and `UI.toast` instead of ad hoc markup when possible.
-- Use `openSimpleForm()` for simple mutation modals.
-- Use `simpleAction(route, payload, successMessage)` for POST mutations; it handles toast, modal close, and refresh.
+- Use `UI.page`, `UI.panel`, `UI.table`, `UI.filters`, `UI.field`, `UI.showModal`, `UI.toast`.
+- Use `openSimpleForm()` for mutation modals; `simpleAction(route, payload, msg)` for POST mutations.
 - Use `App.navigate(moduleKey, params)` for route changes.
-- Keep `Navigation.NavMap` aligned with `config/rbac.php` and `config/route_registry.php`; `tests/test_frontend_route_map.php` checks this.
+- Keep `Navigation.NavMap` aligned with `config/rbac.php` and `config/route_registry.php`.
 
-## Completed Frontend Summary
+## Asset Cache Markers
 
-| Area | Status |
-|---|---|
-| Shell, auth bootstrap, RBAC sidebar, mobile nav | Complete |
-| Dashboard base screens | Complete, needs final analytics polish |
-| Green Belt master/detail | Custom view complete |
-| Field upload, my uploads, outsourced upload, monitoring upload | Base custom views complete |
-| Watering, attendance, labour | Custom views complete |
-| Site master, campaigns, free media | Custom views complete |
-| Monitoring plan/history | Custom views complete |
-| Task request, task management, task detail, workers | Custom views complete |
-| Upload review and cleanup | Custom view complete with backend safety guard |
-| Settings and audit logs | Custom views complete |
-| Issue management | Custom view complete with modal drill-in and task linking |
-| Authority view | Custom view complete with summary cards, image gallery modal, and whatsapp share button |
-| User management | Custom view complete with create, edit, activate, deactivate, soft delete, and restore actions |
-| Remaining | access mappings, task progress read, final dashboard/browser polish |
-
-## Current Task Reference Docs
-
-For `governance.user_management full view`, start with:
-
-- `docs/11_build_specs/03_API_AND_ROUTE_CONTRACT.md` — `user/list`, `user/create`, `user/update`, `user/deactivate`, `user/activate`, `user/delete`, `user/restore` payloads
-- `docs/11_build_specs/04_PAGE_FIELD_AND_ACTION_SPEC.md` — §27 User Management (columns, actions)
-- `docs/11_build_specs/09_MODULE_ACCEPTANCE_CHECKLISTS.md` — §1 Platform Foundation and RBAC (user management acceptance gates)
+Current: `modules.js?v=14`, `style.css?v=3`. Bump after each frontend phase.
 
 ## Task Update Rule
 
-After each task:
+After each phase:
 
-- update `Current Next Scoped Task`
+- update `Current Next Scoped Task` to the next phase
 - mark exactly one queue item complete
 - add a short result note with files changed and validation run
-- record blockers only if they stop the current task
-- stop instead of continuing into the next queue item
-- if a new pitfall or safety fix was discovered (wrong field name, enum mismatch, RBAC gap, silent failure, missing validation, XSS risk, approval bypass, etc.) add it to the **Codebase Pitfalls and Safety Rules** section of `docs/AI_TOOL_HANDOFF_GUIDE.md`, not here
+- record blockers only if they stop the current phase
+- stop — do not continue into the next phase
+- if a new pitfall was discovered, add it to `docs/AI_TOOL_HANDOFF_GUIDE.md` under **Codebase Pitfalls and Safety Rules**
