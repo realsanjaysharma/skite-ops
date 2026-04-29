@@ -31,7 +31,7 @@ Run only relevant validation, update docs/11_build_specs/10_IMPLEMENTATION_PROGR
 
 ## Current Next Scoped Task
 
-`task.progress_read full view`
+`final browser walkthrough and polish`
 
 ## Remaining Frontend Task Queue
 
@@ -43,9 +43,9 @@ Run these tasks in order, one per implementation turn. Do not skip ahead unless 
 4. `green_belt.authority_view full view` - COMPLETE
 5. `governance.user_management full view` - COMPLETE
 6. `governance.access_mappings full view` - COMPLETE
-7. `task.progress_read full view` - CURRENT
-8. `dashboard and analytics final pass`
-9. `final browser walkthrough and polish`
+7. `task.progress_read full view` - COMPLETE
+8. `dashboard and analytics final pass` - COMPLETE
+9. `final browser walkthrough and polish` - CURRENT
 
 ## Remaining View Quick Reference
 

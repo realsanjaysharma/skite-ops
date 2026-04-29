@@ -165,6 +165,41 @@ Views.register('dashboard.management', dashboardView('dashboard/management', 'Ma
   ${UI.button('Authority View', { icon: 'ph-eye', attr: `data-nav="green_belt.authority_view"` })}
 `));
 
+Views.register('reports.monthly', {
+  async render({ params = {} }) {
+    const month = params.month || UI.currentMonth();
+    
+    // We fetch data sequentially or concurrently. Doing concurrently for performance.
+    const [beltHealth, workerActivity, supervisorActivity, adOps] = await Promise.all([
+      Api.get('report/belt-health', { month }),
+      Api.get('report/worker-activity', { month }),
+      Api.get('report/supervisor-activity', { month }),
+      Api.get('report/advertisement-operations', { month })
+    ]);
+
+    const filterUI = UI.panel('Reporting Period', UI.filters([
+      { name: 'month', label: 'Month', type: 'month', value: month, required: true }
+    ], 'Load Reports'));
+
+    const renderReportPanel = (title, route, data) => {
+      const items = normalizeItems(data);
+      const csvUrl = Api.url(route, { month, format: 'csv' });
+      const actions = \`<a href="\${csvUrl}" class="btn btn-ghost" target="_blank" download><i class="ph ph-download-simple"></i><span>Download CSV</span></a>\`;
+      return UI.panel(title, UI.table(inferColumns(items), items, { empty: 'No data for this period.' }), actions);
+    };
+
+    return UI.page('Monthly Analytics', 'Aggregated performance and activity reports for ' + month)
+      + filterUI
+      + renderReportPanel('Belt Health Summary', 'report/belt-health', beltHealth)
+      + renderReportPanel('Worker Activity', 'report/worker-activity', workerActivity)
+      + renderReportPanel('Supervisor Activity', 'report/supervisor-activity', supervisorActivity)
+      + renderReportPanel('Advertisement Operations', 'report/advertisement-operations', adOps);
+  },
+  async afterRender() {
+    wireFilters((payload) => App.navigate('reports.monthly', payload));
+  }
+});
+
 Views.register('green_belt.master', {
   async render({ params = {} }) {
     const data = await Api.get('belt/list', params);
@@ -2065,11 +2100,100 @@ Views.register('governance.access_mappings', {
       });
     });
   }
+Views.register('task.progress_read', {
+  async render({ params = {} }) {
+    const data = await Api.get('taskprogress/list', params);
+    const rows = normalizeItems(data);
+
+    const columns = [
+      { key: 'id', label: 'ID' },
+      { key: 'work_description', label: 'Description', render: (row) => UI.escape(row.work_description || '').substring(0, 50) + ((row.work_description || '').length > 50 ? '...' : '') },
+      { key: 'status', label: 'Status', html: true, render: (row) => UI.status(row.status) },
+      { key: 'progress_percent', label: 'Progress', render: (row) => \`\${row.progress_percent}%\` },
+      { key: 'assigned_lead_user_name', label: 'Lead', render: (row) => row.assigned_lead_user_name || '-' },
+      { key: 'client_name', label: 'Client', render: (row) => row.client_name || '-' },
+      { key: 'campaign_id', label: 'Campaign ID', render: (row) => row.campaign_id || '-' },
+      { key: 'request_site_id', label: 'Site ID', render: (row) => row.request_site_id || '-' },
+      { key: 'start_date', label: 'Start Date' }
+    ];
+
+    const filterUI = UI.panel('Filters', UI.filters([
+      { name: 'status', label: 'Status', type: 'select', value: params.status || '', options: ['', 'OPEN', 'RUNNING', 'COMPLETED', 'CANCELLED'] },
+      { name: 'client_name', label: 'Client Name', type: 'text', value: params.client_name || '' },
+      { name: 'campaign_id', label: 'Campaign ID', type: 'number', value: params.campaign_id || '' },
+      { name: 'site_id', label: 'Site ID', type: 'number', value: params.site_id || '' },
+      { name: 'date_from', label: 'From Date', type: 'date', value: params.date_from || '' },
+      { name: 'date_to', label: 'To Date', type: 'date', value: params.date_to || '' }
+    ], 'Search'));
+
+    const actions = UI.button('Refresh', { icon: 'ph-arrows-clockwise', attr: 'data-refresh' });
+
+    return UI.page('Task Progress', 'Monitor operational progress of client requests and campaigns', actions)
+      + filterUI
+      + UI.panel('Tasks', UI.table(columns, rows, { empty: 'No tasks found for the given criteria.', rowAttr: (row) => \`data-task-id="\${row.id}"\` }));
+  },
+  async afterRender() {
+    attachRefresh();
+    wireFilters((payload) => App.navigate('task.progress_read', payload));
+
+    document.querySelectorAll('[data-task-id]').forEach(row => {
+      row.addEventListener('click', async () => {
+        const taskId = row.dataset.taskId;
+        const taskProgress = await Api.get('taskprogress/get', { task_id: taskId });
+        if (!taskProgress) return UI.toast('Task progress not found', 'bad');
+        
+        // Fetch proofs
+        let proofsHtml = '<p style="color:var(--text-muted);">No proofs uploaded yet.</p>';
+        try {
+          const uploads = await Api.get('upload/list', { parent_type: 'TASK', parent_id: taskId });
+          const items = normalizeItems(uploads);
+          if (items.length > 0) {
+            proofsHtml = \`<div class="photo-grid" style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;">\` + 
+              items.map(u => \`<div style="text-align: center;">
+                <img src="\${Api.url('upload/serve', { id: u.id })}" style="width: 100px; height: 100px; object-fit: cover; border-radius: 4px; border: 1px solid var(--border); cursor: pointer;" onclick="UI.showModal('Photo', '<div style=\\'text-align:center;\\'><img src=\\'\${Api.url('upload/serve', { id: u.id })}\\' style=\\'max-width:100%;max-height:70vh;border-radius:4px;\\'></div>')">
+                <div style="font-size: 0.75rem; margin-top: 4px;">\${UI.escape(u.photo_label || 'Proof')}</div>
+              </div>\`).join('') + \`</div>\`;
+          }
+        } catch (e) {
+          console.error("Failed to load uploads", e);
+        }
+
+        UI.showModal('Task Progress Details', \`
+          <div class="stack-form">
+            <div class="form-grid">
+              <div class="field"><span>Task ID</span><input type="text" value="\${taskProgress.id}" readonly></div>
+              <div class="field"><span>Status</span><input type="text" value="\${taskProgress.status}" readonly></div>
+              <div class="field"><span>Progress %</span><input type="text" value="\${taskProgress.progress_percent}%" readonly></div>
+              <div class="field"><span>Category</span><input type="text" value="\${taskProgress.task_category || '-'}" readonly></div>
+              <div class="field"><span>Vertical</span><input type="text" value="\${taskProgress.vertical_type || '-'}" readonly></div>
+              <div class="field"><span>Priority</span><input type="text" value="\${taskProgress.priority || '-'}" readonly></div>
+              <div class="field"><span>Client Name</span><input type="text" value="\${UI.escape(taskProgress.client_name || '-')}" readonly></div>
+              <div class="field"><span>Campaign ID</span><input type="text" value="\${taskProgress.campaign_id || '-'}" readonly></div>
+              <div class="field"><span>Site ID</span><input type="text" value="\${taskProgress.request_site_id || '-'}" readonly></div>
+              <div class="field"><span>Start Date</span><input type="text" value="\${taskProgress.start_date || '-'}" readonly></div>
+              <div class="field"><span>Expected Close</span><input type="text" value="\${taskProgress.expected_close_date || '-'}" readonly></div>
+              <div class="field"><span>Actual Close</span><input type="text" value="\${taskProgress.actual_close_date || '-'}" readonly></div>
+              <div class="field"><span>Assigned Lead</span><input type="text" value="\${UI.escape(taskProgress.assigned_lead_user_name || '-')}" readonly></div>
+              <div class="field"><span>Assigned By</span><input type="text" value="\${UI.escape(taskProgress.assigned_by_user_name || '-')}" readonly></div>
+              <div class="field full"><span>Location Text</span><input type="text" value="\${UI.escape(taskProgress.location_text || '-')}" readonly></div>
+              <div class="field full"><span>Work Description</span><textarea readonly>\${UI.escape(taskProgress.work_description || '-')}</textarea></div>
+              <div class="field full"><span>Remark 1</span><textarea readonly>\${UI.escape(taskProgress.remark_1 || '-')}</textarea></div>
+              <div class="field full"><span>Remark 2</span><textarea readonly>\${UI.escape(taskProgress.remark_2 || '-')}</textarea></div>
+              <div class="field full"><span>Completion Note</span><textarea readonly>\${UI.escape(taskProgress.completion_note || '-')}</textarea></div>
+            </div>
+            <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border);">
+              <h4>Execution Proofs</h4>
+              \${proofsHtml}
+            </div>
+          </div>
+        \`);
+      });
+    });
+  }
 });
 
 const simpleLists = {
   'green_belt.maintenance_cycles': ['cycle/list', 'Maintenance Cycles', ['id', 'belt_code', 'common_name', 'start_date', 'end_date', 'status']],
-  'task.progress_read': ['taskprogress/list', 'Task Progress', ['id', 'work_description', 'status', 'progress_percent', 'assigned_lead_name']],
 };
 
 Object.entries(simpleLists).forEach(([moduleKey, [route, title, columns]]) => {
