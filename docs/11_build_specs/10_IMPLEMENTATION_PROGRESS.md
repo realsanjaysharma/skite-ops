@@ -10,6 +10,10 @@
 
 ## Agent Start Here
 
+Product canon and implementation spec are locked — do not reinterpret or reopen them.
+Legacy mirror docs (`docs/01_structure`, `docs/02_interface`, etc.) are aligned but superseded — ignore them.
+Canonical schema (`docs/06_schema/schema_v1_full.sql`) and foundation seed (`migrations/001_seed_foundation.sql`) are validated and running on the live `skite_ops` MariaDB database. The DB is clean and safe to test against.
+
 Current status: backend modules are implemented and pass syntax plus HTTP smoke coverage used so far. The vanilla JS frontend shell is implemented and RBAC-aware. Most frontend modules have custom views, but several remaining views still need full action-level completion and final browser polish.
 
 Current frontend asset cache marker: `?v=8`.
@@ -27,7 +31,7 @@ Run only relevant validation, update docs/11_build_specs/10_IMPLEMENTATION_PROGR
 
 ## Current Next Scoped Task
 
-`governance.access_mappings full view`
+`task.progress_read full view`
 
 ## Remaining Frontend Task Queue
 
@@ -38,8 +42,8 @@ Run these tasks in order, one per implementation turn. Do not skip ahead unless 
 3. `green_belt.issue_management full view` - COMPLETE
 4. `green_belt.authority_view full view` - COMPLETE
 5. `governance.user_management full view` - COMPLETE
-6. `governance.access_mappings full view` - CURRENT
-7. `task.progress_read full view`
+6. `governance.access_mappings full view` - COMPLETE
+7. `task.progress_read full view` - CURRENT
 8. `dashboard and analytics final pass`
 9. `final browser walkthrough and polish`
 

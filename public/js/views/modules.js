@@ -1932,11 +1932,144 @@ Views.register('governance.user_management', {
   }
 });
 
+Views.register('governance.access_mappings', {
+  async render() {
+    const [roles, supervisors, authorities, outsourced] = await Promise.all([
+      Api.get('role/list').then(normalizeItems),
+      Api.get('supervisorassignment/list').then(normalizeItems),
+      Api.get('authorityassignment/list').then(normalizeItems),
+      Api.get('outsourcedassignment/list').then(normalizeItems)
+    ]);
+
+    const roleColumns = [
+      { key: 'id', label: 'ID' },
+      { key: 'role_key', label: 'Key' },
+      { key: 'role_name', label: 'Name' },
+      { key: 'permission_group_name', label: 'Perm Group' },
+      { key: 'landing_module_key', label: 'Landing' },
+      { key: 'is_active', label: 'Active', html: true, render: (row) => UI.status(row.is_active ? 'ACTIVE' : 'INACTIVE') },
+      { key: 'actions', label: 'Actions', html: true, render: (row) => `<button class="btn btn-sm btn-ghost" data-edit-role="\${row.id}"><i class="ph ph-pencil"></i></button>` }
+    ];
+
+    const assignColumns = (type) => [
+      { key: 'id', label: 'ID' },
+      { key: 'belt_code', label: 'Belt Code' },
+      { key: 'user_name', label: 'User Name', render: (row) => row.user_name || row[\`\${type}_name\`] || row.full_name || row[\`\${type}_user_id\`] || '-' },
+      { key: 'start_date', label: 'Start Date' },
+      { key: 'end_date', label: 'End Date', render: (row) => row.end_date || '-' },
+      { key: 'status', label: 'Status', html: true, render: (row) => {
+          const now = UI.currentDate();
+          let status = 'ACTIVE';
+          if (row.end_date && row.end_date < now) status = 'EXPIRED';
+          if (row.start_date > now) status = 'UPCOMING';
+          return UI.status(status);
+      }},
+      { key: 'actions', label: 'Actions', html: true, render: (row) => `<button class="btn btn-sm btn-warn" data-close-\${type}="\${row.id}">Close</button>` }
+    ];
+
+    const actions = UI.button('Create Role', { icon: 'ph-plus', attr: 'data-create-role' }) +
+                    UI.button('Refresh', { icon: 'ph-arrows-clockwise', attr: 'data-refresh' });
+
+    return UI.page('Access Mappings', 'Manage roles and belt assignments', actions)
+      + UI.panel('Roles & Module Scope', UI.table(roleColumns, roles, { empty: 'No roles found.' }))
+      + UI.panel('Supervisor Assignments', \`
+          <div class="inline-actions" style="margin-bottom: 12px;">
+            \${UI.button('Assign Supervisor', { icon: 'ph-plus', attr: 'data-assign="supervisor"' })}
+          </div>
+          \${UI.table(assignColumns('supervisor'), supervisors, { empty: 'No supervisor assignments found.' })}
+        \`)
+      + UI.panel('Authority Assignments', \`
+          <div class="inline-actions" style="margin-bottom: 12px;">
+            \${UI.button('Assign Authority', { icon: 'ph-plus', attr: 'data-assign="authority"' })}
+          </div>
+          \${UI.table(assignColumns('authority'), authorities, { empty: 'No authority assignments found.' })}
+        \`)
+      + UI.panel('Outsourced Assignments', \`
+          <div class="inline-actions" style="margin-bottom: 12px;">
+            \${UI.button('Assign Outsourced', { icon: 'ph-plus', attr: 'data-assign="outsourced"' })}
+          </div>
+          \${UI.table(assignColumns('outsourced'), outsourced, { empty: 'No outsourced assignments found.' })}
+        \`);
+  },
+  async afterRender() {
+    attachRefresh();
+
+    document.querySelector('[data-create-role]')?.addEventListener('click', () => {
+      openSimpleForm('Create Role', [
+        { name: 'role_name', label: 'Role Name', required: true },
+        { name: 'role_key', label: 'Role Key', required: true },
+        { name: 'description', label: 'Description' },
+        { name: 'permission_group_id', label: 'Permission Group', type: 'select', options: [
+            {value: '1', label: 'VIEW'},
+            {value: '2', label: 'UPLOAD'},
+            {value: '3', label: 'APPROVE'},
+            {value: '4', label: 'MANAGE'}
+        ], required: true },
+        { name: 'landing_module_key', label: 'Landing Module Key', required: true },
+        { name: 'module_keys_text', label: 'Allowed Module Keys (comma separated)', type: 'textarea', required: true }
+      ], 'Create Role', (payload) => {
+        payload.module_keys = payload.module_keys_text.split(',').map(s => s.trim()).filter(Boolean);
+        delete payload.module_keys_text;
+        return simpleAction('role/create', payload, 'Role created');
+      });
+    });
+
+    document.querySelectorAll('[data-edit-role]').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const roleId = e.currentTarget.dataset.editRole;
+        const roleData = await Api.get('role/get', { role_id: roleId });
+        const role = roleData.role;
+        const allowedModules = roleData.allowed_module_keys.join(', ');
+
+        openSimpleForm('Edit Role', [
+          { name: 'role_id', type: 'hidden', value: role.id },
+          { name: 'role_name', label: 'Role Name', value: role.role_name, required: true },
+          { name: 'description', label: 'Description', value: role.description || '' },
+          { name: 'permission_group_id', label: 'Permission Group', type: 'select', value: roleData.permission_group.id, options: [
+              {value: '1', label: 'VIEW'},
+              {value: '2', label: 'UPLOAD'},
+              {value: '3', label: 'APPROVE'},
+              {value: '4', label: 'MANAGE'}
+          ], required: true },
+          { name: 'landing_module_key', label: 'Landing Module Key', value: role.landing_module_key, required: true },
+          { name: 'module_keys_text', label: 'Allowed Module Keys (comma separated)', type: 'textarea', value: allowedModules, required: true }
+        ], 'Update Role', (payload) => {
+          payload.module_keys = payload.module_keys_text.split(',').map(s => s.trim()).filter(Boolean);
+          delete payload.module_keys_text;
+          return simpleAction('role/update', payload, 'Role updated');
+        });
+      });
+    });
+
+    document.querySelectorAll('[data-assign]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const type = btn.dataset.assign;
+        openSimpleForm(\`Assign \${UI.titleize(type)}\`, [
+          { name: 'belt_id', label: 'Belt ID', type: 'number', required: true },
+          { name: \`\${type}_user_id\`, label: 'User ID', type: 'number', required: true },
+          { name: 'start_date', label: 'Start Date', type: 'date', required: true, value: UI.currentDate() },
+          { name: 'end_date', label: 'End Date (Optional)', type: 'date' }
+        ], 'Assign', (payload) => simpleAction(\`\${type}assignment/create\`, payload, 'Assignment created'));
+      });
+    });
+
+    ['supervisor', 'authority', 'outsourced'].forEach(type => {
+      document.querySelectorAll(\`[data-close-\${type}]\`).forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const assignmentId = e.currentTarget.getAttribute(\`data-close-\${type}\`);
+          openSimpleForm('Close Assignment', [
+            { name: 'assignment_id', type: 'hidden', value: assignmentId },
+            { name: 'end_date', label: 'End Date', type: 'date', required: true, value: UI.currentDate() }
+          ], 'Close Now', (payload) => simpleAction(\`\${type}assignment/close\`, payload, 'Assignment closed'));
+        });
+      });
+    });
+  }
+});
+
 const simpleLists = {
   'green_belt.maintenance_cycles': ['cycle/list', 'Maintenance Cycles', ['id', 'belt_code', 'common_name', 'start_date', 'end_date', 'status']],
   'task.progress_read': ['taskprogress/list', 'Task Progress', ['id', 'work_description', 'status', 'progress_percent', 'assigned_lead_name']],
-
-  'governance.access_mappings': ['role/list', 'Roles & Access', ['id', 'role_key', 'role_name', 'permission_group_key', 'landing_module_key', 'is_active']],
 };
 
 Object.entries(simpleLists).forEach(([moduleKey, [route, title, columns]]) => {

@@ -1,45 +1,11 @@
-﻿# Implementation Progress
+﻿# Implementation History Archive
 
-## Authority Note
+## Archive Note
 
-- Purpose: Working progress tracker for implementation execution.
-- Authority Level: Execution support only.
-- If Conflict: `docs/10_recovered_product/*` controls product meaning and `docs/11_build_specs/*` controls implementation behavior. This file tracks current status and next actions only.
-
-## Purpose
-
-Use this file to keep implementation turns small and low-token.
-Future prompts can reference this file instead of repeating product context.
-
-## Current Overall Status
-
-- product-recovery canon is locked
-- implementation-spec layer is locked
-- legacy mirror docs are aligned
-- canonical schema has been validated on local XAMPP MariaDB
-- foundation seed has been validated on local XAMPP MariaDB
-- active `skite_ops` runtime DB is now rebuilt on the canonical schema and foundation seed
-- Phase 1 backend foundation is verified against the real configured app database on local XAMPP
-- reusable auth/user/audit/RBAC foundation exists, backend product modules are implemented, and frontend module UI is now the active workstream
-- Frontend shell hardening is COMPLETE: RBAC-filtered menu, view registry, shared UI primitives, mobile navigation, current-month defaults, and route-map validation are now in place
-- Upload Review frontend is COMPLETE: Interactive view with thumbnails, inline approve/reject with modals, and bulk actions for Ops.
-- BaseRepository transaction methods fixed to public for service-layer control
-- AI tool handoff guide created at `docs/AI_TOOL_HANDOFF_GUIDE.md` for multi-tool workflow
-- Phase 2 Green Belt Core backend is COMPLETE (9 files, 16 routes, detail payload aligned, syntax validated)
-- upload service foundation is COMPLETE (shared storage, metadata persistence, self-delete, discovery side-effect, direct verification)
-- supervisor my uploads backend is COMPLETE (my-list + self-delete routes, paginated creator-scoped list, response shaping strips review fields)
-- outsourced upload backend is COMPLETE (zero net-new code required; surface implicitly satisfied by UploadService's dynamic role-based parent bounding)
-- watering backend is COMPLETE (mark/list routes, explicit row storage, dynamic PENDING derivation, role-based same-day constraints, Ops override audit traces)
-- supervisor attendance backend is COMPLETE (attendance explicit tracking, Head Supervisor same-day constraints, Ops corrections and audit trace)
-- labour entries backend is COMPLETE (labour records mapped natively, Ops vs Head Supervisor access boundaries, same-day rules, audit integration on overrides)
-- issue management backend is COMPLETE (issue sequencing, Ops + Head Supervisor scope restrictions, status/task linking handled internally)
-- task request intake backend is COMPLETE (five mapped rest actions, commercial team intake boundaries, Ops approval gating)
-- task creation from request backend is COMPLETE (isolated task/create pipeline, implicit state machine conversions for requests/issues)
-- task management backend is COMPLETE (list, get, update, archive scopes, handling explicit Ops bounds vs internal fabrication scope reads)
-- task detail and progress update backend is COMPLETE (commercial tracking view aggregation built across TaskProgressController, lead mutable boundaries protected)
-- fabrication lead work-done flow backend is COMPLETE (markWorkDone method locking finalization specifically to explicitly uploaded AFTER_WORK presence queries)
-- fabrication workers master backend is COMPLETE (isolated external resource list, standard CRUD bounds tightly anchored solely to OPS_MANAGER)
-- worker daily entries backend is COMPLETE (one-entry-per-day enforcement, upsert pattern built, strict attendance/activity enumeration, bounds correctly mapped)
+- This file is a frozen historical record of phase-by-phase implementation work and bug fixes.
+- **Do NOT read this file for current state.** The live tracker is `docs/11_build_specs/10_IMPLEMENTATION_PROGRESS.md`.
+- **Do NOT update this file going forward.** It is append-only history. Active queue, current task, and gotcha lists belong in the live tracker and `docs/AI_TOOL_HANDOFF_GUIDE.md`.
+- Bug-fix narratives, integration test results, and per-phase implementation detail are preserved here for context when an agent needs the full backstory of a decision.
 
 ## Completed Backend Phases
 
@@ -780,19 +746,6 @@ Status: `COMPLETE - LIVE VERIFIED`
 **Testing:**
 - Created a comprehensive dynamic Postman test collection (`postman/skite_level2_tests.postman_collection.json`) with automated CSRF token handling and randomized payload data to perform Level 2 Manual Spot Checks.
 
-## Static Prompt Workflow
-
-Use the same prompt every implementation turn:
-
-```text
-Continue from docs/11_build_specs/10_IMPLEMENTATION_PROGRESS.md and implement only the current next scoped task.
-Use only the locked docs and docs/AI_TOOL_HANDOFF_GUIDE.md; do not restate context, redesign behavior, or touch unrelated modules.
-Run only relevant validation, update docs/11_build_specs/10_IMPLEMENTATION_PROGRESS.md with status/results/blockers, then stop.
-```
-
-This prompt should not need wording changes between modules.
-The only thing that changes over time is the progress file itself.
-
 ### Green Belt Master and Detail Frontend
 
 Status: `COMPLETE - SYNTAX AND BROWSER VERIFIED`
@@ -876,52 +829,6 @@ Completed:
 - Implemented `governance.rejected_upload_cleanup` with a purge workflow for stale rejected media.
 - Integrated all three views into the sidebar under the "Governance" and "Settings" sections.
 - Removed generic fallbacks from `simpleLists` to ensure custom UI logic is active.
-
-## Current Next Scoped Task
-
-`green_belt.issue_management full view`
-
-## Serial Scoped Task Queue
-
-Run these tasks in order, one per implementation turn.
-
-1. `task.my_tasks full view` — COMPLETE (2026-04-28)
-2. `green_belt.upload_review full view` — COMPLETE (2026-04-28, commit 5671e5d)
-3. `green_belt.issue_management full view` ← CURRENT
-4. `green_belt.authority_view full view`
-5. `governance.user_management full view`
-6. `governance.access_mappings full view`
-7. `task.progress_read full view`
-8. `dashboard and analytics final pass`
-9. `backend http integration testing` — COMPLETE (2026-04-28, 42/42 reads + 15/16 writes, see "Backend HTTP Integration Testing" section below)
-10. `final system walkthrough and polish`
-
-Do not skip ahead unless the current task is blocked and that blocker is recorded below.
-
-## Frontend Serial Scoped Task Queue
-
-Run these frontend tasks in order, one per implementation turn.
-Do not skip ahead unless the current task is blocked and that blocker is recorded below.
-
-1. `frontend shell hardening` - COMPLETE
-2. `frontend dashboard screens` - COMPLETE
-3. `green belt master and detail frontend` - COMPLETE
-4. `field upload screens frontend` - COMPLETE
-5. `head supervisor operations frontend` - COMPLETE
-6. `upload review and cleanup frontend` - COMPLETE
-7. `issues requests and tasks frontend` - COMPLETE
-8. `fabrication execution frontend` - COMPLETE
-9. `advertisement and monitoring frontend` - COMPLETE
-10. `campaigns and free media frontend` - COMPLETE
-11. `authority portal frontend` - COMPLETE
-12. `governance and reports frontend` - COMPLETE
-13. `task.my_tasks full view` - COMPLETE
-14. `green_belt.upload_review full view` - COMPLETE
-15. `green_belt.issue_management full view` ← CURRENT
-16. `green_belt.authority_view full view`
-17. `governance.user_management full view`
-18. `governance.access_mappings full view`
-19. `task.progress_read full view`
 
 ## Bugs Fixed — 2026-04-27
 
@@ -1007,19 +914,6 @@ The deferred backend-testing task (`backend http integration testing` at queue p
 
 ---
 
-## Known Spec Deviations Outstanding
-
-These are confirmed gaps against `04_PAGE_FIELD_AND_ACTION_SPEC.md` and `09_MODULE_ACCEPTANCE_CHECKLISTS.md`. Not yet fixed. Each should be resolved during the relevant frontend view task or the final system walkthrough.
-
-### Frontend View Gaps (simpleLists stubs with no action controls)
-- `green_belt.issue_management` — needs Move to In Progress, Create Task, Link Task, Close Issue actions.
-- `green_belt.authority_view` — needs Download filtered view and WhatsApp helper share. Authority reps cannot do their core job without this.
-- `task.progress_read` — commercial roles (Sales, Client Servicing, Media Planning) need filtered read-only progress view.
-- `governance.user_management` — needs Create User, Deactivate, Restore lifecycle actions.
-- `governance.access_mappings` — needs Create Role with module-scope assignment and Edit Role.
-
----
-
 ## Post-Review Bug Fixes — 2026-04-28
 
 Status: `COMPLETE — LIVE VERIFIED ON XAMPP`
@@ -1055,26 +949,6 @@ Five bugs identified during a spec review of the `task.my_tasks` implementation 
 - `public/index.html` — cache bump `?v=6 → ?v=7`
 
 ---
-
-## Current Task Reference Docs
-
-Read only the docs needed for the current scoped task.
-For the current `green_belt.issue_management full view` task, start with:
-
-- `docs/11_build_specs/03_API_AND_ROUTE_CONTRACT.md` — `issue/list`, `issue/get`, `issue/in-progress`, `issue/close`, `issue/link-task` payloads
-- `docs/11_build_specs/04_PAGE_FIELD_AND_ACTION_SPEC.md` — §14 Issue Management (filters, columns, actions)
-- `docs/11_build_specs/05_WORKFLOW_STATE_MACHINE_SPEC.md` — Issue lifecycle (OPEN → IN_PROGRESS → CLOSED)
-- `docs/11_build_specs/09_MODULE_ACCEPTANCE_CHECKLISTS.md` — §3 Green Belt Field Operations (issue acceptance gates)
-
-## Task Update Rule
-
-After each task:
-
-- mark the completed task in a short results note
-- move `Current Next Scoped Task` to the next queue item
-- record only relevant validation
-- record blockers only if they stop the current task
-- stop after the current task instead of continuing into the next one
 
 ## Phase 1 Work Completed In Code
 
@@ -1157,16 +1031,6 @@ Completed:
 
 Relevant validation:
 - Validated Javascript syntax.
-
-## Legacy Prompt Notes
-
-The older "recommended next order" and ad hoc prompt style are now superseded by:
-
-- `Current Next Scoped Task`
-- `Serial Scoped Task Queue`
-- `Static Prompt Workflow`
-
-Any AI tool should follow those sections instead of inventing a fresh plan.
 
 ## Task My Tasks Frontend — 2026-04-28
 
