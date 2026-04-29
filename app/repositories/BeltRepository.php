@@ -79,7 +79,9 @@ class BeltRepository extends BaseRepository
 
         $sql = "SELECT gb.id, gb.belt_code, gb.common_name, gb.authority_name,
                        gb.zone, gb.permission_status, gb.maintenance_mode,
-                       gb.watering_frequency, gb.is_hidden
+                       gb.watering_frequency, gb.is_hidden,
+                       (SELECT COUNT(*) FROM issues i WHERE i.belt_id = gb.id AND i.status != 'CLOSED') as open_issue_count,
+                       (SELECT mc.id FROM maintenance_cycles mc WHERE mc.belt_id = gb.id AND mc.end_date IS NULL ORDER BY mc.start_date DESC LIMIT 1) as active_cycle_id
                 FROM green_belts gb
                 {$join}
                 {$whereClause}

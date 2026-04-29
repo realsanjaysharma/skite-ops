@@ -36,6 +36,14 @@ const UI = {
     return `${year}-${month}`;
   },
 
+  nextMonth(monthStr) {
+    const [year, month] = monthStr.split('-').map(Number);
+    const date = new Date(year, month, 1);
+    const nextY = date.getFullYear();
+    const nextM = String(date.getMonth() + 1).padStart(2, '0');
+    return `${nextY}-${nextM}`;
+  },
+
   page(title, subtitle = '', actions = '') {
     return `
       <div class="page-title-row">
@@ -82,12 +90,16 @@ const UI = {
   cards(items) {
     return `
       <div class="card-grid">
-        ${items.map((item) => `
-          <article class="metric-card">
-            <span>${this.escape(item.label)}</span>
-            <strong>${this.escape(item.value ?? 0)}</strong>
-          </article>
-        `).join('')}
+        ${items.map((item) => {
+          const attr = item.attr || '';
+          const cls = attr ? 'metric-card clickable' : 'metric-card';
+          return `
+            <article class="${cls}" ${attr}>
+              <span>${this.escape(item.label)}</span>
+              <strong>${this.escape(item.value ?? 0)}</strong>
+            </article>
+          `;
+        }).join('')}
       </div>
     `;
   },

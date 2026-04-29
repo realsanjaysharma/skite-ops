@@ -43,18 +43,28 @@ class ReportService
         $data = $this->reportRepository->getBeltHealthReport($monthStart, $monthEnd, $supervisorId);
         
         foreach ($data as &$row) {
-            $row['required_watering_days'] = 0;     // Deprecated/Simplified for v1 backend speed
-            $row['completed_watering_days'] = 0;
-            $row['watering_compliance_percent'] = 100;
+            $required = (int)$row['required_watering_days'];
+            $completed = (int)$row['completed_watering_days'];
+            $row['watering_compliance_percent'] = $required > 0 ? round(($completed / $required) * 100) : 100;
             
             $health = 'HEALTHY';
-            if ($row['open_issues_count'] > 0) {
+            
+            // WARNING if compliance < 100 or any issues
+            if ($row['watering_compliance_percent'] < 100 || (int)$row['open_issues_count'] > 0) {
                 $health = 'WARNING';
             }
-            if ((int)$row['days_since_last_completion'] > 30) {
+            
+            // RISK if expired, critical issue, or open cycle at month end
+            $isExpired = $row['permission_end_date'] && $row['permission_end_date'] < $monthEnd;
+            if ($isExpired || (int)$row['critical_issues_count'] > 0 || (int)$row['open_cycles_count'] > 0) {
                 $health = 'RISK';
             }
+            
             $row['health_status'] = $health;
+
+            // Remove internal helper columns from final report
+            unset($row['critical_issues_count']);
+            unset($row['open_cycles_count']);
         }
 
         return $data;
@@ -72,9 +82,9 @@ class ReportService
         $data = $this->reportRepository->getSupervisorActivityReport($monthStart, $monthEnd, $supervisorId);
         
         foreach ($data as &$row) {
-            $row['required_watering_days'] = 0;     // Simplified
-            $row['completed_watering_days'] = 0;
-            $row['watering_compliance_percent'] = 100;
+            $required = (int)$row['required_watering_days'];
+            $completed = (int)$row['completed_watering_days'];
+            $row['watering_compliance_percent'] = $required > 0 ? round(($completed / $required) * 100) : 100;
         }
 
         return $data;
@@ -93,8 +103,7 @@ class ReportService
         
         foreach ($data as &$row) {
             $due = (int)$row['monitoring_due_count'];
-            $completed = 0; // Simplified for v1
-            $row['monitoring_completed_count'] = $completed;
+            $completed = (int)$row['monitoring_completed_count'];
             $row['monitoring_coverage_percent'] = $due > 0 ? round(($completed / $due) * 100) : 100;
         }
 

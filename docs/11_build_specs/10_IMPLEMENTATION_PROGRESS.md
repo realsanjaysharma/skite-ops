@@ -45,7 +45,7 @@ After finishing the current phase:
 
 ## Current Next Scoped Task
 
-Phase 1: Backend report formula correctness (ReportService + ReportRepository)
+Phase 9: New v1 surfaces (4 Missing Modules) (multi-file)
 
 ## Implementation Plan Reference
 
@@ -61,14 +61,14 @@ C:\Users\radhi\.gemini\antigravity\brain\676b78f8-8bdc-45ba-abe9-cab84768198f\im
 
 Run these phases in order, one per implementation turn.
 
-1. `Phase 1: Backend report formula correctness` — fix hardcoded watering compliance (0/0/100%), historical supervisor attribution, and monitoring coverage in ReportService/ReportRepository. Files: `app/services/ReportService.php`, `app/repositories/ReportRepository.php`. Spec: `docs/11_build_specs/07_REPORTS_ALERTS_AND_FORMULAS.md`.
-2. `Phase 2: Backend task completion guard` — enforce AFTER_WORK proof requirement before task completion in TaskService. Confirm self-delete window source. Files: `app/services/TaskService.php`, `config/constants.php`.
-3. `Phase 3: Backend dashboard formula correctness` — add 3 missing Master Ops cards (campaign_ending_soon, free_media_active, monitoring_due_today), fix Green Belt dashboard (add active_cycle_count, watering_pending), fix Monitoring dashboard qualifying completion logic. Files: `app/services/DashboardService.php`.
-4. `Phase 4: Frontend monitoring pipeline` — add discovery mode toggle to monitoring.upload, add discovery_mode filter to monitoring.history, add bulk-copy panel to monitoring.plan. Files: `public/js/views/modules.js`. Backend routes already exist.
-5. `Phase 5: Frontend dashboard upgrades` — replace generic dashboardView() for master_ops, green_belt, monitoring with custom views showing labeled cards, clickable drill-ins, and GB filters. Files: `public/js/views/modules.js`.
-6. `Phase 6: Frontend belt detail UX` — auto-detect active cycle for close modal, add End Assignment buttons to assignment rows, register standalone maintenance_cycles view. Files: `public/js/views/modules.js`. Backend routes: `supervisorassignment/close`, `authorityassignment/close`, `outsourcedassignment/close`.
-7. `Phase 7: Frontend Head Supervisor landing + GPS + request UX` — unify watering_oversight into 4-section daily surface, add GPS capture to upload forms, split task.request_intake by role. Files: `public/js/views/modules.js`.
-8. `Phase 8: Frontend global polish` — add pagination helper, supervisor name dropdowns, free media raise-request link, WhatsApp toggle guard. Files: `public/js/views/modules.js`, possibly `public/js/core/ui.js`.
+1. `[x] Phase 1: Backend report formula correctness` — fix hardcoded watering compliance (0/0/100%), historical supervisor attribution, and monitoring coverage in ReportService/ReportRepository. Files: `app/services/ReportService.php`, `app/repositories/ReportRepository.php`. Spec: `docs/11_build_specs/07_REPORTS_ALERTS_AND_FORMULAS.md`. Result: [PASS] Syntax scan. [PASS] Manual API verification for Belt Health, Supervisor Activity, and Ad Ops reports showing real compliance/coverage data.
+2. `[x] Phase 2: Backend task completion guard` — enforce AFTER_WORK proof requirement before task completion in TaskService. Confirm self-delete window source. Files: `app/services/TaskService.php`, `config/constants.php`. Result: [PASS] Aligned DomainException message in TaskService. [PASS] Verified guard via test script. [PASS] Confirmed UPLOAD_SELF_DELETE_WINDOW_MINUTES in constants.php.
+3. `[x] Phase 3: Backend dashboard formula correctness` — add 3 missing Master Ops cards (campaign_ending_soon, free_media_active, monitoring_due_today), fix Green Belt dashboard (add active_cycle_count, watering_pending), fix Monitoring dashboard qualifying completion logic. Files: `app/services/DashboardService.php`. Result: [PASS] All spec-required keys present on all dashboards. [PASS] Formulas correctly handle qualifying completions and soft-deletes.
+4. `[x] Phase 4: Frontend monitoring pipeline` — add discovery mode toggle to monitoring.upload, add discovery_mode filter to monitoring.history, add bulk-copy panel to monitoring.plan. Files: `public/js/views/modules.js`. Result: [PASS] Syntax scan. [PASS] JS syntax OK. [PASS] Bulk Copy UI now in-page with radio selection for Route vs Site IDs. [PASS] Monitoring upload includes silent GPS capture.
+5. `[x] Phase 5: Frontend dashboard upgrades` — replaced generic dashboardView() with custom views for Master Ops, Green Belt, and Monitoring dashboards. Added metric cards with clickable navigation, Green Belt attention list, and Monitoring discovery count. Files: `public/js/views/modules.js`, `public/js/core/ui.js`, `app/services/DashboardService.php`, `app/repositories/BeltRepository.php`. Result: [PASS] Syntax scan. [PASS] JS syntax OK. [PASS] Clickable cards verified via code analysis and route map tests.
+6. `[x] Phase 6: Frontend belt detail UX` — auto-detect active cycle for close modal, added "End Assignment" buttons to assignment tables, registered standalone `green_belt.maintenance_cycles` view for global cycle management. Files: `public/js/views/modules.js`. Result: [PASS] Syntax scan. [PASS] JS syntax OK. [PASS] Route map verified.
+7. `[x] Phase 7: Frontend Head Supervisor landing + GPS + request UX` — unified `green_belt.watering_oversight` into a 4-section daily surface, added silent GPS capture to `uploadView` factory and `monitoring.upload`, implemented role-based split for `task.request_intake` (Form + My Requests for non-Ops). Files: `public/js/views/modules.js`. Result: [PASS] Syntax scan. [PASS] JS syntax OK. [PASS] Route map verified. [PASS] Unified landing correctly uses Promise.all for parallel loads.
+8. `[x] Phase 8: Frontend global polish` — added `renderPagination` component to key views (Audit, Upload Review, Master), integrated `loadSupervisors` select dropdowns in filters, added "Raise Request" link to Free Media inventory, and implemented WhatsApp toggle guard in Authority View. Fixed missing `UI.nextMonth` in `ui.js`. Files: `public/js/views/modules.js`, `public/js/core/ui.js`. Result: [PASS] Syntax scan. [PASS] JS syntax OK. [PASS] Route map verified. [PASS] Pagination wiring confirmed. [PASS] Dropdown loading confirmed.
 9. `Phase 9: New v1 surfaces` — add 4 new modules end-to-end: governance.alert_panel, task.worker_daily_entry, commercial.client_media_library, commercial.media_planning_inventory. Files: `config/rbac.php`, `config/route_registry.php`, `app/controllers/DashboardController.php`, `app/controllers/SiteController.php`, `app/controllers/FreeMediaController.php`, `app/services/DashboardService.php`, `public/js/core/navigation.js`, `public/js/views/modules.js`, `migrations/003_new_modules_seed.sql`. Run migration SQL on live DB.
 
 ## Critical Gotchas
@@ -115,7 +115,7 @@ Local test credentials:
 
 ## Asset Cache Markers
 
-Current: `modules.js?v=14`, `style.css?v=3`. Bump after each frontend phase.
+Current: `modules.js?v=19`, `style.css?v=3`. Bump after each frontend phase.
 
 ## Task Update Rule
 

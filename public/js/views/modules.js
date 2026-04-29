@@ -80,7 +80,7 @@ function renderListPage(title, route, data, moduleKey, options = {}) {
     + UI.panel(options.panelTitle || 'Records', UI.table(columns, rows, {
       empty: options.empty || 'No records available',
       rowAttr: options.rowAttr
-    }));
+    }) + renderPagination(data.pagination, moduleKey, options.params || {}));
 }
 
 function attachRefresh() {
@@ -101,6 +101,41 @@ async function simpleAction(route, payload, successMessage) {
   UI.closeModal();
   UI.toast(successMessage, 'good');
   App.refresh();
+}
+
+function renderPagination(pagination, moduleKey, currentParams) {
+  if (!pagination || pagination.total <= pagination.limit) return '';
+  const totalPages = Math.ceil(pagination.total / pagination.limit);
+  const current = pagination.page || 1;
+  const paramsJson = JSON.stringify(currentParams).replace(/'/g, "&#39;");
+  return `
+    <div class="inline-actions" style="justify-content:center;padding:12px;gap:8px;">
+      ${current > 1 ? `<button class="btn" data-page="${current - 1}" data-module="${moduleKey}" data-params='${paramsJson}'>← Prev</button>` : ''}
+      <span style="padding:0 8px;color:var(--ink-500);">Page ${current} of ${totalPages} (${pagination.total} total)</span>
+      ${current < totalPages ? `<button class="btn" data-page="${current + 1}" data-module="${moduleKey}" data-params='${paramsJson}'>Next →</button>` : ''}
+    </div>`;
+}
+
+function attachPagination(container = document) {
+  container.querySelectorAll('[data-page]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const page = parseInt(btn.dataset.page);
+      const moduleKey = btn.dataset.module;
+      const params = JSON.parse(btn.dataset.params || '{}');
+      App.navigate(moduleKey, { ...params, page });
+    });
+  });
+}
+
+async function loadSupervisors() {
+  try {
+    const data = await Api.get('user/list', { role_key: 'GREEN_BELT_SUPERVISOR' });
+    const users = normalizeItems(data);
+    return users.map(u => ({ value: u.id, label: u.full_name }));
+  } catch (e) {
+    console.error('Failed to load supervisors', e);
+    return null;
+  }
 }
 
 function openSimpleForm(title, fields, submitLabel, handler, extraHTML = '') {
@@ -136,18 +171,104 @@ function dashboardView(route, title, subtitle, actionsHTML) {
   };
 }
 
-Views.register('dashboard.master_ops', dashboardView('dashboard/master', 'Master Operations Dashboard', 'High-level control across all domains', `
-  ${UI.button('Green Belts', { icon: 'ph-tree', attr: `data-nav="green_belt.master"` })}
-  ${UI.button('Tasks', { icon: 'ph-list-checks', attr: `data-nav="task.management"` })}
-  ${UI.button('Upload Review', { icon: 'ph-image', attr: `data-nav="green_belt.upload_review"` })}
-  ${UI.button('Reports', { icon: 'ph-file-csv', attr: `data-nav="reports.monthly"` })}
-`));
+Views.register('dashboard.master_ops', {
+  async render() {
+    const data = await Api.get('dashboard/master');
+    const cards = [
+      { label: 'Operational Belts', value: data.total_active_belts },
+      { label: 'Monitoring Due Today', value: data.monitoring_due_today_count, attr: 'data-nav="monitoring.plan"' },
+      { label: 'Open Tasks', value: data.open_task_count, attr: 'data-nav="task.management"' },
+      { label: 'Open Issues', value: data.open_issue_count, attr: 'data-nav="green_belt.issue_management"' },
+      { label: 'Pending Upload Review', value: data.pending_uploads_for_review, attr: 'data-nav="green_belt.upload_review"' },
+      { label: 'Campaigns Ending Soon', value: data.campaign_ending_soon_count },
+      { label: 'Free Media Available', value: data.free_media_active_count }
+    ];
 
-Views.register('dashboard.green_belt', dashboardView('dashboard/green-belt', 'Green Belt Dashboard', 'Daily belt health and exceptions', `
-  ${UI.button('Green Belts', { icon: 'ph-tree', attr: `data-nav="green_belt.master"` })}
-  ${UI.button('Watering & Attendance', { icon: 'ph-drop', attr: `data-nav="green_belt.watering_oversight"` })}
-  ${UI.button('Issues', { icon: 'ph-warning-circle', attr: `data-nav="green_belt.issue_management"` })}
-`));
+    const actions = `
+      ${UI.button('Green Belts', { icon: 'ph-tree', attr: 'data-nav="green_belt.master"' })}
+      ${UI.button('Tasks', { icon: 'ph-list-checks', attr: 'data-nav="task.management"' })}
+      ${UI.button('Upload Review', { icon: 'ph-image', attr: 'data-nav="green_belt.upload_review"' })}
+      ${UI.button('Reports', { icon: 'ph-file-csv', attr: 'data-nav="reports.monthly"' })}
+    `;
+
+    return UI.page('Master Operations Dashboard', 'High-level control across all domains', UI.button('Refresh', { icon: 'ph-arrows-clockwise', attr: 'data-refresh' }))
+      + UI.cards(cards)
+      + UI.panel('Next Actions', `<div class="inline-actions">${actions}</div>`);
+  },
+  async afterRender() {
+    attachRefresh();
+    document.querySelectorAll('[data-nav]').forEach((el) => {
+      el.addEventListener('click', () => App.navigate(el.dataset.nav));
+    });
+  }
+});
+
+Views.register('dashboard.green_belt', {
+  async render({ params = {} }) {
+    const summary = await Api.get('dashboard/green-belt');
+    
+    // Fetch belts for attention table
+    const attentionData = await Api.get('belt/list', { 
+      maintenance_mode: 'MAINTAINED', 
+      hidden: 0,
+      zone: params.zone || '',
+      ...params
+    });
+    const attentionBelts = UI.getItems(attentionData);
+
+    const cards = [
+      { label: 'Active Cycles', value: summary.active_cycle_count },
+      { label: 'Same-Day Watering Pending', value: summary.same_day_watering_pending_count },
+      { label: 'Open Belt Issues', value: summary.open_issues, attr: 'data-nav="green_belt.issue_management"' },
+      { label: 'Pending Review', value: summary.pending_authority_review_count, attr: 'data-nav="green_belt.upload_review"' }
+    ];
+
+    const actions = `
+      ${UI.button('Green Belts', { icon: 'ph-tree', attr: 'data-nav="green_belt.master"' })}
+      ${UI.button('Watering & Attendance', { icon: 'ph-drop', attr: 'data-nav="green_belt.watering_oversight"' })}
+      ${UI.button('Issues', { icon: 'ph-warning-circle', attr: 'data-nav="green_belt.issue_management"' })}
+      ${UI.button('Upload Review', { icon: 'ph-image', attr: 'data-nav="green_belt.upload_review"' })}
+    `;
+
+    const columns = [
+      { key: 'belt_code', label: 'Belt Code' },
+      { key: 'common_name', label: 'Name' },
+      { key: 'zone', label: 'Zone' },
+      { 
+        key: 'status', 
+        label: 'Attention Needed', 
+        render: (row) => {
+          const issues = row.open_issue_count > 0 ? `<span class="status-pill status-bad">Issues: ${row.open_issue_count}</span>` : '';
+          const noCycle = !row.active_cycle_id ? '<span class="status-pill status-warn">No Active Cycle</span>' : '';
+          return `<div style="display: flex; gap: 8px;">${issues} ${noCycle}</div>` || 'OK';
+        },
+        html: true
+      }
+    ];
+
+    return UI.page('Green Belt Dashboard', 'Daily belt health and exceptions', UI.button('Refresh', { icon: 'ph-arrows-clockwise', attr: 'data-refresh' }))
+      + UI.cards(cards)
+      + UI.panel('Filters', UI.filters([
+          { name: 'zone', label: 'Zone', value: params.zone || '' },
+          { name: 'maintenance_mode', label: 'Maintenance', type: 'select', value: params.maintenance_mode || 'MAINTAINED', options: ['MAINTAINED', 'OUTSOURCED'] }
+      ], 'Filter Attention List'))
+      + UI.panel('Belts Needing Attention', UI.table(columns, attentionBelts, {
+          empty: 'No belts require immediate attention in this view',
+          rowAttr: (row) => `data-nav="green_belt.detail" data-belt-id="${row.id}"`
+      }))
+      + UI.panel('Quick Actions', `<div class="inline-actions">${actions}</div>`);
+  },
+  async afterRender() {
+    attachRefresh();
+    wireFilters((payload) => App.navigate('dashboard.green_belt', payload));
+    document.querySelectorAll('[data-nav]').forEach((el) => {
+      el.addEventListener('click', () => {
+        const params = el.dataset.beltId ? { belt_id: el.dataset.beltId } : {};
+        App.navigate(el.dataset.nav, params);
+      });
+    });
+  }
+});
 
 Views.register('dashboard.advertisement', dashboardView('dashboard/advertisement', 'Advertisement Dashboard', 'Campaigns, sites, and media operations', `
   ${UI.button('Site Master', { icon: 'ph-map-pin', attr: `data-nav="advertisement.site_master"` })}
@@ -155,10 +276,35 @@ Views.register('dashboard.advertisement', dashboardView('dashboard/advertisement
   ${UI.button('Free Media', { icon: 'ph-gift', attr: `data-nav="media.free_media_inventory"` })}
 `));
 
-Views.register('dashboard.monitoring', dashboardView('dashboard/monitoring', 'Monitoring Dashboard', 'Due monitoring, coverage, and discovery', `
-  ${UI.button('Monitoring Plan', { icon: 'ph-calendar-check', attr: `data-nav="monitoring.plan"` })}
-  ${UI.button('Monitoring History', { icon: 'ph-clock-counter-clockwise', attr: `data-nav="monitoring.history"` })}
-`));
+Views.register('dashboard.monitoring', {
+  async render() {
+    const data = await Api.get('dashboard/monitoring');
+    const cards = [
+      { label: 'Due Today', value: data.due_today_count, attr: `data-nav="monitoring.plan" data-params='{"month":"${UI.currentMonth()}"}'` },
+      { label: 'Completed Today', value: data.completed_today_count },
+      { label: 'Overdue', value: data.overdue_due_date_count, attr: 'data-nav="monitoring.history"' },
+      { label: 'Discovery Activity', value: data.discovery_mode_count }
+    ];
+
+    const actions = `
+      ${UI.button('Monitoring Plan', { icon: 'ph-calendar-check', attr: 'data-nav="monitoring.plan"' })}
+      ${UI.button('Monitoring History', { icon: 'ph-clock-counter-clockwise', attr: 'data-nav="monitoring.history"' })}
+    `;
+
+    return UI.page('Monitoring Dashboard', 'Due monitoring, coverage, and discovery', UI.button('Refresh', { icon: 'ph-arrows-clockwise', attr: 'data-refresh' }))
+      + UI.cards(cards)
+      + UI.panel('Quick Actions', `<div class="inline-actions">${actions}</div>`);
+  },
+  async afterRender() {
+    attachRefresh();
+    document.querySelectorAll('[data-nav]').forEach((el) => {
+      el.addEventListener('click', () => {
+        const params = el.dataset.params ? JSON.parse(el.dataset.params) : {};
+        App.navigate(el.dataset.nav, params);
+      });
+    });
+  }
+});
 
 Views.register('dashboard.management', dashboardView('dashboard/management', 'Management Dashboard', 'Read-only business overview', `
   ${UI.button('Reports', { icon: 'ph-file-csv', attr: `data-nav="reports.monthly"` })}
@@ -233,10 +379,11 @@ Views.register('green_belt.master', {
 
     return UI.page('Green Belts', 'Manage belts, permissions, and oversight', actions)
       + filterUI
-      + UI.panel('Records', UI.table(columns, rows, { empty: 'No belts found', rowAttr: (row) => `data-open-belt="${row.id}"` }));
+      + UI.panel('Records', UI.table(columns, rows, { empty: 'No belts found', rowAttr: (row) => `data-open-belt="${row.id}"` }) + renderPagination(data.pagination, 'green_belt.master', params));
   },
   async afterRender() {
     attachRefresh();
+    attachPagination();
     wireFilters((payload) => App.navigate('green_belt.master', payload));
     document.querySelectorAll('[data-open-belt]').forEach((row) => {
       row.addEventListener('click', () => App.navigate('green_belt.detail', { belt_id: row.dataset.openBelt }));
@@ -285,16 +432,33 @@ Views.register('green_belt.detail', {
           ${isOps ? UI.button('Assign Outsourced', { attr: 'data-assign="outsourced"' }) : ''}
         </div>
         <h4>Supervisors</h4>
-        ${UI.table(inferColumns(data.supervisor_assignments || []), data.supervisor_assignments || [], { empty: 'No supervisor assignments' })}
+        ${UI.table([
+          { key: 'full_name', label: 'Supervisor' },
+          { key: 'start_date', label: 'Start Date' },
+          { key: 'end_date', label: 'End Date', render: (v) => v || 'Active' },
+          { key: 'actions', label: '', html: true, render: (row) => row.end_date ? '<span class="status-pill status-muted">Ended</span>' : `<button class="btn btn-sm" data-end-assign="${row.id}" data-assign-type="supervisor">End</button>` }
+        ], data.supervisor_assignments || [], { empty: 'No supervisor assignments' })}
+        
         <h4>Authorities</h4>
-        ${UI.table(inferColumns(data.authority_assignments || []), data.authority_assignments || [], { empty: 'No authority assignments' })}
+        ${UI.table([
+          { key: 'full_name', label: 'Authority' },
+          { key: 'start_date', label: 'Start Date' },
+          { key: 'end_date', label: 'End Date', render: (v) => v || 'Active' },
+          { key: 'actions', label: '', html: true, render: (row) => row.end_date ? '<span class="status-pill status-muted">Ended</span>' : `<button class="btn btn-sm" data-end-assign="${row.id}" data-assign-type="authority">End</button>` }
+        ], data.authority_assignments || [], { empty: 'No authority assignments' })}
+        
         <h4>Outsourced</h4>
-        ${UI.table(inferColumns(data.outsourced_assignments || []), data.outsourced_assignments || [], { empty: 'No outsourced assignments' })}
+        ${UI.table([
+          { key: 'full_name', label: 'Outsourced' },
+          { key: 'start_date', label: 'Start Date' },
+          { key: 'end_date', label: 'End Date', render: (v) => v || 'Active' },
+          { key: 'actions', label: '', html: true, render: (row) => row.end_date ? '<span class="status-pill status-muted">Ended</span>' : `<button class="btn btn-sm" data-end-assign="${row.id}" data-assign-type="outsourced">End</button>` }
+        ], data.outsourced_assignments || [], { empty: 'No outsourced assignments' })}
       `)
       + UI.panel('Maintenance Cycles', `
         <div class="inline-actions" style="margin-bottom: 12px;">
           ${belt.maintenance_mode === 'MAINTAINED' ? UI.button('Start Cycle', { icon: 'ph-play', attr: 'data-start-cycle' }) : ''}
-          ${belt.maintenance_mode === 'MAINTAINED' ? UI.button('Close Cycle', { icon: 'ph-stop', attr: 'data-close-cycle' }) : ''}
+          ${belt.maintenance_mode === 'MAINTAINED' && data.recent_cycle_summary?.active_cycle ? UI.button('Close Cycle', { icon: 'ph-stop', attr: 'data-close-cycle' }) : (belt.maintenance_mode === 'MAINTAINED' ? '<span class="status-pill status-muted">No Active Cycle</span>' : '')}
         </div>
         ${UI.table(inferColumns(data.cycle_history || []), data.cycle_history || [], { empty: 'No cycle history' })}
       `)
@@ -336,12 +500,26 @@ Views.register('green_belt.detail', {
       ], 'Start Cycle', (payload) => simpleAction('cycle/start', payload, 'Cycle started'));
     });
 
-    document.querySelector('[data-close-cycle]')?.addEventListener('click', () => {
+    document.querySelector('[data-close-cycle]')?.addEventListener('click', async () => {
+      const data = await Api.get('belt/get', { belt_id: params.belt_id });
+      const activeCycle = data.recent_cycle_summary?.active_cycle;
+      if (!activeCycle) return UI.toast('No active cycle found', 'bad');
+
       openSimpleForm('Close Maintenance Cycle', [
-        { name: 'cycle_id', label: 'Active Cycle ID', type: 'number', required: true },
+        { name: 'cycle_id', type: 'hidden', value: activeCycle.id },
         { name: 'end_date', label: 'End Date', type: 'date', required: true, value: UI.currentDate() },
         { name: 'close_reason', label: 'Reason', type: 'textarea' }
       ], 'Close Cycle', (payload) => simpleAction('cycle/close', payload, 'Cycle closed'));
+    });
+
+    document.querySelectorAll('[data-end-assign]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.dataset.endAssign;
+        const type = btn.dataset.assignType;
+        if (confirm(`End this ${type} assignment?`)) {
+          await simpleAction(`${type}assignment/close`, { assignment_id: id, end_date: UI.currentDate() }, 'Assignment ended');
+        }
+      });
     });
 
     document.querySelectorAll('[data-assign]').forEach(btn => {
@@ -368,6 +546,63 @@ Views.register('green_belt.detail', {
   }
 });
 
+Views.register('green_belt.maintenance_cycles', {
+  async render({ params = {} }) {
+    const data = await Api.get('cycle/list', params);
+    const rows = normalizeItems(data);
+    const columns = [
+      { key: 'belt_code', label: 'Belt Code' },
+      { key: 'belt_name', label: 'Belt Name' },
+      { key: 'start_date', label: 'Start Date' },
+      { key: 'end_date', label: 'End Date', render: (v) => v || 'Active' },
+      { key: 'started_by_user_name', label: 'Started By' },
+      { key: 'status', label: 'Status', html: true, render: (row) => UI.status(row.end_date ? 'CLOSED' : 'ACTIVE') }
+    ];
+
+    const actions = UI.button('Refresh', { icon: 'ph-arrows-clockwise', attr: 'data-refresh' }) +
+                    UI.button('Start Cycle', { icon: 'ph-play', kind: 'btn-primary', attr: 'data-start-cycle' }) +
+                    UI.button('Close Cycle', { icon: 'ph-stop', kind: 'btn-bad', attr: 'data-close-cycle' });
+
+    const filterUI = UI.panel('Filters', UI.filters([
+      { name: 'status', label: 'Status', type: 'select', value: params.status || '', options: [{value: '', label: 'All'}, {value: 'ACTIVE', label: 'Active'}, {value: 'CLOSED', label: 'Closed'}] },
+      { name: 'maintenance_mode', label: 'Mode', type: 'select', value: params.maintenance_mode || '', options: ['', 'MAINTAINED', 'OUTSOURCED'] }
+    ], 'Load'));
+
+    return UI.page('Maintenance Cycles', 'Global cycle management', actions)
+      + filterUI
+      + UI.panel('Cycles', UI.table(columns, rows, { 
+          empty: 'No maintenance cycles found',
+          rowAttr: (row) => `data-belt-id="${row.belt_id}" data-cycle-id="${row.id}"`
+      }));
+  },
+  async afterRender() {
+    attachRefresh();
+    wireFilters((payload) => App.navigate('green_belt.maintenance_cycles', payload));
+    
+    document.querySelector('[data-start-cycle]')?.addEventListener('click', () => {
+      openSimpleForm('Start Cycle', [
+        { name: 'belt_id', label: 'Belt ID', type: 'number', required: true },
+        { name: 'start_date', label: 'Start Date', type: 'date', required: true, value: UI.currentDate() }
+      ], 'Start', (payload) => simpleAction('cycle/start', payload, 'Cycle started'));
+    });
+
+    document.querySelector('[data-close-cycle]')?.addEventListener('click', () => {
+      openSimpleForm('Close Cycle', [
+        { name: 'cycle_id', label: 'Cycle ID', type: 'number', required: true },
+        { name: 'end_date', label: 'End Date', type: 'date', required: true, value: UI.currentDate() },
+        { name: 'close_reason', label: 'Reason', type: 'textarea' }
+      ], 'Close', (payload) => simpleAction('cycle/close', payload, 'Cycle closed'));
+    });
+
+    document.querySelectorAll('[data-belt-id]').forEach(row => {
+      row.addEventListener('click', (e) => {
+        if (e.target.closest('button')) return;
+        App.navigate('green_belt.detail', { belt_id: row.dataset.beltId });
+      });
+    });
+  }
+});
+
 Views.register('green_belt.supervisor_attendance', {
   async render({ params = {} }) {
     const data = await Api.get('attendance/list', params);
@@ -382,7 +617,7 @@ Views.register('green_belt.supervisor_attendance', {
 
     const filterUI = UI.panel('Filters', UI.filters([
       { name: 'date', label: 'Date', type: 'date', value: params.date || UI.currentDate() },
-      { name: 'supervisor_user_id', label: 'Supervisor ID', type: 'number', value: params.supervisor_user_id || '' }
+      { name: 'supervisor_user_id', label: 'Supervisor', type: 'select', options: [{ value: '', label: 'Loading...' }], value: params.supervisor_user_id || '' }
     ], 'Load'));
 
     const actions = UI.button('Refresh', { icon: 'ph-arrows-clockwise', attr: 'data-refresh' }) +
@@ -394,6 +629,16 @@ Views.register('green_belt.supervisor_attendance', {
   },
   async afterRender() {
     attachRefresh();
+    
+    // Load supervisors dropdown
+    const sups = await loadSupervisors();
+    if (sups) {
+      const select = document.querySelector('.js-filter-form [name="supervisor_user_id"]');
+      if (select) {
+        select.innerHTML = '<option value="">All Supervisors</option>' + sups.map(s => `<option value="${s.value}" ${String(s.value) === String(params.supervisor_user_id) ? 'selected' : ''}>${UI.escape(s.label)}</option>`).join('');
+      }
+    }
+
     wireFilters((payload) => App.navigate('green_belt.supervisor_attendance', payload));
     document.querySelector('[data-mark-attendance]')?.addEventListener('click', () => {
       openSimpleForm('Mark Attendance', [
@@ -656,7 +901,8 @@ Views.register('media.free_media_inventory', {
       { key: 'status', label: 'Status', html: true, render: (row) => UI.status(row.status) },
       { key: 'discovered_date', label: 'Discovered' },
       { key: 'confirmed_date', label: 'Confirmed' },
-      { key: 'expiry_date', label: 'Expiry' }
+      { key: 'expiry_date', label: 'Expiry' },
+      { key: 'actions', label: 'Actions', html: true, render: (row) => `<button class="btn btn-sm btn-ghost" data-raise-request="${row.site_id}">Raise Request</button>` }
     ];
 
     const filterUI = UI.panel('Filters', UI.filters([
@@ -677,6 +923,13 @@ Views.register('media.free_media_inventory', {
   async afterRender() {
     attachRefresh();
     wireFilters((payload) => App.navigate('media.free_media_inventory', payload));
+
+    document.querySelectorAll('[data-raise-request]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        App.navigate('task.request_intake', { site_id: btn.dataset.raiseRequest });
+      });
+    });
 
     document.querySelectorAll('[data-record]').forEach(row => {
       row.addEventListener('click', () => {
@@ -756,6 +1009,8 @@ function uploadView(surface, parentType, title) {
       return UI.page(title, 'Submit field proof with photos')
         + UI.panel('Upload Proof', `
           <form class="stack-form js-upload-form">
+            <input type="hidden" name="gps_latitude" id="gps_latitude" value="">
+            <input type="hidden" name="gps_longitude" id="gps_longitude" value="">
             <div class="form-grid">
               ${UI.field({ name: 'parent_id', label: `${UI.titleize(parentType)} ID`, type: 'number', required: true })}
               ${UI.field({ name: 'upload_type', label: 'Upload Type', type: 'select', value: 'WORK', options: parentType === 'TASK' ? ['WORK'] : ['WORK', 'ISSUE'] })}
@@ -772,16 +1027,24 @@ function uploadView(surface, parentType, title) {
         `);
     },
     async afterRender() {
+      // Silent GPS capture
+      const latField = document.getElementById('gps_latitude');
+      const lngField = document.getElementById('gps_longitude');
+      if (latField && navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            latField.value = pos.coords.latitude;
+            lngField.value = pos.coords.longitude;
+          },
+          () => {} // Silently fail — never block submission
+        );
+      }
+
       document.querySelector('.js-upload-form')?.addEventListener('submit', async (event) => {
         event.preventDefault();
         const form = event.currentTarget;
-        const formData = new FormData();
+        const formData = new FormData(form);
         formData.set('parent_type', parentType);
-        formData.set('parent_id', form.elements.parent_id.value);
-        formData.set('upload_type', form.elements.upload_type.value);
-        if (form.elements.photo_label) formData.set('photo_label', form.elements.photo_label.value);
-        if (form.elements.discovery_mode) formData.set('discovery_mode', form.elements.discovery_mode.value);
-        formData.set('comment_text', form.elements.comment_text.value);
         Array.from(form.querySelector('input[type="file"]').files).forEach((file, index) => formData.append(`files[${index}]`, file));
 
         try {
@@ -798,7 +1061,71 @@ function uploadView(surface, parentType, title) {
 
 Views.register('green_belt.supervisor_upload', uploadView('SUPERVISOR', 'GREEN_BELT', 'Supervisor Upload'));
 Views.register('green_belt.outsourced_upload', uploadView('OUTSOURCED', 'GREEN_BELT', 'Outsourced Upload'));
-Views.register('monitoring.upload', uploadView('MONITORING', 'SITE', 'Monitoring Upload'));
+Views.register('monitoring.upload', {
+  async render() {
+    return UI.page('Monitoring Upload', 'Submit monitoring proof with discovery options')
+      + UI.panel('Upload Proof', `
+        <form class="stack-form js-monitoring-upload-form">
+          <input type="hidden" name="parent_type" value="SITE">
+          <input type="hidden" name="surface" value="MONITORING">
+          <input type="hidden" name="upload_type" value="WORK">
+          <input type="hidden" name="gps_latitude" value="">
+          <input type="hidden" name="gps_longitude" value="">
+          
+          <div class="form-grid">
+            ${UI.field({ name: 'parent_id', label: 'Site ID', type: 'number', required: true })}
+            <div class="field full">
+              <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                <input type="checkbox" name="discovery_mode" value="1">
+                <span style="font-weight: bold;">Mark as Free Media Discovery</span>
+              </label>
+              <p style="font-size: 0.8rem; color: var(--ink-500); margin-top: 4px; margin-left: 24px;">
+                Creates a free media record for this site.
+              </p>
+            </div>
+            ${UI.field({ name: 'comment_text', label: 'Comment', type: 'textarea', full: true })}
+            <label class="field full">
+              <span>Photos</span>
+              <input type="file" name="files[]" multiple accept="image/*" required>
+            </label>
+          </div>
+          <button type="submit" class="btn btn-primary"><i class="ph ph-upload-simple"></i><span>Upload Monitoring Proof</span></button>
+        </form>
+      `);
+  },
+  async afterRender() {
+    // Silent GPS capture
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          document.querySelector('[name="gps_latitude"]').value = pos.coords.latitude;
+          document.querySelector('[name="gps_longitude"]').value = pos.coords.longitude;
+        },
+        (err) => console.log('GPS capture skipped or failed:', err.message),
+        { timeout: 5000 }
+      );
+    }
+
+    document.querySelector('.js-monitoring-upload-form')?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const formData = new FormData(form);
+      
+      // Ensure discovery_mode is 0 if not checked
+      if (!form.elements.discovery_mode.checked) {
+        formData.set('discovery_mode', '0');
+      }
+
+      try {
+        await Api.upload('upload/create', formData);
+        UI.toast('Monitoring proof uploaded', 'good');
+        form.reset();
+      } catch (error) {
+        UI.toast(error.message, 'bad');
+      }
+    });
+  }
+});
 
 Views.register('green_belt.my_uploads', {
   async render() {
@@ -815,32 +1142,124 @@ Views.register('green_belt.my_uploads', {
 Views.register('green_belt.watering_oversight', {
   async render({ params = {} }) {
     const date = params.date || UI.currentDate();
-    const data = await Api.get('oversight/watering', { date });
-    const watering = normalizeItems(data.watering || data.watering_records || data);
-    const attendance = normalizeItems(data.attendance || []);
-    const labour = normalizeItems(data.labour || []);
+    const [attendanceResp, wateringResp, labourResp, issuesResp] = await Promise.all([
+      Api.get('attendance/list', { date }),
+      Api.get('oversight/watering', { date }),
+      Api.get('labour/list', { date }),
+      Api.get('issue/list', { status: 'OPEN', site_category: 'GREEN_BELT' })
+    ]);
 
-    const actions = UI.button('Refresh', { icon: 'ph-arrows-clockwise', attr: 'data-refresh' }) +
-                    UI.button('Mark Watering', { icon: 'ph-drop', kind: 'btn-primary', attr: 'data-mark-watering' });
+    const attendance = normalizeItems(attendanceResp);
+    const watering = normalizeItems(wateringResp);
+    const labour = normalizeItems(labourResp);
+    const issues = normalizeItems(issuesResp).slice(0, 5);
 
-    return UI.page('Watering Oversight', date, actions)
+    const actions = UI.button('Refresh', { icon: 'ph-arrows-clockwise', attr: 'data-refresh' });
+
+    return UI.page("Today's Operations", date, actions)
       + UI.panel('Filters', UI.filters([
-          { name: 'date', label: 'Date', type: 'date', value: date }
+          { name: 'date', label: 'Date', type: 'date', value: date },
+          { name: 'supervisor_user_id', label: 'Supervisor', type: 'select', options: [{ value: '', label: 'Loading...' }], value: params.supervisor_user_id || '' }
         ], 'Load'))
-      + UI.panel('Watering', UI.table(inferColumns(watering), watering, { empty: 'No watering records' }))
-      + UI.panel('Attendance', UI.table(inferColumns(attendance), attendance, { empty: 'No attendance rows' }))
-      + UI.panel('Labour Counts', UI.table(inferColumns(labour), labour, { empty: 'No labour rows' }));
+      + UI.panel('Section 1: Supervisor Attendance', 
+          UI.table([
+            { key: 'supervisor_name', label: 'Supervisor' },
+            { key: 'attendance_status', label: 'Status', html: true, render: (row) => UI.status(row.attendance_status) },
+            { key: 'marked_by_name', label: 'Marked By' },
+            { key: 'marked_at', label: 'Marked At' }
+          ], attendance, { empty: 'No attendance records' }),
+          UI.button('Mark Attendance', { icon: 'ph-user-check', attr: 'data-mark-attendance' })
+      )
+      + UI.panel('Section 2: Watering Status', 
+          UI.table([
+            { key: 'belt_code', label: 'Belt Code' },
+            { key: 'common_name', label: 'Name' },
+            { key: 'supervisor_name', label: 'Supervisor' },
+            { key: 'watering_status', label: 'Status', html: true, render: (row) => UI.status(row.watering_status) },
+            { key: 'reason_text', label: 'Reason' },
+            { 
+              key: 'actions', 
+              label: '', 
+              html: true, 
+              render: (row) => `
+                <div style="display: flex; gap: 4px;">
+                  <button class="btn btn-sm btn-ghost" data-quick-watering="${row.belt_id}" data-status="DONE">Done</button>
+                  <button class="btn btn-sm btn-ghost" data-quick-watering="${row.belt_id}" data-status="NOT_REQUIRED">Skip</button>
+                </div>
+              `
+            }
+          ], watering, { empty: 'No watering records' }),
+          UI.button('Mark Watering (Custom)', { icon: 'ph-drop', attr: 'data-mark-watering' })
+      )
+      + UI.panel('Section 3: Labour Entry', 
+          UI.table(inferColumns(labour), labour, { empty: 'No labour entries' }),
+          UI.button('Enter Labour Counts', { icon: 'ph-users', attr: 'data-mark-labour' })
+      )
+      + UI.panel('Section 4: Quick Exceptions — Open Issues', 
+          UI.table([
+            { key: 'title', label: 'Title' },
+            { key: 'priority', label: 'Priority', html: true, render: (row) => UI.status(row.priority) },
+            { key: 'belt_name', label: 'Belt' },
+            { key: 'status', label: 'Status', html: true, render: (row) => UI.status(row.status) }
+          ], issues, { empty: 'No open issues' }),
+          UI.button('View All Issues', { icon: 'ph-list', attr: 'data-nav="green_belt.issue_management"' })
+      );
   },
-  async afterRender() {
+  async afterRender({ params = {} }) {
     attachRefresh();
+
+    // Load supervisors dropdown
+    const sups = await loadSupervisors();
+    if (sups) {
+      const select = document.querySelector('.js-filter-form [name="supervisor_user_id"]');
+      if (select) {
+        select.innerHTML = '<option value="">All Supervisors</option>' + sups.map(s => `<option value="${s.value}" ${String(s.value) === String(params.supervisor_user_id) ? 'selected' : ''}>${UI.escape(s.label)}</option>`).join('');
+      }
+    }
+
     wireFilters((payload) => App.navigate('green_belt.watering_oversight', payload));
+    
+    document.querySelector('[data-mark-attendance]')?.addEventListener('click', () => {
+      openSimpleForm('Mark Attendance', [
+        { name: 'supervisor_user_id', label: 'Supervisor ID', type: 'number', required: true },
+        { name: 'attendance_date', label: 'Date', type: 'date', required: true, value: UI.currentDate() },
+        { name: 'status', label: 'Status', type: 'select', value: 'PRESENT', options: ['PRESENT', 'ABSENT', 'LEAVE'] },
+        { name: 'reason_text', label: 'Reason', type: 'textarea' }
+      ], 'Save', (payload) => simpleAction('attendance/mark', payload, 'Attendance marked'));
+    });
+
     document.querySelector('[data-mark-watering]')?.addEventListener('click', () => {
       openSimpleForm('Mark Watering', [
         { name: 'belt_id', label: 'Belt ID', type: 'number', required: true },
-        { name: 'watering_date', label: 'Date', type: 'date', required: true, value: UI.currentDate() },
+        { name: 'watering_date', label: 'Date', type: 'date', required: true, value: date },
         { name: 'status', label: 'Status', type: 'select', value: 'DONE', options: ['DONE', 'NOT_REQUIRED'] },
-        { name: 'reason_text', label: 'Reason (Ops Override)', type: 'textarea' }
-      ], 'Save', (payload) => simpleAction('watering/mark', payload, 'Watering status marked'));
+        { name: 'reason_text', label: 'Reason', type: 'textarea' }
+      ], 'Save', (payload) => simpleAction('watering/mark', payload, 'Watering marked'));
+    });
+
+    document.querySelectorAll('[data-quick-watering]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const payload = {
+          belt_id: btn.dataset.quickWatering,
+          status: btn.dataset.status,
+          watering_date: date
+        };
+        await simpleAction('watering/mark', payload, `Watering marked ${payload.status}`);
+      });
+    });
+
+    document.querySelector('[data-mark-labour]')?.addEventListener('click', () => {
+      openSimpleForm('Enter Labour Counts', [
+        { name: 'belt_id', label: 'Belt ID', type: 'number', required: true },
+        { name: 'entry_date', label: 'Date', type: 'date', required: true, value: UI.currentDate() },
+        { name: 'labour_count', label: 'Labour', type: 'number', value: '0' },
+        { name: 'gardener_count', label: 'Gardeners', type: 'number', value: '0' },
+        { name: 'night_guard_count', label: 'Night Guards', type: 'number', value: '0' }
+      ], 'Save', (payload) => simpleAction('labour/mark', payload, 'Labour counts saved'));
+    });
+
+    document.querySelectorAll('[data-nav]').forEach(el => {
+      el.addEventListener('click', () => App.navigate(el.dataset.nav));
     });
   }
 });
@@ -880,25 +1299,70 @@ Views.register('monitoring.plan', {
       + UI.panel('Plan Records', UI.table(columns, rows, { 
           empty: 'No sites found for this month',
           rowAttr: (row) => `data-site='${JSON.stringify(row).replace(/'/g, "&#39;")}' data-month="${month}"`
-      }));
+      }))
+      + UI.panel('Bulk Copy Tool', `
+        <form class="stack-form js-bulk-copy-form">
+          <div class="form-grid">
+            ${UI.field({ name: 'source_month', label: 'Source Month', type: 'month', required: true, value: month })}
+            ${UI.field({ name: 'target_month', label: 'Target Month', type: 'month', required: true, value: UI.nextMonth(month) })}
+            
+            <div class="field full" style="border: 1px solid var(--line); padding: 1rem; border-radius: 8px;">
+              <p style="margin-bottom: 0.5rem; font-weight: bold;">Copy Mode:</p>
+              <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; cursor: pointer;">
+                <input type="radio" name="copy_mode" value="route" checked>
+                <span>By Route/Group</span>
+              </label>
+              <div style="margin-left: 24px; margin-bottom: 12px;">
+                <input type="text" name="route_or_group" placeholder="Enter route or group name..." class="input">
+              </div>
+              
+              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="radio" name="copy_mode" value="ids">
+                <span>By Site IDs</span>
+              </label>
+              <div style="margin-left: 24px;">
+                <input type="text" name="site_ids_text" placeholder="101, 102, 105..." class="input">
+              </div>
+            </div>
+
+            <div class="field full">
+              <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                <input type="checkbox" name="replace_existing" value="1">
+                <span>Replace existing plans if target month already has dates</span>
+              </label>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary"><i class="ph ph-copy"></i><span>Execute Bulk Copy</span></button>
+        </form>
+      `);
   },
   async afterRender() {
     attachRefresh();
     wireFilters((payload) => App.navigate('monitoring.plan', payload));
 
-    document.querySelector('[data-bulk-copy]')?.addEventListener('click', () => {
-      openSimpleForm('Bulk Copy Plan', [
-        { name: 'source_month', label: 'Source Month', type: 'month', required: true, value: UI.currentMonth() },
-        { name: 'target_month', label: 'Target Month', type: 'month', required: true },
-        { name: 'route_or_group', label: 'Limit to Route/Group (Optional)' },
-        { name: 'replace_existing', label: 'Replace Existing Plans?', type: 'select', options: [{value: '0', label: 'No'}, {value: '1', label: 'Yes'}] }
-      ], 'Execute Bulk Copy', (payload) => {
-        payload.replace_existing = payload.replace_existing === '1';
-        return simpleAction('monitoringplan/bulk-copy', payload, 'Bulk copy completed');
-      });
+    // Old modal-based bulk copy removed in favor of in-page panel per plan
+    
+    document.querySelector('.js-bulk-copy-form')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.currentTarget;
+      const data = UI.formData(form);
+      const payload = {
+        source_month: data.source_month,
+        target_month: data.target_month,
+        replace_existing: !!data.replace_existing
+      };
+
+      if (data.copy_mode === 'route') {
+        payload.route_or_group = data.route_or_group;
+      } else {
+        payload.site_ids = (data.site_ids_text || '').split(',').map(s => s.trim()).filter(Boolean);
+      }
+
+      await simpleAction('monitoringplan/bulk-copy', payload, 'Bulk copy process initiated');
     });
 
     document.querySelectorAll('[data-site]').forEach(row => {
+      // ... site detail modal logic stays same ...
       row.addEventListener('click', () => {
         const site = JSON.parse(row.dataset.site);
         const month = row.dataset.month;
@@ -979,21 +1443,23 @@ Views.register('monitoring.history', {
         { name: 'date_from', label: 'From', type: 'date', value: params.date_from },
         { name: 'date_to', label: 'To', type: 'date', value: params.date_to },
         { name: 'site_category', label: 'Category', type: 'select', value: params.site_category || '', options: ['', 'GREEN_BELT', 'CITY', 'HIGHWAY'] },
-        { name: 'discovery_mode', label: 'Discovery Only?', type: 'select', value: params.discovery_mode || '', options: [{value: '', label: 'All'}, {value: '1', label: 'Yes'}, {value: '0', label: 'No'}] }
+        { name: 'discovery_mode', label: 'Discovery Mode', type: 'select', value: params.discovery_mode || '', options: [{ value: '', label: 'All' }, { value: '1', label: 'Discovery Only' }, { value: '0', label: 'Normal Only' }] }
       ], 'Search'))
       + UI.panel('History Records', UI.table(columns, rows, {
         empty: 'No monitoring history found',
         rowAttr: (row) => `data-history-id="${row.upload_id}"`
-      }));
+      }) + renderPagination(data.pagination, 'monitoring.history', params));
   },
   async afterRender() {
     attachRefresh();
+    attachPagination();
     wireFilters((payload) => App.navigate('monitoring.history', payload));
   }
 });
 
 Views.register('task.request_intake', {
   async render({ params = {} }) {
+    const isOps = Auth.getUser()?.role_key === 'OPS_MANAGER';
     const data = await Api.get('request/list', params);
     const rows = normalizeItems(data);
     const columns = [
@@ -1006,38 +1472,59 @@ Views.register('task.request_intake', {
       { key: 'created_at', label: 'Requested' }
     ];
 
-    const actions = UI.button('New Request', { icon: 'ph-plus', kind: 'btn-primary', attr: 'data-create-request' });
+    if (isOps) {
+      const actions = UI.button('Refresh', { icon: 'ph-arrows-clockwise', attr: 'data-refresh' });
+      return UI.page('Task Requests', 'Review and approve operational requests', actions)
+        + UI.panel('Filters', UI.filters([
+          { name: 'status', label: 'Status', type: 'select', value: params.status, options: ['', 'PENDING', 'APPROVED', 'REJECTED'] }
+        ], 'Apply'))
+        + UI.panel('Pending Approvals', UI.table(columns, rows, {
+          empty: 'No requests found',
+          rowAttr: (row) => `data-request='${JSON.stringify(row).replace(/'/g, "&#39;")}'`
+        }));
+    }
 
-    return UI.page('Task Requests', 'Review and approve operational requests', actions)
-      + UI.panel('Filters', UI.filters([
-        { name: 'status', label: 'Status', type: 'select', value: params.status, options: ['', 'PENDING', 'APPROVED', 'REJECTED'] }
-      ], 'Apply'))
-      + UI.panel('Records', UI.table(columns, rows, {
-        empty: 'No requests found',
-        rowAttr: (row) => `data-request='${JSON.stringify(row).replace(/'/g, "&#39;")}'`
+    // Sales/Planning Role View
+    return UI.page('Task Requests', 'Submit and track your operational requests')
+      + UI.panel('Submit a New Request', `
+        <form class="stack-form js-request-form">
+          <div class="form-grid">
+            ${UI.field({ name: 'request_type', label: 'Request Type', type: 'select', required: true, options: ['FABRICATION', 'PRINTING', 'MOUNTING', 'MAINTENANCE', 'OTHER'] })}
+            ${UI.field({ name: 'priority', label: 'Priority', type: 'select', required: true, value: 'MEDIUM', options: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] })}
+            ${UI.field({ name: 'client_name', label: 'Client Name' })}
+            ${UI.field({ name: 'campaign_id', label: 'Campaign ID (optional)', type: 'number' })}
+            ${UI.field({ name: 'site_id', label: 'Site ID (optional)', type: 'number', value: params.site_id || '' })}
+            ${UI.field({ name: 'belt_id', label: 'Belt ID (optional)', type: 'number' })}
+            ${UI.field({ name: 'description', label: 'Detailed Description', type: 'textarea', full: true, required: true })}
+          </div>
+          <button type="submit" class="btn btn-primary"><i class="ph ph-paper-plane-tilt"></i><span>Submit Request</span></button>
+        </form>
+      `)
+      + UI.panel('My Submitted Requests', UI.table(columns, rows, { 
+          empty: 'You haven\'t submitted any requests yet.',
+          rowAttr: (row) => `data-request='${JSON.stringify(row).replace(/'/g, "&#39;")}'`
       }));
   },
   async afterRender() {
     attachRefresh();
     wireFilters((payload) => App.navigate('task.request_intake', payload));
 
-    document.querySelector('[data-create-request]')?.addEventListener('click', () => {
-      openSimpleForm('Raise Request', [
-        { name: 'request_type', label: 'Request Type', type: 'select', options: ['FABRICATION', 'PRINTING', 'MOUNTING', 'MAINTENANCE', 'OTHER'], required: true },
-        { name: 'priority', label: 'Priority', type: 'select', options: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'], required: true },
-        { name: 'client_name', label: 'Client Name' },
-        { name: 'campaign_id', label: 'Campaign ID', type: 'number' },
-        { name: 'site_id', label: 'Site ID', type: 'number' },
-        { name: 'description', label: 'Detailed Description', type: 'textarea', required: true }
-      ], 'Submit Request', (payload) => simpleAction('request/create', payload, 'Request submitted'));
-    });
+    const isOps = Auth.getUser()?.role_key === 'OPS_MANAGER';
+
+    if (!isOps) {
+      document.querySelector('.js-request-form')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const payload = UI.formData(e.currentTarget);
+        await simpleAction('request/create', payload, 'Request submitted successfully');
+      });
+    }
 
     document.querySelectorAll('[data-request]').forEach(row => {
       row.addEventListener('click', () => {
         const request = JSON.parse(row.dataset.request);
         
         let extraHTML = '';
-        if (request.status === 'PENDING') {
+        if (isOps && request.status === 'SUBMITTED') {
           extraHTML = `
             <div class="modal-actions" style="margin-top: 1rem; border-top: 1px solid var(--line); padding-top: 1rem;">
               <button type="button" class="btn btn-primary" data-approve="${request.id}">Approve & Create Task</button>
@@ -1053,25 +1540,28 @@ Views.register('task.request_intake', {
               <div class="field"><span>Requester</span><input type="text" value="${request.requester_name}" readonly></div>
               <div class="field"><span>Client</span><input type="text" value="${request.client_name || 'N/A'}" readonly></div>
               <div class="field"><span>Status</span><input type="text" value="${request.status}" readonly></div>
+              ${request.rejection_reason ? `<div class="field full"><span style="color:var(--bad)">Rejection Reason</span><textarea readonly>${request.rejection_reason}</textarea></div>` : ''}
               <div class="field full"><span>Description</span><textarea readonly>${request.description}</textarea></div>
             </div>
             ${extraHTML}
           </div>
         `);
 
-        const modal = document.getElementById('modal-root');
-        modal.querySelector('[data-approve]')?.addEventListener('click', async () => {
-          await simpleAction('request/approve', { request_id: request.id }, 'Request approved and task created');
-          UI.closeModal();
-        });
+        if (isOps) {
+          const modal = document.getElementById('modal-root');
+          modal.querySelector('[data-approve]')?.addEventListener('click', async () => {
+            await simpleAction('request/approve', { request_id: request.id }, 'Request approved and task created');
+            UI.closeModal();
+          });
 
-        modal.querySelector('[data-reject]')?.addEventListener('click', () => {
-          UI.closeModal();
-          openSimpleForm('Reject Request', [
-            { name: 'request_id', type: 'hidden', value: request.id },
-            { name: 'rejection_reason', label: 'Reason for Rejection', type: 'textarea', required: true }
-          ], 'Confirm Rejection', (payload) => simpleAction('request/reject', payload, 'Request rejected'));
-        });
+          modal.querySelector('[data-reject]')?.addEventListener('click', () => {
+            UI.closeModal();
+            openSimpleForm('Reject Request', [
+              { name: 'request_id', type: 'hidden', value: request.id },
+              { name: 'rejection_reason', label: 'Reason for Rejection', type: 'textarea', required: true }
+            ], 'Confirm Rejection', (payload) => simpleAction('request/reject', payload, 'Request rejected'));
+          });
+        }
       });
     });
   }
@@ -1383,10 +1873,11 @@ Views.register('governance.audit_logs', {
       + UI.panel('History', UI.table(columns, rows, {
         empty: 'No audit logs found',
         rowAttr: (row) => `data-audit='${JSON.stringify(row).replace(/'/g, "&#39;")}'`
-      }));
+      }) + renderPagination(data.pagination, 'governance.audit_logs', params));
   },
   async afterRender() {
     attachRefresh();
+    attachPagination();
     wireFilters((payload) => App.navigate('governance.audit_logs', payload));
 
     document.querySelectorAll('[data-audit]').forEach(row => {
@@ -1536,15 +2027,27 @@ Views.register('green_belt.upload_review', {
         { name: 'date_from', label: 'From', type: 'date', value: params.date_from },
         { name: 'date_to', label: 'To', type: 'date', value: params.date_to },
         { name: 'upload_type', label: 'Type', type: 'select', value: params.upload_type || '', options: ['', 'WORK', 'ISSUE'] },
+        { name: 'supervisor_user_id', label: 'Supervisor', type: 'select', options: [{ value: '', label: 'Loading...' }], value: params.supervisor_user_id || '' },
         { name: 'authority_visibility', label: 'Visibility', type: 'select', value: params.authority_visibility || 'PENDING', options: ['', 'PENDING', 'APPROVED', 'REJECTED', 'HIDDEN'] }
       ], 'Search'))
       + UI.panel('Review Queue', UI.table(columns, rows, {
         empty: 'No uploads found for review',
         rowAttr: (row) => `data-upload='${JSON.stringify(row).replace(/'/g, "&#39;")}'`
-      }));
+      }) + renderPagination(data.pagination, 'green_belt.upload_review', params));
   },
   async afterRender() {
     attachRefresh();
+    attachPagination();
+    
+    // Load supervisors dropdown
+    const sups = await loadSupervisors();
+    if (sups) {
+      const select = document.querySelector('.js-filter-form [name="supervisor_user_id"]');
+      if (select) {
+        select.innerHTML = '<option value="">All Supervisors</option>' + sups.map(s => `<option value="${s.value}" ${String(s.value) === String(params.supervisor_user_id) ? 'selected' : ''}>${UI.escape(s.label)}</option>`).join('');
+      }
+    }
+
     wireFilters((payload) => App.navigate('green_belt.upload_review', payload));
 
     const selectAll = document.getElementById('selectAllUploads');
@@ -1821,8 +2324,11 @@ Views.register('green_belt.authority_view', {
       </div>
     `;
 
+    const settings = await Api.get('settings/list');
+    const waEnabled = settings?.items?.find(s => s.setting_key === 'authority_whatsapp_helper_enabled')?.setting_value === '1';
+
     const actions = UI.button('Refresh', { icon: 'ph-arrows-clockwise', attr: 'data-refresh' }) +
-                    `<a href="${share.whatsapp_url}" target="_blank" class="btn btn-primary" style="text-decoration: none;"><i class="ph ph-whatsapp-logo"></i><span>Share on WhatsApp</span></a>`;
+                    (waEnabled ? `<a href="${share.whatsapp_url}" target="_blank" class="btn btn-primary" style="text-decoration: none;"><i class="ph ph-whatsapp-logo"></i><span>Share on WhatsApp</span></a>` : '');
 
     return UI.page('Authority View', 'Review approved green belt work submissions', actions)
       + filterUI
@@ -2079,6 +2585,7 @@ Views.register('governance.access_mappings', {
       });
     });
   }
+});
 Views.register('task.progress_read', {
   async render({ params = {} }) {
     const data = await Api.get('taskprogress/list', params);

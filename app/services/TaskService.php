@@ -333,7 +333,7 @@ class TaskService
         ]);
 
         if (count($uploads) === 0) {
-            throw new DomainException("Marking work as done requires at least one AFTER_WORK proof uploaded to this task.");
+            throw new DomainException("AFTER_WORK proof is required before marking task complete.");
         }
 
         $updatePayload = [

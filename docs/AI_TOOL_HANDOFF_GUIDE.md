@@ -288,6 +288,7 @@ This section is the single place for all recurring traps, enum facts, field name
 - Task statuses are `OPEN`, `RUNNING`, `COMPLETED`, `CANCELLED`, `ARCHIVED`.
 - Task `vertical_type` values are `GREEN_BELT`, `ADVERTISEMENT`, `MONITORING`.
 - Watering stores only `DONE` and `NOT_REQUIRED`; `PENDING` is derived.
+- Watering records use column `watering_date`, not `date`.
 - Site categories are `GREEN_BELT`, `CITY`, `HIGHWAY`.
 - Lighting values are `LIT`, `NON_LIT`.
 - Issue uploads and `NOT_ELIGIBLE` uploads must never become authority `APPROVED`.
@@ -296,6 +297,10 @@ This section is the single place for all recurring traps, enum facts, field name
 - `tests/test_upload_review_safety.php` verifies that mixed ISSUE + WORK batch approval is blocked at the backend.
 - `task/start` uses module key `task.my_tasks` so Fabrication Lead can start assigned tasks.
 - `upload/create` is a shared dynamic route; do not force one static module key onto it.
+- `UI.cards` supports `clickable` class and `data-nav` via the `attr` property in the item object.
+- `belt/list` now includes `open_issue_count` and `active_cycle_id` in the `items` payload for dashboard attention lists.
+- Module filters should use `loadSupervisors()` select dropdown instead of `supervisor_user_id` number input where possible.
+- All high-volume list panels should include `renderPagination(data.pagination, moduleKey, params)` and be wired with `attachPagination()` in `afterRender`.
 
 ## Validation Commands
 
