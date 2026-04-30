@@ -637,7 +637,7 @@ Views.register('green_belt.supervisor_attendance', {
       + filterUI
       + UI.panel('Records', UI.table(columns, rows, { empty: 'No attendance records found for this date' }));
   },
-  async afterRender() {
+  async afterRender({ params = {} }) {
     attachRefresh();
     
     // Load supervisors dropdown
@@ -2045,10 +2045,10 @@ Views.register('green_belt.upload_review', {
         rowAttr: (row) => `data-upload='${JSON.stringify(row).replace(/'/g, "&#39;")}'`
       }) + renderPagination(data.pagination, 'green_belt.upload_review', params));
   },
-  async afterRender() {
+  async afterRender({ params = {} }) {
     attachRefresh();
     attachPagination();
-    
+
     // Load supervisors dropdown
     const sups = await loadSupervisors();
     if (sups) {
