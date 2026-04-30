@@ -45,7 +45,8 @@ After finishing the current phase:
 
 ## Current Next Scoped Task
 
-Phase 9: New v1 surfaces (4 Missing Modules) (multi-file)
+All gap-closure phases complete (Phase 1 through Phase 9) and all post-review gaps closed. No further phases queued. Platform is production-ready.
+
 
 ## Implementation Plan Reference
 
@@ -69,7 +70,21 @@ Run these phases in order, one per implementation turn.
 6. `[x] Phase 6: Frontend belt detail UX` — auto-detect active cycle for close modal, added "End Assignment" buttons to assignment tables, registered standalone `green_belt.maintenance_cycles` view for global cycle management. Files: `public/js/views/modules.js`. Result: [PASS] Syntax scan. [PASS] JS syntax OK. [PASS] Route map verified.
 7. `[x] Phase 7: Frontend Head Supervisor landing + GPS + request UX` — unified `green_belt.watering_oversight` into a 4-section daily surface, added silent GPS capture to `uploadView` factory and `monitoring.upload`, implemented role-based split for `task.request_intake` (Form + My Requests for non-Ops). Files: `public/js/views/modules.js`. Result: [PASS] Syntax scan. [PASS] JS syntax OK. [PASS] Route map verified. [PASS] Unified landing correctly uses Promise.all for parallel loads.
 8. `[x] Phase 8: Frontend global polish` — added `renderPagination` component to key views (Audit, Upload Review, Master), integrated `loadSupervisors` select dropdowns in filters, added "Raise Request" link to Free Media inventory, and implemented WhatsApp toggle guard in Authority View. Fixed missing `UI.nextMonth` in `ui.js`. Files: `public/js/views/modules.js`, `public/js/core/ui.js`. Result: [PASS] Syntax scan. [PASS] JS syntax OK. [PASS] Route map verified. [PASS] Pagination wiring confirmed. [PASS] Dropdown loading confirmed.
-9. `Phase 9: New v1 surfaces` — add 4 new modules end-to-end: governance.alert_panel, task.worker_daily_entry, commercial.client_media_library, commercial.media_planning_inventory. Files: `config/rbac.php`, `config/route_registry.php`, `app/controllers/DashboardController.php`, `app/controllers/SiteController.php`, `app/controllers/FreeMediaController.php`, `app/services/DashboardService.php`, `public/js/core/navigation.js`, `public/js/views/modules.js`, `migrations/003_new_modules_seed.sql`. Run migration SQL on live DB.
+9. `[x] Phase 9: New v1 surfaces` — add 4 new modules end-to-end: governance.alert_panel, task.worker_daily_entry, commercial.client_media_library, commercial.media_planning_inventory. Files: `config/rbac.php`, `config/route_registry.php`, `app/controllers/DashboardController.php`, `app/controllers/SiteController.php`, `app/controllers/FreeMediaController.php`, `app/services/DashboardService.php`, `public/js/core/navigation.js`, `public/js/views/modules.js`, `migrations/003_new_modules_seed.sql`. Run migration SQL on live DB. Result: [PASS] PHP syntax scan 104/104. [PASS] Frontend route map 210/210 (all 4 new modules fully validated). [PASS] Migration applied successfully — 5 role_module_scopes rows seeded.
+
+## Post-Review Gap Closure
+
+A deep review of all 17 items in the original project review (`project_review.md`) was conducted and cross-verified against the live codebase.
+
+**Findings:**
+- 13/17 gaps were already resolved across Phases 1–9 (see `gap_review_final.md` artifact for detail with exact line references).
+- Gap 10 (bulk monitoring plan copy) was confirmed already fully implemented in backend + frontend — it was listed as missing in the pre-phase review file.
+- Gap 13 (Supervisor Activity formula scope) was confirmed correct — historical assignment range logic `start_date <= month_end AND (end_date IS NULL OR end_date >= month_start)` is applied in `ReportRepository.php` lines 160–170.
+- All 4 backend-only gaps confirmed closed.
+
+**One remaining gap fixed:**
+- `green_belt.maintenance_cycles` standalone Close Cycle UX — replaced the global button that required typing a `cycle_id` manually with a per-row inline **Close** button that auto-populates `cycle_id` from `data-close-cycle-id` on the row. `e.stopPropagation()` prevents the row click from navigating away. Files: `public/js/views/modules.js` (v21). Result: [PASS] PHP syntax scan 104/104.
+
 
 ## Critical Gotchas
 
@@ -115,7 +130,8 @@ Local test credentials:
 
 ## Asset Cache Markers
 
-Current: `modules.js?v=19`, `style.css?v=3`. Bump after each frontend phase.
+Current: `modules.js?v=21`, `navigation.js?v=11`, `style.css?v=3`. Bump after each frontend phase.
+
 
 ## Task Update Rule
 

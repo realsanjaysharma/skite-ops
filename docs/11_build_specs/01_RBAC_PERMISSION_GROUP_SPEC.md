@@ -201,6 +201,7 @@ Module keys should stay stable because they are used by RBAC, menus, landing log
 - `task.detail`
 - `task.my_tasks`
 - `task.worker_allocation`
+- `task.worker_daily_entry` — standalone daily worker attendance and entry surface for Fabrication Lead
 
 ### Governance Domain
 
@@ -208,6 +209,12 @@ Module keys should stay stable because they are used by RBAC, menus, landing log
 - `governance.access_mappings`
 - `governance.audit_logs`
 - `governance.rejected_upload_cleanup`
+- `governance.alert_panel` — aggregated attention-item panel showing expiry warnings, overdue monitoring, open cycles, missing attendance, and high-priority tasks
+
+### Commercial Domain
+
+- `commercial.client_media_library` — read-only approved proof portal for Sales and Client Servicing
+- `commercial.media_planning_inventory` — free media inventory enriched with monitoring context for Media Planning
 
 ### Reporting And Settings
 
@@ -239,15 +246,15 @@ Recommended v1 mapping:
 
 | Role | Permission Group | Allowed Modules |
 |---|---|---|
-| `OPS_MANAGER` | `MANAGE` | all modules |
+| `OPS_MANAGER` | `MANAGE` | all modules (including `governance.alert_panel`) |
 | `HEAD_SUPERVISOR` | `MANAGE` | `dashboard.green_belt`, `green_belt.detail`, `green_belt.watering_oversight`, `green_belt.maintenance_cycles`, `green_belt.supervisor_attendance`, `green_belt.labour_entries`, `green_belt.issue_management` |
 | `GREEN_BELT_SUPERVISOR` | `UPLOAD` | `green_belt.supervisor_upload`, `green_belt.my_uploads` |
 | `OUTSOURCED_MAINTAINER` | `UPLOAD` | `green_belt.outsourced_upload` |
 | `MONITORING_TEAM` | `UPLOAD` | `monitoring.upload`, `monitoring.history` |
-| `FABRICATION_LEAD` | `UPLOAD` | `task.my_tasks`, `task.detail`, `task.worker_allocation` |
-| `SALES_TEAM` | `VIEW` | `task.progress_read`, `task.request_intake`, `monitoring.history`, `media.free_media_inventory` |
-| `CLIENT_SERVICING` | `VIEW` | `task.progress_read`, `task.request_intake`, `monitoring.history`, `media.free_media_inventory` |
-| `MEDIA_PLANNING` | `VIEW` | `task.progress_read`, `task.request_intake`, `media.free_media_inventory`, `monitoring.history` |
+| `FABRICATION_LEAD` | `UPLOAD` | `task.my_tasks`, `task.detail`, `task.worker_allocation`, `task.worker_daily_entry` |
+| `SALES_TEAM` | `VIEW` | `task.progress_read`, `task.request_intake`, `monitoring.history`, `media.free_media_inventory`, `commercial.client_media_library` |
+| `CLIENT_SERVICING` | `VIEW` | `task.progress_read`, `task.request_intake`, `monitoring.history`, `media.free_media_inventory`, `commercial.client_media_library` |
+| `MEDIA_PLANNING` | `VIEW` | `task.progress_read`, `task.request_intake`, `media.free_media_inventory`, `monitoring.history`, `commercial.media_planning_inventory` |
 | `AUTHORITY_REPRESENTATIVE` | `VIEW` | `green_belt.authority_view` |
 | `MANAGEMENT` | `VIEW` | `dashboard.advertisement`, `dashboard.monitoring`, `dashboard.management`, `reports.monthly` |
 

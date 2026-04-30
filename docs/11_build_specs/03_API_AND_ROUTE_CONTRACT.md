@@ -1209,7 +1209,92 @@ If `requires_password_reset = true`, frontend must force password reset flow bef
 - when `format=csv`, response is file download
 - when `format` is omitted, response is normal JSON preview
 
+
+## Governance, Commercial, And Worker Entry Routes
+
+### `alert/list`
+
+- method: `GET`
+- auth: `OPS_MANAGER` (MANAGE group, module `governance.alert_panel`)
+- purpose: returns aggregated alert categories for the Ops alert panel
+- response fields:
+  - `expiry_warnings[]` — belts with `permission_end_date` within 7 days
+    - `id`, `belt_code`, `name`, `expiry_date`, `days_remaining`
+  - `overdue_monitoring[]` — site monitoring due dates with no qualifying upload
+    - `id`, `site_code`, `name`, `due_date`, `days_overdue`
+  - `cycles_overdue[]` — maintenance cycles open longer than 4 days with no `end_date`
+    - `id`, `belt_code`, `name`, `start_date`, `days_open`
+  - `attendance_missing_today[]` — supervisors with no attendance row for today
+    - `id`, `name`
+  - `high_priority_tasks[]` — tasks with `priority IN (HIGH, CRITICAL)` and `status IN (OPEN, RUNNING)`
+    - `id`, `name`, `priority`, `status`, `assigned_lead_name`
+  - `campaign_end_pending[]` — campaigns with `status = ENDED` and no free_media confirmation
+    - `id`, `name`, `end_date`
+
+### `workday/my-list`
+
+- method: `GET`
+- auth: `FABRICATION_LEAD` (UPLOAD group, module `task.worker_daily_entry`)
+- purpose: standalone daily worker entry list scoped to the lead's context
+- query params:
+  - `date` (defaults to today)
+- response fields:
+  - `items[]` — worker entry rows
+    - `worker_name`, `skill_tag`, `attendance_status`, `activity_context`, `task_id`
+
+### `workday/my-mark`
+
+- method: `POST`
+- auth: `FABRICATION_LEAD` (UPLOAD group, module `task.worker_daily_entry`)
+- purpose: mark a worker's daily entry — delegates to `WorkerEntryController::markEntry()`
+- request fields:
+  - `worker_id` (required)
+  - `entry_date` (required)
+  - `attendance_status` — `PRESENT`, `ABSENT`, `HALF_DAY` (required)
+  - `activity_context` (optional)
+  - `task_id` (optional)
+
+### `media/client-library`
+
+- method: `GET`
+- auth: `SALES_TEAM`, `CLIENT_SERVICING` (VIEW group, module `commercial.client_media_library`)
+- purpose: read-only list of approved WORK uploads for green belt sites — approved proof portal
+- query params:
+  - `belt_id`
+  - `date_from`
+  - `date_to`
+  - `work_type`
+  - `page`
+- response fields:
+  - `items[]`:
+    - `id`, `created_at`, `work_type`, `comment_text`, `belt_code`, `belt_name`
+  - `pagination` — standard `page`, `limit`, `total`
+- notes:
+  - only `authority_visibility = APPROVED`, `upload_type = WORK` records are returned
+  - no mutations — VIEW capability only
+
+### `media/planning-view`
+
+- method: `GET`
+- auth: `MEDIA_PLANNING` (VIEW group, module `commercial.media_planning_inventory`)
+- purpose: free media records enriched with site info and next monitoring due date for planning decisions
+- query params:
+  - `status` — `DISCOVERED`, `CONFIRMED_ACTIVE`, `EXPIRED`, `CONSUMED`
+  - `site_category` — `GREEN_BELT`, `CITY`, `HIGHWAY`
+  - `route_or_group`
+  - `page`
+- response fields:
+  - `items[]`:
+    - `id`, `status`, `discovered_date`, `confirmed_date`, `expiry_date`
+    - `site_code`, `location_text`, `site_category`, `route_or_group`, `site_id`
+    - `next_monitoring_due` — earliest upcoming `site_monitoring_due_dates.due_date` for this site
+  - `pagination` — standard `page`, `limit`, `total`
+- notes:
+  - row action: "Raise Request" navigates frontend to `task.request_intake` with the `site_id` pre-filled
+  - read-only — VIEW capability only
+
 ## Error Cases To Standardize
+
 
 Common business-rule errors:
 

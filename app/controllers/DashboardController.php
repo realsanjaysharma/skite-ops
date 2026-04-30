@@ -105,4 +105,23 @@ class DashboardController extends BaseController
             Response::error($e->getMessage(), 400);
         }
     }
+
+    /**
+     * GET alert/list
+     * Auth: OPS_MANAGER (MANAGE group)
+     */
+    public function alertPanel(): void
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+            Response::error('Method not allowed', 405);
+            return;
+        }
+
+        try {
+            $summary = $this->dashboardService->getAlertSummary();
+            Response::success($summary);
+        } catch (Throwable $e) {
+            Response::error($e->getMessage(), 400);
+        }
+    }
 }

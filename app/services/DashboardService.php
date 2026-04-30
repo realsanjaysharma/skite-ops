@@ -206,4 +206,117 @@ class DashboardService
 
         return $summary;
     }
+
+    /**
+     * Alert Panel — aggregated attention items for OPS_MANAGER.
+     *
+     * Returns six alert categories, each as an array of minimal context objects.
+     */
+    public function getAlertSummary(): array
+    {
+        $today = date('Y-m-d');
+        $plus7 = date('Y-m-d', strtotime('+7 days'));
+
+        // 1. Permission expiry warnings — belts with permission_end_date in next 7 days
+        $expiryWarnings = $this->db->prepare("
+            SELECT id, belt_code, common_name AS name,
+                   permission_end_date AS expiry_date,
+                   DATEDIFF(permission_end_date, CURDATE()) AS days_remaining
+            FROM green_belts
+            WHERE permission_status = 'AGREEMENT_SIGNED'
+              AND permission_end_date BETWEEN CURDATE() AND :plus7
+              AND is_hidden = 0
+            ORDER BY permission_end_date ASC
+            LIMIT 20
+        ");
+        $expiryWarnings->execute([':plus7' => $plus7]);
+        $expiryWarnings = $expiryWarnings->fetchAll(PDO::FETCH_ASSOC);
+
+        // 2. Overdue monitoring — due dates in the past with no qualifying upload that day
+        $overdueMonitoring = $this->db->query("
+            SELECT s.id, s.site_code, s.location_text AS name,
+                   d.due_date,
+                   DATEDIFF(CURDATE(), d.due_date) AS days_overdue
+            FROM site_monitoring_due_dates d
+            INNER JOIN sites s ON s.id = d.site_id
+            WHERE d.due_date < CURDATE()
+              AND NOT EXISTS (
+                SELECT 1 FROM uploads u
+                WHERE u.parent_type = 'SITE'
+                  AND u.parent_id = d.site_id
+                  AND DATE(u.created_at) = d.due_date
+                  AND u.upload_type = 'WORK'
+                  AND u.is_deleted = 0
+                  AND u.is_purged = 0
+              )
+            ORDER BY d.due_date ASC
+            LIMIT 20
+        ")->fetchAll(PDO::FETCH_ASSOC);
+
+        // 3. Long-running cycles — active cycles older than 4 days with no end_date
+        $cyclesOverdue = $this->db->query("
+            SELECT mc.id, gb.belt_code, gb.common_name AS name,
+                   mc.start_date,
+                   DATEDIFF(CURDATE(), mc.start_date) AS days_open
+            FROM maintenance_cycles mc
+            INNER JOIN green_belts gb ON gb.id = mc.belt_id
+            WHERE mc.end_date IS NULL
+              AND mc.start_date < DATE_SUB(CURDATE(), INTERVAL 4 DAY)
+            ORDER BY mc.start_date ASC
+            LIMIT 20
+        ")->fetchAll(PDO::FETCH_ASSOC);
+
+        // 4. Attendance missing today — supervisors with no attendance row for today
+        $attendanceMissingToday = $this->db->query("
+            SELECT u.id, u.full_name AS name
+            FROM users u
+            INNER JOIN roles r ON r.id = u.role_id
+            WHERE r.role_key = 'GREEN_BELT_SUPERVISOR'
+              AND u.is_active = 1
+              AND NOT EXISTS (
+                SELECT 1 FROM supervisor_attendance sa
+                WHERE sa.supervisor_user_id = u.id
+                  AND sa.attendance_date = CURDATE()
+              )
+            ORDER BY u.full_name ASC
+            LIMIT 20
+        ")->fetchAll(PDO::FETCH_ASSOC);
+
+        // 5. High priority tasks — OPEN or RUNNING, HIGH or CRITICAL
+        $highPriorityTasks = $this->db->query("
+            SELECT t.id, t.work_description AS name,
+                   t.priority, t.status,
+                   u.full_name AS assigned_lead_name
+            FROM tasks t
+            LEFT JOIN users u ON u.id = t.assigned_lead_user_id
+            WHERE t.priority IN ('HIGH', 'CRITICAL')
+              AND t.status IN ('OPEN', 'RUNNING')
+            ORDER BY FIELD(t.priority,'CRITICAL','HIGH'), t.id ASC
+            LIMIT 20
+        ")->fetchAll(PDO::FETCH_ASSOC);
+
+        // 6. Campaigns ended but free media not confirmed
+        $campaignEndPending = $this->db->query("
+            SELECT c.id, c.campaign_name AS name,
+                   c.actual_end_date AS end_date
+            FROM campaigns c
+            WHERE c.status = 'ENDED'
+              AND NOT EXISTS (
+                SELECT 1 FROM free_media_records fm
+                WHERE fm.source_reference_id = c.id
+                  AND fm.source_type = 'CAMPAIGN_END'
+              )
+            ORDER BY c.actual_end_date DESC
+            LIMIT 20
+        ")->fetchAll(PDO::FETCH_ASSOC);
+
+        return [
+            'expiry_warnings'          => $expiryWarnings,
+            'overdue_monitoring'       => $overdueMonitoring,
+            'cycles_overdue'           => $cyclesOverdue,
+            'attendance_missing_today' => $attendanceMissingToday,
+            'high_priority_tasks'      => $highPriorityTasks,
+            'campaign_end_pending'     => $campaignEndPending,
+        ];
+    }
 }

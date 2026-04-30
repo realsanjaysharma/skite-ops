@@ -556,12 +556,17 @@ Views.register('green_belt.maintenance_cycles', {
       { key: 'start_date', label: 'Start Date' },
       { key: 'end_date', label: 'End Date', render: (v) => v || 'Active' },
       { key: 'started_by_user_name', label: 'Started By' },
-      { key: 'status', label: 'Status', html: true, render: (row) => UI.status(row.end_date ? 'CLOSED' : 'ACTIVE') }
+      { key: 'status', label: 'Status', html: true, render: (row) => UI.status(row.end_date ? 'CLOSED' : 'ACTIVE') },
+      {
+        key: 'actions', label: '', html: true,
+        render: (row) => row.end_date
+          ? '<span class="status-pill status-muted">Closed</span>'
+          : `<button class="btn btn-sm btn-bad" data-close-cycle-id="${row.id}" data-close-belt="${row.belt_id}">Close</button>`
+      }
     ];
 
     const actions = UI.button('Refresh', { icon: 'ph-arrows-clockwise', attr: 'data-refresh' }) +
-                    UI.button('Start Cycle', { icon: 'ph-play', kind: 'btn-primary', attr: 'data-start-cycle' }) +
-                    UI.button('Close Cycle', { icon: 'ph-stop', kind: 'btn-bad', attr: 'data-close-cycle' });
+                    UI.button('Start Cycle', { icon: 'ph-play', kind: 'btn-primary', attr: 'data-start-cycle' });
 
     const filterUI = UI.panel('Filters', UI.filters([
       { name: 'status', label: 'Status', type: 'select', value: params.status || '', options: [{value: '', label: 'All'}, {value: 'ACTIVE', label: 'Active'}, {value: 'CLOSED', label: 'Closed'}] },
@@ -570,7 +575,7 @@ Views.register('green_belt.maintenance_cycles', {
 
     return UI.page('Maintenance Cycles', 'Global cycle management', actions)
       + filterUI
-      + UI.panel('Cycles', UI.table(columns, rows, { 
+      + UI.panel('Cycles', UI.table(columns, rows, {
           empty: 'No maintenance cycles found',
           rowAttr: (row) => `data-belt-id="${row.belt_id}" data-cycle-id="${row.id}"`
       }));
@@ -578,7 +583,7 @@ Views.register('green_belt.maintenance_cycles', {
   async afterRender() {
     attachRefresh();
     wireFilters((payload) => App.navigate('green_belt.maintenance_cycles', payload));
-    
+
     document.querySelector('[data-start-cycle]')?.addEventListener('click', () => {
       openSimpleForm('Start Cycle', [
         { name: 'belt_id', label: 'Belt ID', type: 'number', required: true },
@@ -586,12 +591,17 @@ Views.register('green_belt.maintenance_cycles', {
       ], 'Start', (payload) => simpleAction('cycle/start', payload, 'Cycle started'));
     });
 
-    document.querySelector('[data-close-cycle]')?.addEventListener('click', () => {
-      openSimpleForm('Close Cycle', [
-        { name: 'cycle_id', label: 'Cycle ID', type: 'number', required: true },
-        { name: 'end_date', label: 'End Date', type: 'date', required: true, value: UI.currentDate() },
-        { name: 'close_reason', label: 'Reason', type: 'textarea' }
-      ], 'Close', (payload) => simpleAction('cycle/close', payload, 'Cycle closed'));
+    // Inline close buttons on active cycle rows — cycle_id is auto-populated from the row
+    document.querySelectorAll('[data-close-cycle-id]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const cycleId = btn.dataset.closeCycleId;
+        openSimpleForm('Close Maintenance Cycle', [
+          { name: 'cycle_id', type: 'hidden', value: cycleId },
+          { name: 'end_date', label: 'End Date', type: 'date', required: true, value: UI.currentDate() },
+          { name: 'close_reason', label: 'Reason', type: 'textarea' }
+        ], 'Close Cycle', (payload) => simpleAction('cycle/close', payload, 'Cycle closed'));
+      });
     });
 
     document.querySelectorAll('[data-belt-id]').forEach(row => {
@@ -2693,4 +2703,192 @@ Object.entries(simpleLists).forEach(([moduleKey, [route, title, columns]]) => {
       attachRefresh();
     }
   });
+});
+
+// ====================================================================
+// PHASE 9: NEW V1 SURFACES
+// ====================================================================
+
+Views.register('governance.alert_panel', {
+  async render() {
+    const data = await Api.get('alert/list');
+
+    function alertSection(title, items, renderRow) {
+      const badge = `<span style="background: var(--bad); color: #fff; padding: 2px 8px; border-radius: 99px; font-size: 0.75rem; margin-left: 8px;">${items.length}</span>`;
+      if (!items.length) {
+        return UI.panel(title + badge, `<p style="color:var(--ink-500); padding:0.5rem 0;">No items — all clear.</p>`);
+      }
+      const rows = items.map(renderRow);
+      return UI.panel(title + badge, `<table class="table"><tbody>${rows.join('')}</tbody></table>`);
+    }
+
+    const expiryRows = (data.expiry_warnings || []).map(r =>
+      `<tr data-nav-belt="${r.id}"><td>${UI.escape(r.belt_code)}</td><td>${UI.escape(r.name)}</td><td>${UI.escape(r.expiry_date)}</td><td><span class="status-pill ${r.days_remaining <= 2 ? 'status-bad' : 'status-warn'}">${r.days_remaining}d left</span></td></tr>`);
+
+    const monitoringRows = (data.overdue_monitoring || []).map(r =>
+      `<tr><td>${UI.escape(r.site_code)}</td><td>${UI.escape(r.name)}</td><td>${UI.escape(r.due_date)}</td><td><span class="status-pill status-bad">${r.days_overdue}d overdue</span></td></tr>`);
+
+    const cycleRows = (data.cycles_overdue || []).map(r =>
+      `<tr data-nav-belt="${r.id}"><td>${UI.escape(r.belt_code)}</td><td>${UI.escape(r.name)}</td><td>${UI.escape(r.start_date)}</td><td><span class="status-pill status-warn">${r.days_open}d open</span></td></tr>`);
+
+    const attendanceRows = (data.attendance_missing_today || []).map(r =>
+      `<tr><td>${UI.escape(r.name)}</td></tr>`);
+
+    const taskRows = (data.high_priority_tasks || []).map(r =>
+      `<tr data-nav-task="${r.id}"><td>#${r.id}</td><td>${UI.escape((r.name || '').substring(0, 60))}</td><td>${UI.status(r.priority)}</td><td>${UI.status(r.status)}</td><td>${UI.escape(r.assigned_lead_name || 'Unassigned')}</td></tr>`);
+
+    const campaignRows = (data.campaign_end_pending || []).map(r =>
+      `<tr><td>#${r.id}</td><td>${UI.escape(r.name)}</td><td>${UI.escape(r.end_date || '-')}</td></tr>`);
+
+    const actions = UI.button('Refresh', { icon: 'ph-arrows-clockwise', attr: 'data-refresh' });
+
+    return UI.page('Alert Panel', 'Attention items across all domains', actions)
+      + UI.panel('Permission Expiry Warnings' + ` <span style="background:var(--bad);color:#fff;padding:2px 8px;border-radius:99px;font-size:.75rem;margin-left:8px">${(data.expiry_warnings||[]).length}</span>`,
+          (data.expiry_warnings||[]).length ? `<table class="table"><thead><tr><th>Belt Code</th><th>Name</th><th>Expiry Date</th><th>Urgency</th></tr></thead><tbody>${expiryRows.join('')}</tbody></table>` : `<p style="color:var(--ink-500)">No expiry warnings — all clear.</p>`)
+      + UI.panel('Overdue Monitoring' + ` <span style="background:var(--bad);color:#fff;padding:2px 8px;border-radius:99px;font-size:.75rem;margin-left:8px">${(data.overdue_monitoring||[]).length}</span>`,
+          (data.overdue_monitoring||[]).length ? `<table class="table"><thead><tr><th>Site Code</th><th>Name</th><th>Due Date</th><th>Overdue</th></tr></thead><tbody>${monitoringRows.join('')}</tbody></table>` : `<p style="color:var(--ink-500)">No overdue monitoring — all clear.</p>`)
+      + UI.panel('Long-Running Cycles' + ` <span style="background:var(--warn,#f59e0b);color:#fff;padding:2px 8px;border-radius:99px;font-size:.75rem;margin-left:8px">${(data.cycles_overdue||[]).length}</span>`,
+          (data.cycles_overdue||[]).length ? `<table class="table"><thead><tr><th>Belt Code</th><th>Name</th><th>Started</th><th>Days Open</th></tr></thead><tbody>${cycleRows.join('')}</tbody></table>` : `<p style="color:var(--ink-500)">No long-running cycles.</p>`)
+      + UI.panel('Attendance Missing Today' + ` <span style="background:var(--bad);color:#fff;padding:2px 8px;border-radius:99px;font-size:.75rem;margin-left:8px">${(data.attendance_missing_today||[]).length}</span>`,
+          (data.attendance_missing_today||[]).length ? `<table class="table"><thead><tr><th>Supervisor Name</th></tr></thead><tbody>${attendanceRows.join('')}</tbody></table>` : `<p style="color:var(--ink-500)">All supervisors have attendance records for today.</p>`)
+      + UI.panel('High Priority Tasks' + ` <span style="background:var(--bad);color:#fff;padding:2px 8px;border-radius:99px;font-size:.75rem;margin-left:8px">${(data.high_priority_tasks||[]).length}</span>`,
+          (data.high_priority_tasks||[]).length ? `<table class="table"><thead><tr><th>ID</th><th>Description</th><th>Priority</th><th>Status</th><th>Lead</th></tr></thead><tbody>${taskRows.join('')}</tbody></table>` : `<p style="color:var(--ink-500)">No high priority tasks open.</p>`)
+      + UI.panel('Campaigns Awaiting Free Media Confirmation' + ` <span style="background:var(--bad);color:#fff;padding:2px 8px;border-radius:99px;font-size:.75rem;margin-left:8px">${(data.campaign_end_pending||[]).length}</span>`,
+          (data.campaign_end_pending||[]).length ? `<table class="table"><thead><tr><th>ID</th><th>Campaign</th><th>Ended On</th></tr></thead><tbody>${campaignRows.join('')}</tbody></table>` : `<p style="color:var(--ink-500)">No campaigns pending confirmation.</p>`);
+  },
+  async afterRender() {
+    attachRefresh();
+
+    document.querySelectorAll('[data-nav-belt]').forEach(row => {
+      row.addEventListener('click', () => App.navigate('green_belt.master'));
+    });
+    document.querySelectorAll('[data-nav-task]').forEach(row => {
+      row.addEventListener('click', () => App.navigate('task.detail', { task_id: row.dataset.navTask }));
+    });
+  }
+});
+
+Views.register('task.worker_daily_entry', {
+  async render({ params = {} }) {
+    const date = params.date || UI.currentDate();
+    const data = await Api.get('workday/my-list', { date });
+    const rows = normalizeItems(data);
+
+    const columns = [
+      { key: 'worker_name', label: 'Worker' },
+      { key: 'skill_tag', label: 'Skill', html: true, render: (row) => UI.status(row.skill_tag) },
+      { key: 'attendance_status', label: 'Attendance', html: true, render: (row) => UI.status(row.attendance_status) },
+      { key: 'activity_context', label: 'Activity Context', render: (row) => row.activity_context || '-' },
+      { key: 'task_id', label: 'Task ID', render: (row) => row.task_id ? `#${row.task_id}` : '-' }
+    ];
+
+    const actions = UI.button('Refresh', { icon: 'ph-arrows-clockwise', attr: 'data-refresh' }) +
+                    UI.button('Mark Entry', { icon: 'ph-plus', kind: 'btn-primary', attr: 'data-mark-entry' });
+
+    return UI.page('Worker Daily Entry', `Daily attendance — ${date}`, actions)
+      + UI.panel('Filters', UI.filters([
+          { name: 'date', label: 'Date', type: 'date', value: date }
+        ], 'Load'))
+      + UI.panel('Daily Records', UI.table(columns, rows, { empty: 'No entries for this date.' }));
+  },
+  async afterRender({ params = {} }) {
+    const date = params.date || UI.currentDate();
+    attachRefresh();
+    wireFilters((payload) => App.navigate('task.worker_daily_entry', payload));
+
+    document.querySelector('[data-mark-entry]')?.addEventListener('click', () => {
+      openSimpleForm('Mark Worker Entry', [
+        { name: 'worker_id', label: 'Worker ID', type: 'number', required: true },
+        { name: 'entry_date', label: 'Date', type: 'date', required: true, value: date },
+        { name: 'attendance_status', label: 'Attendance Status', type: 'select', value: 'PRESENT', options: ['PRESENT', 'ABSENT', 'HALF_DAY'], required: true },
+        { name: 'activity_context', label: 'Activity Context (optional)', type: 'textarea' },
+        { name: 'task_id', label: 'Task ID (optional)', type: 'number' }
+      ], 'Save Entry', (payload) => {
+        if (!payload.task_id) delete payload.task_id;
+        if (!payload.activity_context) delete payload.activity_context;
+        return simpleAction('workday/my-mark', payload, 'Entry recorded');
+      });
+    });
+  }
+});
+
+Views.register('commercial.client_media_library', {
+  async render({ params = {} }) {
+    const data = await Api.get('media/client-library', params);
+    const rows = normalizeItems(data);
+
+    const columns = [
+      { key: 'created_at', label: 'Date/Time' },
+      { key: 'belt_code', label: 'Belt Code' },
+      { key: 'belt_name', label: 'Belt Name' },
+      { key: 'work_type', label: 'Work Type', html: true, render: (row) => UI.status(row.work_type) },
+      { key: 'thumbnail', label: 'Thumbnail', html: true, render: (row) => `<img src="${Api.url('upload/serve', { id: row.id })}" alt="Proof" style="width:48px;height:48px;object-fit:cover;border-radius:4px;cursor:pointer;" data-preview-id="${row.id}">` },
+      { key: 'comment_text', label: 'Comment', render: (row) => (row.comment_text || '-').substring(0, 40) }
+    ];
+
+    return UI.page('Client Media Library', 'Approved green belt proof available for client review')
+      + UI.panel('Filters', UI.filters([
+          { name: 'belt_id', label: 'Belt ID', type: 'number', value: params.belt_id || '' },
+          { name: 'date_from', label: 'From', type: 'date', value: params.date_from || '' },
+          { name: 'date_to', label: 'To', type: 'date', value: params.date_to || '' },
+          { name: 'work_type', label: 'Work Type', type: 'select', value: params.work_type || '', options: ['', 'ROUTINE_MAINTENANCE', 'REPAIR', 'PLANTING', 'WATERING', 'CLEANING'] }
+        ], 'Search'))
+      + UI.panel('Media Library', UI.table(columns, rows, {
+          empty: 'No approved media found for these filters.',
+        }) + renderPagination(data.pagination, 'commercial.client_media_library', params));
+  },
+  async afterRender() {
+    attachRefresh();
+    attachPagination();
+    wireFilters((payload) => App.navigate('commercial.client_media_library', payload));
+
+    document.querySelectorAll('[data-preview-id]').forEach(img => {
+      img.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const url = Api.url('upload/serve', { id: img.dataset.previewId });
+        UI.showModal('Photo Preview', `<div style="text-align:center;"><img src="${url}" style="max-width:100%;max-height:70vh;border-radius:4px;"></div>`);
+      });
+    });
+  }
+});
+
+Views.register('commercial.media_planning_inventory', {
+  async render({ params = {} }) {
+    const data = await Api.get('media/planning-view', params);
+    const rows = normalizeItems(data);
+
+    const columns = [
+      { key: 'site_code', label: 'Site Code' },
+      { key: 'location_text', label: 'Location' },
+      { key: 'site_category', label: 'Category', html: true, render: (row) => UI.status(row.site_category) },
+      { key: 'status', label: 'Status', html: true, render: (row) => UI.status(row.status) },
+      { key: 'discovered_date', label: 'Discovered' },
+      { key: 'confirmed_date', label: 'Confirmed', render: (row) => row.confirmed_date || '-' },
+      { key: 'expiry_date', label: 'Expires', render: (row) => row.expiry_date || '-' },
+      { key: 'next_monitoring_due', label: 'Next Monitoring Due', render: (row) => row.next_monitoring_due || 'Not scheduled' },
+      { key: 'actions', label: '', html: true, render: (row) => `<button class="btn btn-sm btn-ghost" data-raise-request="${row.site_id}">Raise Request</button>` }
+    ];
+
+    return UI.page('Media Planning View', 'Free media with monitoring context for planning')
+      + UI.panel('Filters', UI.filters([
+          { name: 'status', label: 'Status', type: 'select', value: params.status || '', options: ['', 'DISCOVERED', 'CONFIRMED_ACTIVE', 'EXPIRED', 'CONSUMED'] },
+          { name: 'site_category', label: 'Category', type: 'select', value: params.site_category || '', options: ['', 'GREEN_BELT', 'CITY', 'HIGHWAY'] },
+          { name: 'route_or_group', label: 'Route/Group', value: params.route_or_group || '' }
+        ], 'Apply'))
+      + UI.panel('Inventory', UI.table(columns, rows, {
+          empty: 'No free media found matching criteria.',
+        }) + renderPagination(data.pagination, 'commercial.media_planning_inventory', params));
+  },
+  async afterRender() {
+    attachRefresh();
+    attachPagination();
+    wireFilters((payload) => App.navigate('commercial.media_planning_inventory', payload));
+
+    document.querySelectorAll('[data-raise-request]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        App.navigate('task.request_intake', { site_id: btn.dataset.raiseRequest });
+      });
+    });
+  }
 });

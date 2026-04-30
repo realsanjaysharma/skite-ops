@@ -40,8 +40,14 @@ const NavMap = {
   'governance.access_mappings': { label: 'Roles & Access', icon: 'ph-shield-check', route: 'role/list', section: 'Governance' },
   'governance.audit_logs': { label: 'Audit Logs', icon: 'ph-file-search', route: 'audit/list', section: 'Governance' },
   'governance.rejected_upload_cleanup': { label: 'Rejected Cleanup', icon: 'ph-trash', route: 'upload/cleanup-list', section: 'Governance' },
+  'governance.alert_panel': { label: 'Alert Panel', icon: 'ph-bell-ringing', route: 'alert/list', section: 'Governance' },
   'reports.monthly': { label: 'Monthly Reports', icon: 'ph-file-csv', route: 'report/belt-health', section: 'Governance' },
-  'settings.system': { label: 'Settings', icon: 'ph-gear', route: 'settings/list', section: 'Governance' }
+  'settings.system': { label: 'Settings', icon: 'ph-gear', route: 'settings/list', section: 'Governance' },
+
+  'task.worker_daily_entry': { label: 'Worker Daily Entry', icon: 'ph-calendar-check', route: 'workday/my-list', section: 'Tasks' },
+
+  'commercial.client_media_library': { label: 'Client Media Library', icon: 'ph-images-square', route: 'media/client-library', section: 'Commercial' },
+  'commercial.media_planning_inventory': { label: 'Media Planning View', icon: 'ph-chart-bar', route: 'media/planning-view', section: 'Commercial' }
 };
 
 const Navigation = {

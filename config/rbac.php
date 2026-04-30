@@ -35,8 +35,12 @@ return [
         'governance.access_mappings',
         'governance.audit_logs',
         'governance.rejected_upload_cleanup',
+        'governance.alert_panel',
         'reports.monthly',
         'settings.system',
+        'task.worker_daily_entry',
+        'commercial.client_media_library',
+        'commercial.media_planning_inventory',
     ],
     'landing_routes' => [
         'dashboard.master_ops' => 'dashboard/master',
@@ -71,6 +75,10 @@ return [
         'reports.monthly' => 'report/belt-health',
         'settings.system' => 'settings/list',
         'dashboard.management' => 'dashboard/management',
+        'governance.alert_panel'              => 'alert/list',
+        'task.worker_daily_entry'             => 'workday/my-list',
+        'commercial.client_media_library'     => 'media/client-library',
+        'commercial.media_planning_inventory' => 'media/planning-view',
     ],
     'capability_matrix' => [
         'VIEW' => ['read'],

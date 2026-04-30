@@ -870,4 +870,55 @@ return [
         'capability' => 'read',
     ],
 
+    // ==========================================
+    // ALERT PANEL (OPS_MANAGER)
+    // ==========================================
+
+    'alert/list' => [
+        'controller' => 'DashboardController',
+        'method'     => 'alertPanel',
+        'module_key' => 'governance.alert_panel',
+        'capability' => 'read',
+    ],
+
+    // ==========================================
+    // WORKER DAILY ENTRY (FABRICATION_LEAD standalone)
+    // ==========================================
+
+    'workday/my-list' => [
+        'controller' => 'WorkerEntryController',
+        'method'     => 'listEntries',
+        'module_key' => 'task.worker_daily_entry',
+        'capability' => 'read',
+    ],
+    'workday/my-mark' => [
+        'controller' => 'WorkerEntryController',
+        'method'     => 'markEntry',
+        'module_key' => 'task.worker_daily_entry',
+        'capability' => 'upload',
+    ],
+
+    // ==========================================
+    // CLIENT MEDIA LIBRARY (SALES_TEAM, CLIENT_SERVICING)
+    // ==========================================
+
+    'media/client-library' => [
+        'controller' => 'SiteController',
+        'method'     => 'clientMediaLibrary',
+        'module_key' => 'commercial.client_media_library',
+        'capability' => 'read',
+    ],
+
+    // ==========================================
+    // MEDIA PLANNING INVENTORY (MEDIA_PLANNING)
+    // ==========================================
+
+    'media/planning-view' => [
+        'controller' => 'FreeMediaController',
+        'method'     => 'planningView',
+        'module_key' => 'commercial.media_planning_inventory',
+        'capability' => 'read',
+    ],
+
 ];
+

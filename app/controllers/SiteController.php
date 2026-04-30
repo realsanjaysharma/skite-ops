@@ -84,4 +84,74 @@ class SiteController extends BaseController {
             Response::error($e->getMessage(), 400);
         }
     }
+
+    /**
+     * GET media/client-library
+     * Auth: SALES_TEAM, CLIENT_SERVICING (VIEW group)
+     *
+     * Returns approved WORK uploads for green belt sites.
+     * Read-only — no mutations.
+     */
+    public function clientMediaLibrary(): void {
+        if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+            Response::error('Method not allowed', 405);
+            return;
+        }
+
+        try {
+            $db = Database::getConnection();
+
+            $where = ["u.authority_visibility = 'APPROVED'", "u.parent_type = 'GREEN_BELT'", "u.upload_type = 'WORK'", "u.is_deleted = 0", "u.is_purged = 0"];
+            $params = [];
+
+            if (!empty($_GET['belt_id'])) {
+                $where[] = "u.parent_id = ?";
+                $params[] = (int)$_GET['belt_id'];
+            }
+            if (!empty($_GET['date_from'])) {
+                $where[] = "DATE(u.created_at) >= ?";
+                $params[] = $_GET['date_from'];
+            }
+            if (!empty($_GET['date_to'])) {
+                $where[] = "DATE(u.created_at) <= ?";
+                $params[] = $_GET['date_to'];
+            }
+            if (!empty($_GET['work_type'])) {
+                $where[] = "u.work_type = ?";
+                $params[] = $_GET['work_type'];
+            }
+
+            $page  = max(1, (int)($_GET['page'] ?? 1));
+            $limit = 30;
+            $offset = ($page - 1) * $limit;
+            $whereClause = implode(' AND ', $where);
+
+            $total = $db->prepare("SELECT COUNT(*) FROM uploads u LEFT JOIN green_belts gb ON gb.id = u.parent_id WHERE {$whereClause}");
+            $total->execute($params);
+            $total = (int)$total->fetchColumn();
+
+            $stmt = $db->prepare("
+                SELECT u.id, u.created_at, u.work_type, u.comment_text,
+                       gb.belt_code, gb.common_name AS belt_name
+                FROM uploads u
+                LEFT JOIN green_belts gb ON gb.id = u.parent_id
+                WHERE {$whereClause}
+                ORDER BY u.created_at DESC
+                LIMIT {$limit} OFFSET {$offset}
+            ");
+            $stmt->execute($params);
+            $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            Response::success([
+                'items' => $items,
+                'pagination' => [
+                    'page'  => $page,
+                    'limit' => $limit,
+                    'total' => $total,
+                ],
+            ]);
+        } catch (Throwable $e) {
+            Response::error($e->getMessage(), 400);
+        }
+    }
 }
