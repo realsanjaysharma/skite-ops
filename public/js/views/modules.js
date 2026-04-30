@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Module view registry. Each view renders real UI for one RBAC module key.
  */
 
@@ -330,7 +330,7 @@ Views.register('reports.monthly', {
     const renderReportPanel = (title, route, data) => {
       const items = normalizeItems(data);
       const csvUrl = Api.url(route, { month, format: 'csv' });
-      const actions = \`<a href="\${csvUrl}" class="btn btn-ghost" target="_blank" download><i class="ph ph-download-simple"></i><span>Download CSV</span></a>\`;
+      const actions = `<a href="${csvUrl}" class="btn btn-ghost" target="_blank" download><i class="ph ph-download-simple"></i><span>Download CSV</span></a>`;
       return UI.panel(title, UI.table(inferColumns(items), items, { empty: 'No data for this period.' }), actions);
     };
 
@@ -2270,8 +2270,8 @@ Views.register('green_belt.issue_management', {
                 { name: 'task_category', label: 'Category', type: 'select', options: ['SITE_REPAIR', 'GENERAL', 'CLIENT_CAMPAIGN'], value: 'SITE_REPAIR', required: true },
                 { name: 'vertical_type', label: 'Vertical', type: 'select', options: ['GREEN_BELT', 'ADVERTISEMENT', 'MONITORING'], value: issue.belt_id ? 'GREEN_BELT' : 'ADVERTISEMENT', required: true },
                 { name: 'priority', label: 'Priority', type: 'select', options: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'], value: issue.priority, required: true },
-                { name: 'work_description', label: 'Work Description', type: 'textarea', value: \`Fix issue: \${issue.title}\`, required: true },
-                { name: 'location_text', label: 'Location', type: 'text', value: issue.belt_id ? \`Belt #\${issue.belt_id}\` : (issue.site_id ? \`Site #\${issue.site_id}\` : ''), required: true },
+                { name: 'work_description', label: 'Work Description', type: 'textarea', value: `Fix issue: ${issue.title}`, required: true },
+                { name: 'location_text', label: 'Location', type: 'text', value: issue.belt_id ? `Belt #${issue.belt_id}` : (issue.site_id ? `Site #${issue.site_id}` : ''), required: true },
                 { name: 'assigned_lead_user_id', label: 'Assigned Lead User ID', type: 'number' },
                 { name: 'start_date', label: 'Start Date', type: 'date', value: UI.currentDate() },
                 { name: 'expected_close_date', label: 'Expected Close', type: 'date' }
@@ -2353,7 +2353,7 @@ Views.register('green_belt.authority_view', {
       img.addEventListener('click', (e) => {
         e.stopPropagation();
         const url = Api.url('upload/serve', { id: img.dataset.previewId });
-        UI.showModal('Photo Details', \`<div style="text-align: center;"><img src="\${url}" style="max-width: 100%; max-height: 70vh; border-radius: 4px;"></div>\`);
+        UI.showModal('Photo Details', `<div style="text-align: center;"><img src="${url}" style="max-width: 100%; max-height: 70vh; border-radius: 4px;"></div>`);
       });
     });
   }
@@ -2478,13 +2478,13 @@ Views.register('governance.access_mappings', {
       { key: 'permission_group_name', label: 'Perm Group' },
       { key: 'landing_module_key', label: 'Landing' },
       { key: 'is_active', label: 'Active', html: true, render: (row) => UI.status(row.is_active ? 'ACTIVE' : 'INACTIVE') },
-      { key: 'actions', label: 'Actions', html: true, render: (row) => `<button class="btn btn-sm btn-ghost" data-edit-role="\${row.id}"><i class="ph ph-pencil"></i></button>` }
+      { key: 'actions', label: 'Actions', html: true, render: (row) => `<button class="btn btn-sm btn-ghost" data-edit-role="${row.id}"><i class="ph ph-pencil"></i></button>` }
     ];
 
     const assignColumns = (type) => [
       { key: 'id', label: 'ID' },
       { key: 'belt_code', label: 'Belt Code' },
-      { key: 'user_name', label: 'User Name', render: (row) => row.user_name || row[\`\${type}_name\`] || row.full_name || row[\`\${type}_user_id\`] || '-' },
+      { key: 'user_name', label: 'User Name', render: (row) => row.user_name || row[`${type}_name`] || row.full_name || row[`${type}_user_id`] || '-' },
       { key: 'start_date', label: 'Start Date' },
       { key: 'end_date', label: 'End Date', render: (row) => row.end_date || '-' },
       { key: 'status', label: 'Status', html: true, render: (row) => {
@@ -2494,7 +2494,7 @@ Views.register('governance.access_mappings', {
           if (row.start_date > now) status = 'UPCOMING';
           return UI.status(status);
       }},
-      { key: 'actions', label: 'Actions', html: true, render: (row) => `<button class="btn btn-sm btn-danger" data-close-\${type}="\${row.id}">Close</button>` }
+      { key: 'actions', label: 'Actions', html: true, render: (row) => `<button class="btn btn-sm btn-danger" data-close-${type}="${row.id}">Close</button>` }
     ];
 
     const actions = UI.button('Create Role', { icon: 'ph-plus', attr: 'data-create-role' }) +
@@ -2502,24 +2502,24 @@ Views.register('governance.access_mappings', {
 
     return UI.page('Access Mappings', 'Manage roles and belt assignments', actions)
       + UI.panel('Roles & Module Scope', UI.table(roleColumns, roles, { empty: 'No roles found.' }))
-      + UI.panel('Supervisor Assignments', \`
+      + UI.panel('Supervisor Assignments', `
           <div class="inline-actions" style="margin-bottom: 12px;">
-            \${UI.button('Assign Supervisor', { icon: 'ph-plus', attr: 'data-assign="supervisor"' })}
+            ${UI.button('Assign Supervisor', { icon: 'ph-plus', attr: 'data-assign="supervisor"' })}
           </div>
-          \${UI.table(assignColumns('supervisor'), supervisors, { empty: 'No supervisor assignments found.' })}
-        \`)
-      + UI.panel('Authority Assignments', \`
+          ${UI.table(assignColumns('supervisor'), supervisors, { empty: 'No supervisor assignments found.' })}
+        `)
+      + UI.panel('Authority Assignments', `
           <div class="inline-actions" style="margin-bottom: 12px;">
-            \${UI.button('Assign Authority', { icon: 'ph-plus', attr: 'data-assign="authority"' })}
+            ${UI.button('Assign Authority', { icon: 'ph-plus', attr: 'data-assign="authority"' })}
           </div>
-          \${UI.table(assignColumns('authority'), authorities, { empty: 'No authority assignments found.' })}
-        \`)
-      + UI.panel('Outsourced Assignments', \`
+          ${UI.table(assignColumns('authority'), authorities, { empty: 'No authority assignments found.' })}
+        `)
+      + UI.panel('Outsourced Assignments', `
           <div class="inline-actions" style="margin-bottom: 12px;">
-            \${UI.button('Assign Outsourced', { icon: 'ph-plus', attr: 'data-assign="outsourced"' })}
+            ${UI.button('Assign Outsourced', { icon: 'ph-plus', attr: 'data-assign="outsourced"' })}
           </div>
-          \${UI.table(assignColumns('outsourced'), outsourced, { empty: 'No outsourced assignments found.' })}
-        \`);
+          ${UI.table(assignColumns('outsourced'), outsourced, { empty: 'No outsourced assignments found.' })}
+        `);
   },
   async afterRender() {
     attachRefresh();
@@ -2574,23 +2574,23 @@ Views.register('governance.access_mappings', {
     document.querySelectorAll('[data-assign]').forEach(btn => {
       btn.addEventListener('click', () => {
         const type = btn.dataset.assign;
-        openSimpleForm(\`Assign \${UI.titleize(type)}\`, [
+        openSimpleForm(`Assign ${UI.titleize(type)}`, [
           { name: 'belt_id', label: 'Belt ID', type: 'number', required: true },
-          { name: \`\${type}_user_id\`, label: 'User ID', type: 'number', required: true },
+          { name: `${type}_user_id`, label: 'User ID', type: 'number', required: true },
           { name: 'start_date', label: 'Start Date', type: 'date', required: true, value: UI.currentDate() },
           { name: 'end_date', label: 'End Date (Optional)', type: 'date' }
-        ], 'Assign', (payload) => simpleAction(\`\${type}assignment/create\`, payload, 'Assignment created'));
+        ], 'Assign', (payload) => simpleAction(`${type}assignment/create`, payload, 'Assignment created'));
       });
     });
 
     ['supervisor', 'authority', 'outsourced'].forEach(type => {
-      document.querySelectorAll(\`[data-close-\${type}]\`).forEach(btn => {
+      document.querySelectorAll(`[data-close-${type}]`).forEach(btn => {
         btn.addEventListener('click', (e) => {
-          const assignmentId = e.currentTarget.getAttribute(\`data-close-\${type}\`);
+          const assignmentId = e.currentTarget.getAttribute(`data-close-${type}`);
           openSimpleForm('Close Assignment', [
             { name: 'assignment_id', type: 'hidden', value: assignmentId },
             { name: 'end_date', label: 'End Date', type: 'date', required: true, value: UI.currentDate() }
-          ], 'Close Now', (payload) => simpleAction(\`\${type}assignment/close\`, payload, 'Assignment closed'));
+          ], 'Close Now', (payload) => simpleAction(`${type}assignment/close`, payload, 'Assignment closed'));
         });
       });
     });
@@ -2605,7 +2605,7 @@ Views.register('task.progress_read', {
       { key: 'id', label: 'ID' },
       { key: 'work_description', label: 'Description', render: (row) => UI.escape(row.work_description || '').substring(0, 50) + ((row.work_description || '').length > 50 ? '...' : '') },
       { key: 'status', label: 'Status', html: true, render: (row) => UI.status(row.status) },
-      { key: 'progress_percent', label: 'Progress', render: (row) => \`\${row.progress_percent}%\` },
+      { key: 'progress_percent', label: 'Progress', render: (row) => `${row.progress_percent}%` },
       { key: 'assigned_lead_user_name', label: 'Lead', render: (row) => row.assigned_lead_user_name || '-' },
       { key: 'client_name', label: 'Client', render: (row) => row.client_name || '-' },
       { key: 'campaign_id', label: 'Campaign ID', render: (row) => row.campaign_id || '-' },
@@ -2626,7 +2626,7 @@ Views.register('task.progress_read', {
 
     return UI.page('Task Progress', 'Monitor operational progress of client requests and campaigns', actions)
       + filterUI
-      + UI.panel('Tasks', UI.table(columns, rows, { empty: 'No tasks found for the given criteria.', rowAttr: (row) => \`data-task-id="\${row.id}"\` }));
+      + UI.panel('Tasks', UI.table(columns, rows, { empty: 'No tasks found for the given criteria.', rowAttr: (row) => `data-task-id="${row.id}"` }));
   },
   async afterRender() {
     attachRefresh();
@@ -2644,45 +2644,45 @@ Views.register('task.progress_read', {
           const uploads = await Api.get('upload/list', { parent_type: 'TASK', parent_id: taskId });
           const items = normalizeItems(uploads);
           if (items.length > 0) {
-            proofsHtml = \`<div class="photo-grid" style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;">\` + 
-              items.map(u => \`<div style="text-align: center;">
-                <img src="\${Api.url('upload/serve', { id: u.id })}" style="width: 100px; height: 100px; object-fit: cover; border-radius: 4px; border: 1px solid var(--border); cursor: pointer;" onclick="UI.showModal('Photo', '<div style=\\'text-align:center;\\'><img src=\\'\${Api.url('upload/serve', { id: u.id })}\\' style=\\'max-width:100%;max-height:70vh;border-radius:4px;\\'></div>')">
-                <div style="font-size: 0.75rem; margin-top: 4px;">\${UI.escape(u.photo_label || 'Proof')}</div>
-              </div>\`).join('') + \`</div>\`;
+            proofsHtml = `<div class="photo-grid" style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;">` + 
+              items.map(u => `<div style="text-align: center;">
+                <img src="${Api.url('upload/serve', { id: u.id })}" style="width: 100px; height: 100px; object-fit: cover; border-radius: 4px; border: 1px solid var(--border); cursor: pointer;" onclick="UI.showModal('Photo', '<div style=\\'text-align:center;\\'><img src=\\'${Api.url('upload/serve', { id: u.id })}\\' style=\\'max-width:100%;max-height:70vh;border-radius:4px;\\'></div>')">
+                <div style="font-size: 0.75rem; margin-top: 4px;">${UI.escape(u.photo_label || 'Proof')}</div>
+              </div>`).join('') + `</div>`;
           }
         } catch (e) {
           console.error("Failed to load uploads", e);
         }
 
-        UI.showModal('Task Progress Details', \`
+        UI.showModal('Task Progress Details', `
           <div class="stack-form">
             <div class="form-grid">
-              <div class="field"><span>Task ID</span><input type="text" value="\${taskProgress.id}" readonly></div>
-              <div class="field"><span>Status</span><input type="text" value="\${taskProgress.status}" readonly></div>
-              <div class="field"><span>Progress %</span><input type="text" value="\${taskProgress.progress_percent}%" readonly></div>
-              <div class="field"><span>Category</span><input type="text" value="\${taskProgress.task_category || '-'}" readonly></div>
-              <div class="field"><span>Vertical</span><input type="text" value="\${taskProgress.vertical_type || '-'}" readonly></div>
-              <div class="field"><span>Priority</span><input type="text" value="\${taskProgress.priority || '-'}" readonly></div>
-              <div class="field"><span>Client Name</span><input type="text" value="\${UI.escape(taskProgress.client_name || '-')}" readonly></div>
-              <div class="field"><span>Campaign ID</span><input type="text" value="\${taskProgress.campaign_id || '-'}" readonly></div>
-              <div class="field"><span>Site ID</span><input type="text" value="\${taskProgress.request_site_id || '-'}" readonly></div>
-              <div class="field"><span>Start Date</span><input type="text" value="\${taskProgress.start_date || '-'}" readonly></div>
-              <div class="field"><span>Expected Close</span><input type="text" value="\${taskProgress.expected_close_date || '-'}" readonly></div>
-              <div class="field"><span>Actual Close</span><input type="text" value="\${taskProgress.actual_close_date || '-'}" readonly></div>
-              <div class="field"><span>Assigned Lead</span><input type="text" value="\${UI.escape(taskProgress.assigned_lead_user_name || '-')}" readonly></div>
-              <div class="field"><span>Assigned By</span><input type="text" value="\${UI.escape(taskProgress.assigned_by_user_name || '-')}" readonly></div>
-              <div class="field full"><span>Location Text</span><input type="text" value="\${UI.escape(taskProgress.location_text || '-')}" readonly></div>
-              <div class="field full"><span>Work Description</span><textarea readonly>\${UI.escape(taskProgress.work_description || '-')}</textarea></div>
-              <div class="field full"><span>Remark 1</span><textarea readonly>\${UI.escape(taskProgress.remark_1 || '-')}</textarea></div>
-              <div class="field full"><span>Remark 2</span><textarea readonly>\${UI.escape(taskProgress.remark_2 || '-')}</textarea></div>
-              <div class="field full"><span>Completion Note</span><textarea readonly>\${UI.escape(taskProgress.completion_note || '-')}</textarea></div>
+              <div class="field"><span>Task ID</span><input type="text" value="${taskProgress.id}" readonly></div>
+              <div class="field"><span>Status</span><input type="text" value="${taskProgress.status}" readonly></div>
+              <div class="field"><span>Progress %</span><input type="text" value="${taskProgress.progress_percent}%" readonly></div>
+              <div class="field"><span>Category</span><input type="text" value="${taskProgress.task_category || '-'}" readonly></div>
+              <div class="field"><span>Vertical</span><input type="text" value="${taskProgress.vertical_type || '-'}" readonly></div>
+              <div class="field"><span>Priority</span><input type="text" value="${taskProgress.priority || '-'}" readonly></div>
+              <div class="field"><span>Client Name</span><input type="text" value="${UI.escape(taskProgress.client_name || '-')}" readonly></div>
+              <div class="field"><span>Campaign ID</span><input type="text" value="${taskProgress.campaign_id || '-'}" readonly></div>
+              <div class="field"><span>Site ID</span><input type="text" value="${taskProgress.request_site_id || '-'}" readonly></div>
+              <div class="field"><span>Start Date</span><input type="text" value="${taskProgress.start_date || '-'}" readonly></div>
+              <div class="field"><span>Expected Close</span><input type="text" value="${taskProgress.expected_close_date || '-'}" readonly></div>
+              <div class="field"><span>Actual Close</span><input type="text" value="${taskProgress.actual_close_date || '-'}" readonly></div>
+              <div class="field"><span>Assigned Lead</span><input type="text" value="${UI.escape(taskProgress.assigned_lead_user_name || '-')}" readonly></div>
+              <div class="field"><span>Assigned By</span><input type="text" value="${UI.escape(taskProgress.assigned_by_user_name || '-')}" readonly></div>
+              <div class="field full"><span>Location Text</span><input type="text" value="${UI.escape(taskProgress.location_text || '-')}" readonly></div>
+              <div class="field full"><span>Work Description</span><textarea readonly>${UI.escape(taskProgress.work_description || '-')}</textarea></div>
+              <div class="field full"><span>Remark 1</span><textarea readonly>${UI.escape(taskProgress.remark_1 || '-')}</textarea></div>
+              <div class="field full"><span>Remark 2</span><textarea readonly>${UI.escape(taskProgress.remark_2 || '-')}</textarea></div>
+              <div class="field full"><span>Completion Note</span><textarea readonly>${UI.escape(taskProgress.completion_note || '-')}</textarea></div>
             </div>
             <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--line);">
               <h4>Execution Proofs</h4>
-              \${proofsHtml}
+              ${proofsHtml}
             </div>
           </div>
-        \`);
+        `);
       });
     });
   }
