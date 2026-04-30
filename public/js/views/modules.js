@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Module view registry. Each view renders real UI for one RBAC module key.
  */
 
@@ -2284,6 +2284,7 @@ Views.register('green_belt.issue_management', {
                 App.refresh();
             });
         });
+      });
     });
   }
 });
