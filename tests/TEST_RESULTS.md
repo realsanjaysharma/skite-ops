@@ -44,7 +44,7 @@ Current status: NOT STARTED
 | T06 | PENDING | depends on T05 |
 | T07 | PENDING | depends on T05 |
 | T08 | PENDING | depends on T05 |
-| T09 | PENDING | requires browser file upload |
+| T09 | PENDING | use tests/fixtures/billboard_sector108_noida.jpg |
 | T10 | PENDING | depends on T09 |
 | T11 | PENDING | requires 5-min wait or DB manipulation |
 | T12 | PENDING | |
@@ -64,11 +64,11 @@ Current status: NOT STARTED
 | T26 | PENDING | depends on T25 |
 | T27 | PENDING | |
 | T28 | PENDING | depends on T27 |
-| T29 | PENDING | requires browser file upload; depends on T28 |
+| T29 | PENDING | use tests/fixtures/billboard_sector17a_greater_noida.jpg; depends on T28 |
 | T30 | PENDING | depends on T28 |
 | T31 | PENDING | requires outsourced belt assignment in DB |
-| T32 | PENDING | requires browser file upload |
-| T33 | PENDING | requires browser file upload with discovery_mode |
+| T32 | PENDING | use tests/fixtures/billboard_sector108_noida.jpg |
+| T33 | PENDING | use tests/fixtures/billboard_sector17a_greater_noida.jpg with discovery_mode |
 | T34 | PENDING | depends on T33 |
 | T35 | PENDING | |
 | T36 | PENDING | |

@@ -31,7 +31,8 @@ Also confirm MySQL and Apache are running before starting.
 2. Read only that block from `tests/TEST_PLAN.md`
 3. Execute every step — browser automation for UI, curl/API for state checks
 4. Write results to `tests/TEST_RESULTS.md`
-5. **Stop** — do not continue into the next block
+5. **Commit and push `tests/TEST_RESULTS.md`** so the next agent can see the state
+6. **Stop** — do not continue into the next block
 
 ---
 
