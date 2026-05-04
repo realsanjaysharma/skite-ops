@@ -7,6 +7,15 @@ Each test case is self-contained. An AI agent runs ONE section per turn:
 3. Record PASS/FAIL against each assertion
 4. Stop — do not bleed into the next case
 
+**Execution prompt and rules:** `tests/TEST_EXECUTION_PROTOCOL.md`
+**Live test state:** `tests/TEST_RESULTS.md`
+
+**Idempotency note:** Create tests (T05, T25, T27, T53) should check if
+the record already exists before creating to support re-runs without errors.
+
+**`[INDEPENDENT]`** — blocks marked independent have no upstream dependencies
+and can run in any order if upstream blocks are blocked.
+
 **Test credentials** (all passwords: `TestPass123!`)
 
 | Role | Email |
@@ -359,7 +368,7 @@ Login as OPS_MANAGER. Open Free Media Inventory. Find DISCOVERED record. Confirm
 
 ---
 
-## BLOCK 11 — Dashboards and Reports
+## BLOCK 11 — Dashboards and Reports `[INDEPENDENT]`
 
 ### T35 — Master Ops Dashboard shows real data
 Login as OPS_MANAGER. Open Master Dashboard.
@@ -387,7 +396,7 @@ Login as OPS_MANAGER. Open Monthly Reports. Select current month. Download Belt 
 
 ---
 
-## BLOCK 12 — Governance and Settings
+## BLOCK 12 — Governance and Settings `[INDEPENDENT]`
 
 ### T38 — Audit log captures mutations
 After running any governed mutation (approve upload, mark watering with override, close issue), open Audit Logs.
@@ -445,7 +454,7 @@ After any delete action in the UI, confirm the row remains in the database with 
 
 ---
 
-## BLOCK 14 — Alert Panel
+## BLOCK 14 — Alert Panel `[INDEPENDENT]`
 
 ### T45 — Alert panel shows actionable items
 Login as OPS_MANAGER. Open Alert Panel.
@@ -548,7 +557,7 @@ Step 4 — OPS_MANAGER Audit Logs
 
 ---
 
-## BLOCK 16 — Data Integrity and Form Validation
+## BLOCK 16 — Data Integrity and Form Validation `[INDEPENDENT]`
 
 ### T46 — Required field validation
 On any create form (belt, task, issue), submit with required fields blank.
@@ -613,7 +622,7 @@ modules = [green_belt.master, green_belt.detail]
 
 ---
 
-## BLOCK 18 — SPA Navigation, Empty States, Pagination
+## BLOCK 18 — SPA Navigation, Empty States, Pagination `[INDEPENDENT]`
 
 ### T58 — Browser refresh reloads current page
 Navigate to any module (e.g. Green Belts). Press F5 / browser refresh.

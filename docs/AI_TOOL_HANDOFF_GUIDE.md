@@ -353,13 +353,26 @@ Local test credentials commonly used:
 | Acceptance criteria | `docs/11_build_specs/09_MODULE_ACCEPTANCE_CHECKLISTS.md` |
 | Product intent | `docs/10_recovered_product/00_FINAL_PRODUCT_BEHAVIOR_MODEL.md` |
 
-## Session Start Prompt
+## Session Start Prompt (implementation mode)
 
 ```text
 Read docs/AI_TOOL_HANDOFF_GUIDE.md and docs/11_build_specs/10_IMPLEMENTATION_PROGRESS.md.
 Continue only the current next scoped task.
 Use locked docs only.
 Run relevant validation, update progress, then stop.
+```
+
+## Testing Mode
+
+When running tests instead of implementing:
+
+```text
+Read docs/AI_TOOL_HANDOFF_GUIDE.md (Codebase Pitfalls and Safety Rules section only).
+Read tests/TEST_EXECUTION_PROTOCOL.md.
+Read tests/TEST_RESULTS.md — find the first block with status PENDING.
+Execute that block from tests/TEST_PLAN.md using browser automation and/or API calls.
+Update tests/TEST_RESULTS.md: set block status, record per-test PASS/FAIL/BLOCKED, append to Bug Log for any failures.
+Stop after one block. Do not fix bugs. Do not run the next block.
 ```
 
 ## Update Rule
