@@ -234,6 +234,10 @@ class UploadController extends BaseController
                 return 'MONITORING';
             case 'FABRICATION_LEAD':
                 return 'TASK';
+            case 'SALES_TEAM':
+            case 'CLIENT_SERVICING':
+            case 'MEDIA_PLANNING':
+                return 'COMMERCIAL';
             default:
                 return null;
         }

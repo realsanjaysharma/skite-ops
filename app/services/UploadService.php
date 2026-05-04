@@ -38,6 +38,11 @@ class UploadService
             'allowed_upload_types' => ['WORK'],
             'allow_discovery_mode' => false,
         ],
+        'COMMERCIAL' => [
+            'parent_type' => 'SITE',
+            'allowed_upload_types' => ['WORK'],
+            'allow_discovery_mode' => false,
+        ],
     ];
 
     /**

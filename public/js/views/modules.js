@@ -103,6 +103,21 @@ async function simpleAction(route, payload, successMessage) {
   App.refresh();
 }
 
+function confirmAction(title, message, onConfirm) {
+  UI.showModal(title, `
+    <div style="margin-bottom: 24px; color: var(--ink-700);">${UI.escape(message)}</div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" data-modal-close>Cancel</button>
+      <button class="btn btn-primary js-confirm-btn">Confirm Action</button>
+    </div>
+  `);
+  document.querySelector('.js-confirm-btn')?.addEventListener('click', async () => {
+    // Note: Modal is closed inside simpleAction if it's called there, 
+    // or we can close it here if onConfirm is a simple function.
+    await onConfirm();
+  });
+}
+
 function renderPagination(pagination, moduleKey, currentParams) {
   if (!pagination || pagination.total <= pagination.limit) return '';
   const totalPages = Math.ceil(pagination.total / pagination.limit);
@@ -140,14 +155,22 @@ async function loadSupervisors() {
 
 function openSimpleForm(title, fields, submitLabel, handler, extraHTML = '') {
   UI.showModal(title, UI.form(fields, submitLabel, extraHTML));
-  document.querySelector('.js-action-form')?.addEventListener('submit', async (event) => {
+  const form = document.querySelector('.js-action-form');
+  if (!form) return;
+
+  form.onsubmit = async (event) => {
     event.preventDefault();
     try {
+      console.log(`[Form:${title}] Handler type:`, typeof handler);
+      if (typeof handler !== 'function') {
+        throw new Error(`Technical Error: Handler for [${title}] is not a function`);
+      }
       await handler(UI.formData(event.currentTarget));
     } catch (error) {
+      console.error(`[Form:${title}] Error:`, error);
       UI.toast(error.message, 'bad');
     }
-  });
+  };
 }
 
 function dashboardView(route, title, subtitle, actionsHTML) {
@@ -1506,6 +1529,10 @@ Views.register('task.request_intake', {
             ${UI.field({ name: 'site_id', label: 'Site ID (optional)', type: 'number', value: params.site_id || '' })}
             ${UI.field({ name: 'belt_id', label: 'Belt ID (optional)', type: 'number' })}
             ${UI.field({ name: 'description', label: 'Detailed Description', type: 'textarea', full: true, required: true })}
+            <div class="field full">
+              <span>Reference Photo <small style="color:var(--ink-500)">(optional — requires Site ID above)</small></span>
+              <input type="file" name="reference_photo" accept="image/*" style="padding:4px 0;">
+            </div>
           </div>
           <button type="submit" class="btn btn-primary"><i class="ph ph-paper-plane-tilt"></i><span>Submit Request</span></button>
         </form>
@@ -1524,8 +1551,28 @@ Views.register('task.request_intake', {
     if (!isOps) {
       document.querySelector('.js-request-form')?.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const payload = UI.formData(e.currentTarget);
+        const form = e.currentTarget;
+        const payload = UI.formData(form);
+        const fileInput = form.querySelector('[name="reference_photo"]');
+        const file = fileInput?.files?.[0];
+
         await simpleAction('request/create', payload, 'Request submitted successfully');
+
+        // Upload reference photo after request is created (requires site_id)
+        if (file && payload.site_id) {
+          try {
+            const fd = new FormData();
+            fd.append('parent_type', 'SITE');
+            fd.append('parent_id', payload.site_id);
+            fd.append('upload_type', 'WORK');
+            fd.append('comment_text', `Reference photo for request: ${payload.description?.substring(0, 80) || ''}`);
+            fd.append('files[]', file);
+            await Api.upload('upload/create', fd);
+            UI.toast('Reference photo attached', 'good');
+          } catch (err) {
+            UI.toast('Request submitted but photo upload failed: ' + err.message, 'bad');
+          }
+        }
       });
     }
 
@@ -2405,21 +2452,21 @@ Views.register('governance.user_management', {
         createBtn.addEventListener('click', async () => {
             const roles = await Api.get('role/list').then(normalizeItems);
             const roleOptions = roles.map(r => ({ value: r.id, label: r.role_name }));
-            openSimpleForm('user/create', [
+            openSimpleForm('Create User', [
                 { name: 'full_name', label: 'Full Name', type: 'text', required: true },
                 { name: 'email', label: 'Email', type: 'email', required: true },
                 { name: 'password', label: 'Password', type: 'password', required: true },
                 { name: 'role_id', label: 'Role', type: 'select', options: roleOptions, required: true }
-            ], 'Create User');
+            ], 'Create User', (payload) => simpleAction('user/create', payload, 'User created'));
         });
     }
 
     const restoreBtn = document.querySelector('[data-restore]');
     if (restoreBtn) {
         restoreBtn.addEventListener('click', () => {
-            openSimpleForm('user/restore', [
+            openSimpleForm('Restore User', [
                 { name: 'user_id', label: 'User ID to Restore', type: 'number', required: true }
-            ], 'Restore User');
+            ], 'Restore User', (payload) => simpleAction('user/restore', payload, 'User restored'));
         });
     }
 
@@ -2430,20 +2477,21 @@ Views.register('governance.user_management', {
             const roleOptions = roles.map(r => ({ value: r.id, label: r.role_name }));
             const user = await Api.get('user/get', { user_id: id });
             
-            openSimpleForm('user/update', [
+            openSimpleForm('Edit User', [
                 { name: 'user_id', type: 'hidden', value: id },
                 { name: 'full_name', label: 'Full Name', type: 'text', value: user.full_name, required: true },
                 { name: 'email', label: 'Email', type: 'email', value: user.email, required: true },
                 { name: 'role_id', label: 'Role', type: 'select', options: roleOptions, value: user.role_id, required: true }
-            ], 'Edit User');
+            ], 'Update User', (payload) => simpleAction('user/update', payload, 'User updated'));
         });
     });
 
     document.querySelectorAll('[data-deactivate-id]').forEach(btn => {
         btn.addEventListener('click', (e) => {
-            if (confirm('Are you sure you want to deactivate this user?')) {
-                simpleAction('user/deactivate', { user_id: e.currentTarget.dataset.deactivateId }, 'User deactivated');
-            }
+            const id = e.currentTarget.dataset.deactivateId;
+            confirmAction('Deactivate User', 'Are you sure you want to deactivate this user?', () => 
+                simpleAction('user/deactivate', { user_id: id }, 'User deactivated')
+            );
         });
     });
 
@@ -2455,9 +2503,10 @@ Views.register('governance.user_management', {
 
     document.querySelectorAll('[data-delete-id]').forEach(btn => {
         btn.addEventListener('click', (e) => {
-            if (confirm('Are you sure you want to soft delete this user?')) {
-                simpleAction('user/delete', { user_id: e.currentTarget.dataset.deleteId }, 'User deleted');
-            }
+            const id = e.currentTarget.dataset.deleteId;
+            confirmAction('Delete User', 'Are you sure you want to soft delete this user?', () => 
+                simpleAction('user/delete', { user_id: id }, 'User deleted')
+            );
         });
     });
   }
@@ -2802,6 +2851,7 @@ Views.register('task.worker_daily_entry', {
         { name: 'worker_id', label: 'Worker ID', type: 'number', required: true },
         { name: 'entry_date', label: 'Date', type: 'date', required: true, value: date },
         { name: 'attendance_status', label: 'Attendance Status', type: 'select', value: 'PRESENT', options: ['PRESENT', 'ABSENT', 'HALF_DAY'], required: true },
+        { name: 'activity_type', label: 'Activity Type', type: 'select', value: 'INSTALLATION', options: ['INSTALLATION', 'MAINTENANCE', 'DRIVING', 'MONITORING', 'SUPPORT', 'OTHER'], required: true },
         { name: 'activity_context', label: 'Activity Context (optional)', type: 'textarea' },
         { name: 'task_id', label: 'Task ID (optional)', type: 'number' }
       ], 'Save Entry', (payload) => {
