@@ -16,6 +16,20 @@ the record already exists before creating to support re-runs without errors.
 **`[INDEPENDENT]`** — blocks marked independent have no upstream dependencies
 and can run in any order if upstream blocks are blocked.
 
+## Test Fixture Images
+
+Real field monitoring photos in `tests/fixtures/`. Use for all upload tests (T09, T29, T32, T33) and E2E chains.
+
+| File | Location | GPS | When to use |
+|---|---|---|---|
+| `billboard_sector108_noida.jpg` | Sector 108, Noida | 28.520725, 77.376872 | T09, T32, E2E-01, E2E-03 |
+| `billboard_sector17a_greater_noida.jpg` | Sector 17a, Greater Noida | 28.363108, 77.540008 | T29, T33, E2E-05 |
+| `billboard_trehan_iris_night.jpg` | UP 281205 (night) | 27.77408, 77.714592 | spare / variety |
+| `billboard_trehan_iris_night_2.jpg` | UP 281205 (night) | 27.774093, 77.71459 | spare / variety |
+
+**Default for all upload tests:** `billboard_sector108_noida.jpg`
+Save missing images from phone to `tests/fixtures/` when available.
+
 **Test credentials** (all passwords: `TestPass123!`)
 
 | Role | Email |
