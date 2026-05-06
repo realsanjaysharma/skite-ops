@@ -10,8 +10,26 @@ Each test case is self-contained. An AI agent runs ONE section per turn:
 **Execution prompt and rules:** `tests/TEST_EXECUTION_PROTOCOL.md`
 **Live test state:** `tests/TEST_RESULTS.md`
 
+**Before each run:** Execute `tests/cleanup_test_data.sql` to reset test-created data back to seed state. Safe to run multiple times.
+```bash
+C:\xampp\mysql\bin\mysql.exe -u root skite_ops < tests/cleanup_test_data.sql
+```
+
 **Idempotency note:** Create tests (T05, T25, T27, T53) should check if
-the record already exists before creating to support re-runs without errors.
+the record already exists before creating. If GB-TEST-01 already exists
+(cleanup not run), skip creation and use the existing record.
+
+**Cascade note (Weakness 1):** T06, T07, T08 depend on T05 creating GB-TEST-01.
+Tests that only NEED an existing belt (T13, T14, T15, T16, T17, T22) use
+seeded GB-001 directly — they do NOT depend on T05. This limits cascade risk.
+
+**File upload (Weakness 2):** Use `mcp__Claude_in_Chrome__file_upload` tool
+to upload fixture images from `tests/fixtures/`. This is fully automatable.
+Path format: `C:\xampp\htdocs\skite\tests\fixtures\billboard_sector108_noida.jpg`
+
+**Credential gap note (Weakness 7):** Authority View will show supervisor name
+as "Test Supervisor P2" (the @skite.local user). This is correct — the
+@skite.local and @skyte.com users are both assigned to GB-001 independently.
 
 **`[INDEPENDENT]`** — blocks marked independent have no upstream dependencies
 and can run in any order if upstream blocks are blocked.
@@ -660,6 +678,84 @@ Apply a filter in Green Belt Master (e.g. zone = Sector18). Click a belt to open
 
 ---
 
+## BLOCK 19 — Mobile Responsiveness `[INDEPENDENT]`
+
+### T62 — Mobile viewport renders sidebar correctly
+Resize browser to 375×812 (iPhone SE). Navigate to any module.
+- Assert: sidebar is hidden by default (not visible without opening)
+- Assert: hamburger menu button visible in top-left
+- Assert: clicking hamburger opens the sidebar drawer
+- Assert: sidebar overlay/scrim appears behind open drawer
+- Assert: clicking scrim closes the drawer
+
+### T63 — Mobile upload form usable
+On 375×812 viewport, login as GREEN_BELT_SUPERVISOR and open Supervisor Upload.
+- Assert: all form fields visible and tappable (no overflow cutoff)
+- Assert: file input accessible
+- Assert: submit button visible without horizontal scrolling
+
+### T64 — Mobile dashboard cards
+On 375×812 viewport, login as OPS_MANAGER and open Master Dashboard.
+- Assert: metric cards stack vertically (not side-by-side at 2 columns)
+- Assert: no horizontal overflow / no content clipped
+
+---
+
+## BLOCK 20 — Security Basics `[INDEPENDENT]`
+
+### T65 — Unauthenticated API requests rejected
+Without any session cookie, call 5 random protected routes.
+```bash
+curl -s "http://localhost/skite/index.php?route=belt/list" | grep -o '"success":[a-z]*'
+curl -s "http://localhost/skite/index.php?route=user/list" | grep -o '"success":[a-z]*'
+curl -s "http://localhost/skite/index.php?route=task/list" | grep -o '"success":[a-z]*'
+curl -s "http://localhost/skite/index.php?route=upload/list" | grep -o '"success":[a-z]*'
+curl -s "http://localhost/skite/index.php?route=audit/list" | grep -o '"success":[a-z]*'
+```
+- Assert: all return HTTP 401 and `"success":false`
+
+### T66 — CSRF token required for mutations
+Login as OPS_MANAGER but omit the X-CSRF-Token header on a POST request.
+```bash
+curl -s -X POST "http://localhost/skite/index.php?route=belt/create" \
+  -b /tmp/skite_ops.txt \
+  -H "Content-Type: application/json" \
+  -d '{"belt_code":"CSRF-TEST","common_name":"X","authority_name":"X","maintenance_mode":"MAINTAINED","permission_status":"APPLIED","watering_frequency":"DAILY"}'
+```
+- Assert: returns 403 (CSRF validation failed)
+- Assert: no belt created in DB
+
+### T67 — Session not shared across roles
+Login as GREEN_BELT_SUPERVISOR. Copy the session cookie. Use it to call an Ops-only route.
+```bash
+curl -s "http://localhost/skite/index.php?route=user/list" \
+  -b "[supervisor session cookie]"
+```
+- Assert: returns 403 (module scope denied)
+
+### T68 — Basic injection in filter params
+Login as OPS_MANAGER. Call belt/list with a SQL injection string in zone param.
+```bash
+curl -s "http://localhost/skite/index.php?route=belt/list&zone='+OR+'1'='1" \
+  -b /tmp/skite_ops.txt -H "X-CSRF-Token: $CSRF"
+```
+- Assert: returns 200 with normal (empty or filtered) results — NOT all belts
+- Assert: no SQL error in response
+
+### T69 — GPS and WhatsApp helper API verification
+After any upload exists with GPS fields, call authority/share-helper.
+- Assert: response contains expected fields (belt_name, date, summary_text, upload_count)
+- Assert: summary_text is not empty and follows date-wise format
+
+For GPS: submit upload via API with explicit lat/lon fields. Check DB.
+```bash
+# GPS fields should be stored if provided
+curl -s ... -d '{"parent_type":"SITE","parent_id":1,"upload_type":"WORK","gps_latitude":"28.520725","gps_longitude":"77.376872"}'
+```
+- Assert: upload row has gps_latitude and gps_longitude populated
+
+---
+
 ## Shell Integration for E2E Chains
 
 Between role switches in E2E tests, use API to avoid slow UI re-login:
@@ -699,7 +795,7 @@ Run blocks in order. One block per agent turn. After each block:
 6. All remaining blocks
 
 **Known items not coverable by automation:**
-- Actual browser file upload (T09, T29, T32) — requires real multipart/form-data
-- GPS silent capture — requires browser geolocation API permission
-- WhatsApp share text content verification
-- Visual layout (pill colours, table alignment, mobile drawer behaviour)
+- GPS silent capture — requires browser geolocation API permission (test via API with lat/lon fields instead)
+- WhatsApp share text content (test API response format via authority/share-helper)
+- Visual layout pixel-perfection (pill colours, shadows)
+- Concurrent load testing

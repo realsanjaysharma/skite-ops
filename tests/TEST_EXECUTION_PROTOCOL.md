@@ -16,12 +16,26 @@ Stop after one block. Do not fix bugs. Do not run the next block.
 ## Pre-Flight (run once before any block)
 
 ```bash
+# 1. Reset test data to clean state
+C:\xampp\mysql\bin\mysql.exe -u root skite_ops < tests/cleanup_test_data.sql
+
+# 2. Verify all RBAC boundaries still pass
 bash tests/http_role_coverage_test.sh
 ```
 
-If any role fails pre-flight, stop. Fix RBAC before testing.
+If RBAC test fails, stop. Fix before testing.
+If cleanup fails, check MySQL is running first.
 
 Also confirm MySQL and Apache are running before starting.
+
+## File Upload in Browser Tests
+
+For tests requiring file upload (T09, T29, T32, T33, E2E-01 to E2E-05):
+Use `mcp__Claude_in_Chrome__file_upload` tool with the fixture path:
+```
+C:\xampp\htdocs\skite\tests\fixtures\billboard_sector108_noida.jpg
+```
+This is fully automatable — no manual intervention needed.
 
 ---
 

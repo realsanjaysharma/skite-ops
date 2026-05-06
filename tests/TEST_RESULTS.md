@@ -29,6 +29,8 @@ Current status: NOT STARTED
 | BLOCK 16 — Data Integrity | PENDING | — | — | — |
 | BLOCK 17 — User & Role Lifecycle | PENDING | — | — | — |
 | BLOCK 18 — SPA & Empty States | PENDING | — | — | — |
+| BLOCK 19 — Mobile Responsiveness | PENDING | — | — | — |
+| BLOCK 20 — Security Basics | PENDING | — | — | — |
 
 ---
 
@@ -104,6 +106,14 @@ Current status: NOT STARTED
 | E2E-05 | PENDING | requires site with monitoring uploads |
 | E2E-06 | PENDING | requires site with free media |
 | E2E-07 | PENDING | depends on T06 |
+| T62 | PENDING | resize browser to 375x812 |
+| T63 | PENDING | mobile viewport, supervisor upload |
+| T64 | PENDING | mobile viewport, OPS dashboard |
+| T65 | PENDING | no session cookie required |
+| T66 | PENDING | omit X-CSRF-Token header |
+| T67 | PENDING | copy supervisor session, call ops route |
+| T68 | PENDING | SQL injection in zone param |
+| T69 | PENDING | authority/share-helper + GPS field check |
 
 ---
 
