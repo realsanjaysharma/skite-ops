@@ -67,9 +67,9 @@ All passwords: `TestPass123!`
 See credentials table in `tests/TEST_PLAN.md`
 
 **Seed data users** (alice@skyte.com etc / password123):
-Created by `migrations/004_seed_test_data.sql`. Use these when tests need
+Created by `tests/seed_test_data.sql`. Use these when tests need
 pre-existing belts, assignments, uploads, tasks in known states.
-Run seed: `C:\xampp\mysql\bin\mysql.exe -u root skite_ops < migrations/004_seed_test_data.sql`
+Run seed: `C:\xampp\mysql\bin\mysql.exe -u root skite_ops < tests/seed_test_data.sql`
 
 **Idempotency:** Create tests (T05, T25, T27, T53) use unique identifiers
 (belt_code=GB-TEST-01, etc.). Before creating, check if the record already
