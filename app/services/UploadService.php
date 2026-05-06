@@ -582,8 +582,7 @@ class UploadService
             }
 
             if (empty($eligibleIds)) {
-                 $this->uploadRepository->rollBack();
-                 throw new DomainException('None of the provided uploads are eligible for purge.');
+                throw new DomainException('None of the provided uploads are eligible for purge.');
             }
 
             $this->uploadRepository->purge($eligibleIds, $actorUserId);
