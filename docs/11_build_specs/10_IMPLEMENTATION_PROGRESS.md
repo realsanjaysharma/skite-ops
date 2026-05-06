@@ -14,10 +14,10 @@ Product canon and implementation spec are locked — do not reinterpret or reope
 Legacy mirror docs (`docs/01_structure`, `docs/02_interface`, etc.) are aligned but superseded — ignore them.
 Canonical schema (`docs/06_schema/schema_v1_full.sql`) and foundation seed (`migrations/001_seed_foundation.sql`) are validated and running on the live `skite_ops` MariaDB database. The DB is clean and safe to test against.
 
-Current status: backend modules are implemented and pass syntax plus HTTP smoke coverage used so far. The vanilla JS frontend shell is implemented and RBAC-aware. Most frontend modules have custom views, but several remaining views still need full action-level completion and final browser polish.
+Current status: **ACTIVE TESTING PHASE.** All backend modules implemented and HTTP-verified (42/42 endpoints). All frontend modules have full custom views — no simpleLists stubs remain. COMMERCIAL upload surface added for commercial roles. Comprehensive test infrastructure in place. Test suite is running.
 
-Current frontend asset cache marker: `?v=8`.
-If you change `public/js/views/modules.js`, `public/js/core/*.js`, or `public/js/app.js`, bump the matching script version in `public/index.html`.
+Current frontend asset cache marker: `?v=26` (modules.js), `?v=12` (navigation.js), `?v=11` (app.js), `?v=3` (api/auth/ui).
+If you change any frontend JS, bump the matching `?v=N` in `public/index.html`.
 
 ## Static Prompt Workflow
 
@@ -43,9 +43,26 @@ After finishing the current phase:
 - stop — do not continue into the next phase
 ```
 
-## Current Next Scoped Task
+## Current Phase
 
-All gap-closure phases complete (Phase 1 through Phase 9) and all post-review gaps closed. No further phases queued. Platform is production-ready.
+**TESTING** — Implementation is complete. Active test run in progress using `tests/TEST_PLAN.md`.
+
+Test state is tracked in `tests/TEST_RESULTS.md`. Use the testing mode prompt from `docs/AI_TOOL_HANDOFF_GUIDE.md`.
+
+## Implementation Status
+
+All implementation phases complete. No further implementation tasks queued.
+
+Bugs found and fixed during testing (see Handoff Guide — Codebase Pitfalls for lessons):
+- Escaped backticks (`\``) in modules.js — killed entire script (fixed `54eff19`)
+- Missing closing `});` in issue_management afterRender (fixed `beb093c`)
+- `afterRender` params scope — must destructure `{ params = {} }` (fixed `15a9a3e`)
+- `task/start` wrong module_key blocked FABRICATION_LEAD (fixed `72f0134`)
+- task.management status and vertical_type enum mismatches (fixed `aa12697`)
+- task.detail Back button not role-aware (fixed `aa12697`)
+- TaskService missing required field validation (fixed `aa12697`)
+- User management forms missing handler functions (fixed `3561885`)
+- COMMERCIAL upload surface added for SALES_TEAM, CLIENT_SERVICING, MEDIA_PLANNING (fixed `3561885`)
 
 
 ## Implementation Plan Reference
@@ -130,16 +147,29 @@ Local test credentials:
 
 ## Asset Cache Markers
 
-Current: `modules.js?v=21`, `navigation.js?v=11`, `style.css?v=3`. Bump after each frontend phase.
+Current: `modules.js?v=26`, `navigation.js?v=12`, `app.js?v=11`, `api/auth/ui?v=3`, `style.css?v=3`.
+Bump relevant script version in `public/index.html` after any frontend JS change.
+
+## Test Infrastructure
+
+All test files are in `tests/`. Key files:
+- `TEST_PLAN.md` — 69 test cases + 7 E2E chains, 20 blocks
+- `TEST_EXECUTION_PROTOCOL.md` — agent rules + reusable prompt
+- `TEST_RESULTS.md` — live test state (update and push after each block)
+- `cleanup_test_data.sql` — run before each test run to reset state
+- `http_role_coverage_test.sh` — 87 RBAC boundary checks (all PASS)
+- `http_integration_test.sh` — 42 endpoint read checks (all PASS)
+- `fixtures/` — 4 real field monitoring photos for upload tests
+
+Test credentials: all `@skite.local` users / `TestPass123!`. Seed users: `@skyte.com` / `password123`.
 
 
 ## Task Update Rule
 
-After each phase:
+**During testing:** follow `tests/TEST_EXECUTION_PROTOCOL.md` — not this file.
+Update `tests/TEST_RESULTS.md` after each test block. Commit and push results.
 
-- update `Current Next Scoped Task` to the next phase
-- mark exactly one queue item complete
-- add a short result note with files changed and validation run
-- record blockers only if they stop the current phase
-- stop — do not continue into the next phase
-- if a new pitfall was discovered, add it to `docs/AI_TOOL_HANDOFF_GUIDE.md` under **Codebase Pitfalls and Safety Rules**
+**If implementation resumes after testing:** 
+- Update `Current Phase` section above
+- Add task to Gap Closure Phase Queue
+- Follow the static prompt workflow
