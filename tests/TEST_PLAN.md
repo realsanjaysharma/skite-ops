@@ -349,7 +349,7 @@ Login as FABRICATION_LEAD. Open My Tasks. Find the task from T28.
 - Progress updates are saved
 - Mark Done blocked if no AFTER_WORK photo exists
 - Mark Done succeeds after AFTER_WORK upload
-- Ops sees task as WORK_DONE and can final-approve
+- task status is now COMPLETED (TaskService::markWorkDone sets COMPLETED directly in v1)
 
 ### T30 — Commercial role sees task progress (read-only)
 Login as SALES_TEAM. Open Task Progress. Find the task from T28.
@@ -534,8 +534,8 @@ Step 4 — FABRICATION_LEAD updates progress to 75%
 - Assert: SALES_TEAM Task Progress shows 75%
 
 Step 5 — FABRICATION_LEAD marks Work Done (after AFTER_WORK upload)
-- Assert: task visible to OPS_MANAGER for final closure
-- Assert: SALES_TEAM still sees RUNNING (not COMPLETED until Ops closes)
+- Assert: task status = COMPLETED (markWorkDone sets COMPLETED directly in v1 — no separate Ops approval step)
+- Assert: SALES_TEAM Task Progress shows COMPLETED
 
 ---
 
@@ -743,6 +743,18 @@ curl -s "http://localhost/skite/index.php?route=belt/list&zone='+OR+'1'='1" \
 - Assert: no SQL error in response
 
 ### T69 — GPS and WhatsApp helper API verification
+
+### T70 — upload/serve scope isolation (AUTHORITY_REPRESENTATIVE)
+Login as AUTHORITY_REPRESENTATIVE. Get the ID of a HIDDEN upload (from Upload Review
+or DB). Attempt to access it directly via `upload/serve?id={hidden_upload_id}`.
+- Assert: returns HTTP 403 (not the image)
+
+Get the ID of an APPROVED upload for a belt NOT assigned to this authority rep.
+Attempt `upload/serve?id={unassigned_belt_upload_id}`.
+- Assert: returns HTTP 403
+
+Get the ID of an APPROVED upload for an assigned belt.
+- Assert: returns HTTP 200 and streams the image correctly
 After any upload exists with GPS fields, call authority/share-helper.
 - Assert: response contains expected fields (belt_name, date, summary_text, upload_count)
 - Assert: summary_text is not empty and follows date-wise format

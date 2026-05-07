@@ -54,6 +54,29 @@ class UploadController extends BaseController
                 return;
             }
 
+            // Scope check: AUTHORITY_REPRESENTATIVE may only stream
+            // APPROVED GREEN_BELT uploads from their assigned belts.
+            $roleKey     = $_SESSION['role_key'] ?? '';
+            $actorUserId = (int) $_SESSION['user_id'];
+
+            if ($roleKey === 'AUTHORITY_REPRESENTATIVE') {
+                if (
+                    ($upload['authority_visibility'] ?? '') !== 'APPROVED' ||
+                    ($upload['parent_type'] ?? '') !== 'GREEN_BELT'
+                ) {
+                    Response::error('Access denied', 403);
+                    return;
+                }
+                require_once __DIR__ . '/../repositories/BeltAssignmentRepository.php';
+                $assignmentRepo   = new BeltAssignmentRepository();
+                $assignments      = $assignmentRepo->findByUserId('authority', $actorUserId);
+                $authorityBeltIds = array_column($assignments, 'belt_id');
+                if (!in_array((int) $upload['parent_id'], $authorityBeltIds, true)) {
+                    Response::error('Access denied', 403);
+                    return;
+                }
+            }
+
             $storageService = new UploadStorageService();
             $absolutePath = $storageService->getAbsolutePath($upload['file_path']);
 

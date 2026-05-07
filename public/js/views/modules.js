@@ -2738,9 +2738,9 @@ Views.register('task.progress_read', {
   }
 });
 
-const simpleLists = {
-  'green_belt.maintenance_cycles': ['cycle/list', 'Maintenance Cycles', ['id', 'belt_code', 'common_name', 'start_date', 'end_date', 'status']],
-};
+// All modules have dedicated Views.register() implementations above.
+// simpleLists is intentionally empty — no fallback stubs remain.
+const simpleLists = {};
 
 Object.entries(simpleLists).forEach(([moduleKey, [route, title, columns]]) => {
   Views.register(moduleKey, {
