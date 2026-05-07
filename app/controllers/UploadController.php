@@ -54,24 +54,54 @@ class UploadController extends BaseController
                 return;
             }
 
-            // Scope check: AUTHORITY_REPRESENTATIVE may only stream
-            // APPROVED GREEN_BELT uploads from their assigned belts.
+            // ----------------------------------------------------------------
+            // Scope check: enforce per-role upload file visibility.
+            // Centralised here so guessing upload IDs is not sufficient.
+            // ----------------------------------------------------------------
             $roleKey     = $_SESSION['role_key'] ?? '';
             $actorUserId = (int) $_SESSION['user_id'];
 
-            if ($roleKey === 'AUTHORITY_REPRESENTATIVE') {
-                if (
-                    ($upload['authority_visibility'] ?? '') !== 'APPROVED' ||
-                    ($upload['parent_type'] ?? '') !== 'GREEN_BELT'
-                ) {
-                    Response::error('Access denied', 403);
-                    return;
+            // Roles with unrestricted read access to all uploads.
+            $fullAccessRoles = ['OPS_MANAGER', 'HEAD_SUPERVISOR', 'MANAGEMENT'];
+
+            if (!in_array($roleKey, $fullAccessRoles, true)) {
+                $isOwn   = ((int) ($upload['created_by_user_id'] ?? 0) === $actorUserId);
+                $allowed = false;
+
+                if ($roleKey === 'AUTHORITY_REPRESENTATIVE') {
+                    // APPROVED GREEN_BELT uploads from assigned belts only.
+                    if (
+                        ($upload['authority_visibility'] ?? '') === 'APPROVED' &&
+                        ($upload['parent_type'] ?? '') === 'GREEN_BELT'
+                    ) {
+                        require_once __DIR__ . '/../repositories/BeltAssignmentRepository.php';
+                        $assignmentRepo   = new BeltAssignmentRepository();
+                        $assignments      = $assignmentRepo->findByUserId('authority', $actorUserId);
+                        $authorityBeltIds = array_column($assignments, 'belt_id');
+                        $allowed          = in_array((int) $upload['parent_id'], $authorityBeltIds, true);
+                    }
+
+                } elseif ($roleKey === 'FABRICATION_LEAD') {
+                    // Own uploads, plus any TASK upload for tasks assigned to them.
+                    $allowed = $isOwn;
+                    if (!$allowed && ($upload['parent_type'] ?? '') === 'TASK') {
+                        require_once __DIR__ . '/../repositories/TaskRepository.php';
+                        $taskRepo = new TaskRepository();
+                        $task     = $taskRepo->findById((int) $upload['parent_id']);
+                        $allowed  = ($task && (int) ($task['assigned_lead_user_id'] ?? 0) === $actorUserId);
+                    }
+
+                } elseif (in_array($roleKey, ['SALES_TEAM', 'CLIENT_SERVICING', 'MEDIA_PLANNING'], true)) {
+                    // Own reference uploads + any SITE upload (needed for client media library).
+                    $allowed = $isOwn || ($upload['parent_type'] ?? '') === 'SITE';
+
+                } else {
+                    // GREEN_BELT_SUPERVISOR, OUTSOURCED_MAINTAINER, MONITORING_TEAM:
+                    // own uploads only.
+                    $allowed = $isOwn;
                 }
-                require_once __DIR__ . '/../repositories/BeltAssignmentRepository.php';
-                $assignmentRepo   = new BeltAssignmentRepository();
-                $assignments      = $assignmentRepo->findByUserId('authority', $actorUserId);
-                $authorityBeltIds = array_column($assignments, 'belt_id');
-                if (!in_array((int) $upload['parent_id'], $authorityBeltIds, true)) {
+
+                if (!$allowed) {
                     Response::error('Access denied', 403);
                     return;
                 }

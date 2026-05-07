@@ -744,17 +744,30 @@ curl -s "http://localhost/skite/index.php?route=belt/list&zone='+OR+'1'='1" \
 
 ### T69 — GPS and WhatsApp helper API verification
 
-### T70 — upload/serve scope isolation (AUTHORITY_REPRESENTATIVE)
-Login as AUTHORITY_REPRESENTATIVE. Get the ID of a HIDDEN upload (from Upload Review
-or DB). Attempt to access it directly via `upload/serve?id={hidden_upload_id}`.
-- Assert: returns HTTP 403 (not the image)
+### T70 — upload/serve scope isolation (all roles)
 
-Get the ID of an APPROVED upload for a belt NOT assigned to this authority rep.
-Attempt `upload/serve?id={unassigned_belt_upload_id}`.
-- Assert: returns HTTP 403
+**Setup:** use DB to get the ID of a GREEN_BELT upload that is HIDDEN (not approved).
 
-Get the ID of an APPROVED upload for an assigned belt.
-- Assert: returns HTTP 200 and streams the image correctly
+**AUTHORITY_REPRESENTATIVE:**
+- `upload/serve?id={hidden_upload_id}` → Assert: 403
+- `upload/serve?id={approved_upload_for_unassigned_belt}` → Assert: 403
+- `upload/serve?id={approved_upload_for_assigned_belt}` → Assert: 200 (image streams)
+
+**GREEN_BELT_SUPERVISOR:**
+- `upload/serve?id={another_supervisor_upload_id}` (not created by self) → Assert: 403
+- `upload/serve?id={own_upload_id}` → Assert: 200
+
+**OUTSOURCED_MAINTAINER:**
+- `upload/serve?id={supervisor_upload_id}` (not created by self) → Assert: 403
+- `upload/serve?id={own_upload_id}` → Assert: 200
+
+**SALES_TEAM:**
+- `upload/serve?id={green_belt_supervisor_upload_id}` (GREEN_BELT parent) → Assert: 403
+- `upload/serve?id={monitoring_site_upload_id}` (SITE parent) → Assert: 200
+
+**FABRICATION_LEAD:**
+- `upload/serve?id={supervisor_upload_id}` (not their task) → Assert: 403
+- `upload/serve?id={task_upload_for_assigned_task}` → Assert: 200
 After any upload exists with GPS fields, call authority/share-helper.
 - Assert: response contains expected fields (belt_name, date, summary_text, upload_count)
 - Assert: summary_text is not empty and follows date-wise format

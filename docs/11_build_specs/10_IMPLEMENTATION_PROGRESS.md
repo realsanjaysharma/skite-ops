@@ -16,7 +16,7 @@ Canonical schema (`docs/06_schema/schema_v1_full.sql`) and foundation seed (`mig
 
 Current status: **ACTIVE TESTING PHASE.** All backend modules implemented and HTTP-verified (42/42 endpoints). All frontend modules have full custom views — no simpleLists stubs remain. COMMERCIAL upload surface added for commercial roles. Comprehensive test infrastructure in place. Test suite is running.
 
-Current frontend asset cache marker: `?v=26` (modules.js), `?v=12` (navigation.js), `?v=11` (app.js), `?v=3` (api/auth/ui).
+Current frontend asset cache marker: `?v=27` (modules.js), `?v=12` (navigation.js), `?v=11` (app.js), `?v=3` (api/auth/ui).
 If you change any frontend JS, bump the matching `?v=N` in `public/index.html`.
 
 ## Static Prompt Workflow
