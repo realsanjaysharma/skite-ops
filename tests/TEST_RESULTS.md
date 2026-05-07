@@ -114,6 +114,7 @@ Current status: NOT STARTED
 | T67 | PENDING | copy supervisor session, call ops route |
 | T68 | PENDING | SQL injection in zone param |
 | T69 | PENDING | authority/share-helper + GPS field check |
+| T70 | PENDING | upload/serve scope: hidden→403, unassigned belt→403, assigned+approved→200 |
 
 ---
 
