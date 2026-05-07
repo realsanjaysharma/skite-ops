@@ -744,6 +744,17 @@ curl -s "http://localhost/skite/index.php?route=belt/list&zone='+OR+'1'='1" \
 
 ### T69 — GPS and WhatsApp helper API verification
 
+After any upload exists with GPS fields, call authority/share-helper.
+- Assert: response contains expected fields (belt_name, date, summary_text, upload_count)
+- Assert: summary_text is not empty and follows date-wise format
+
+For GPS: submit upload via API with explicit lat/lon fields. Check DB.
+```bash
+# GPS fields should be stored if provided
+curl -s ... -d '{"parent_type":"SITE","parent_id":1,"upload_type":"WORK","gps_latitude":"28.520725","gps_longitude":"77.376872"}'
+```
+- Assert: upload row has gps_latitude and gps_longitude populated
+
 ### T70 — upload/serve scope isolation (all roles)
 
 **Setup:** use DB to get the ID of a GREEN_BELT upload that is HIDDEN (not approved).
@@ -768,16 +779,6 @@ curl -s "http://localhost/skite/index.php?route=belt/list&zone='+OR+'1'='1" \
 **FABRICATION_LEAD:**
 - `upload/serve?id={supervisor_upload_id}` (not their task) → Assert: 403
 - `upload/serve?id={task_upload_for_assigned_task}` → Assert: 200
-After any upload exists with GPS fields, call authority/share-helper.
-- Assert: response contains expected fields (belt_name, date, summary_text, upload_count)
-- Assert: summary_text is not empty and follows date-wise format
-
-For GPS: submit upload via API with explicit lat/lon fields. Check DB.
-```bash
-# GPS fields should be stored if provided
-curl -s ... -d '{"parent_type":"SITE","parent_id":1,"upload_type":"WORK","gps_latitude":"28.520725","gps_longitude":"77.376872"}'
-```
-- Assert: upload row has gps_latitude and gps_longitude populated
 
 ---
 
