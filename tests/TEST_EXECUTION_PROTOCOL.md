@@ -149,8 +149,62 @@ PASS: X | FAIL: Y | BLOCKED: Z
 See Bug Log below for all failures.
 ```
 
-Testing phase is complete. Hand the Bug Log to the developer for triage.
-Do not commit code fixes during testing.
+Testing phase is complete. Proceed to the Post-Testing Workflow below.
+
+---
+
+## Post-Testing Workflow
+
+Follow this after TEST_RESULTS.md shows all blocks as COMPLETE, FAIL, or BLOCKED.
+
+### Step 1 — Categorize the Bug Log
+
+Read every entry in the Bug Log and assign a priority:
+
+| Priority | Definition |
+|---|---|
+| P1 | Blocks a role entirely, security gap, data loss, or core flow broken |
+| P2 | Feature broken but a workaround exists, or wrong output |
+| P3 | Cosmetic, empty state wording, minor rendering issue |
+
+### Step 2 — Fix P1 bugs first
+
+Switch to implementation mode. Use the standard implementation prompt (not the test prompt).
+Fix one bug at a time. Commit each fix separately.
+Add any new pitfall discovered to `docs/AI_TOOL_HANDOFF_GUIDE.md` — Codebase Pitfalls and Safety Rules.
+
+### Step 3 — Re-run only affected blocks
+
+Do not re-run all 20 blocks. Run only the blocks that contain the tests that FAILed.
+Update TEST_RESULTS.md with the new results.
+Run `tests/cleanup_test_data.sql` before re-running if the block creates data.
+
+### Step 4 — Repeat for P2 bugs
+
+Same process: fix one at a time, commit, re-run only the affected block.
+
+### Step 5 — P3 bugs (optional before go-live)
+
+Fix cosmetic/rendering bugs as a batch. One commit, re-run affected blocks.
+
+### Step 6 — Final human walkthrough
+
+After no P1 or P2 bugs remain, the developer does one manual pass through each role's main flow in a real browser. This catches things automated tests cannot — visual glitches, confusing UX, mobile layout, WhatsApp share output.
+
+### Step 7 — Ready
+
+When the walkthrough passes and Bug Log has no open P1/P2 items, the system is ready.
+
+---
+
+### Handling BLOCKED tests after fixes
+
+If a test was BLOCKED because an upstream test FAILed, after fixing the upstream bug:
+1. Re-run the upstream block to confirm it now PASSES
+2. Immediately re-run the BLOCKED block
+3. Update TEST_RESULTS.md for both
+
+Do not leave long chains of BLOCKEDs unresolved — they hide real failures.
 
 ---
 
