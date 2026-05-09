@@ -2,8 +2,8 @@
 
 _Each agent turn updates this file. Read it first to find where to continue._
 
-Last updated by: Manual sync from chat — agent failed to commit results
-Current status: IN PROGRESS — BLOCK 1 and BLOCK 2 complete, BLOCK 3 is next
+Last updated by: Claude Sonnet 4.6 — 2026-05-08 (BLOCK 7)
+Current status: IN PROGRESS
 
 ---
 
@@ -11,13 +11,13 @@ Current status: IN PROGRESS — BLOCK 1 and BLOCK 2 complete, BLOCK 3 is next
 
 | Block | Status | PASS | FAIL | BLOCKED |
 |---|---|---|---|---|
-| BLOCK 1 — Auth & RBAC | COMPLETE | 3 | 1 | 0 |
-| BLOCK 2 — Green Belt Core | COMPLETE | 4 | 0 | 0 |
-| BLOCK 3 — Field Ops (Supervisor) | PENDING | — | — | — |
-| BLOCK 4 — Head Supervisor | PENDING | — | — | — |
-| BLOCK 5 — Upload Review | PENDING | — | — | — |
-| BLOCK 6 — Authority View | PENDING | — | — | — |
-| BLOCK 7 — Issue Lifecycle | PENDING | — | — | — |
+| BLOCK 1 — Auth & RBAC | DONE | 3 | 1 | 0 |
+| BLOCK 2 — Green Belt Core | DONE | 4 | 0 | 0 |
+| BLOCK 3 — Field Ops (Supervisor) | DONE | 3 | 1 | 0 |
+| BLOCK 4 — Head Supervisor | DONE | 4 | 1 | 0 |
+| BLOCK 5 — Upload Review | DONE | 4 | 0 | 0 |
+| BLOCK 6 — Authority View | DONE | 2 | 1 | 0 |
+| BLOCK 7 — Issue Lifecycle | DONE | 1 | 1 | 0 |
 | BLOCK 8 — Request→Task→Execution | PENDING | — | — | — |
 | BLOCK 9 — Outsourced Flow | PENDING | — | — | — |
 | BLOCK 10 — Monitoring & Free Media | PENDING | — | — | — |
@@ -38,32 +38,32 @@ Current status: IN PROGRESS — BLOCK 1 and BLOCK 2 complete, BLOCK 3 is next
 
 | Test | Status | Notes |
 |---|---|---|
-| T01 | FAIL | AUTHORITY_REPRESENTATIVE lands on Authority View but shows red "Forbidden" error panel. All other 9 roles land correctly. |
-| T02 | PASS | Sidebar scope correct for all 6 tested roles |
-| T03 | PASS | GREEN_BELT_SUPERVISOR redirected away from user_management; API returns 403 |
-| T04 | PASS | Session cleared → redirect to login, no data leak |
-| T05 | PASS | Belt GB-TEST-01 (id=63) created; belt_code absent from edit form |
-| T06 | PASS | Supervisor assigned to GB-TEST-01; UI bug: supervisor name column blank, end_date shows [object Object] |
-| T07 | PASS | Authority rep assigned to GB-TEST-01; same UI rendering bugs as T06 |
-| T08 | PASS | Cycle started; second Start Cycle immediately rejected — uniqueness enforced |
-| T09 | PENDING | use tests/fixtures/billboard_sector108_noida.jpg |
-| T10 | PENDING | depends on T09 |
-| T11 | PENDING | requires 5-min wait or DB manipulation |
-| T12 | PENDING | |
-| T13 | PENDING | |
-| T14 | PENDING | depends on T13 |
-| T15 | PENDING | |
-| T16 | PENDING | |
-| T17 | PENDING | requires an OPEN issue to exist |
-| T18 | PENDING | depends on T09 or new upload |
-| T19 | PENDING | requires an ISSUE-type upload to exist |
-| T20 | PENDING | requires multiple WORK uploads |
-| T21 | PENDING | |
-| T22 | PENDING | depends on T07 (authority assignment) |
-| T23 | PENDING | depends on T18 (approved upload) |
-| T24 | PENDING | depends on T22 |
-| T25 | PENDING | |
-| T26 | PENDING | depends on T25 |
+| T01 | FAIL | AUTHORITY_REPRESENTATIVE landing page shows "Forbidden" error panel; all other 9 roles PASS (correct landing, badge, no error) |
+| T02 | PASS | Sidebar scope correct for all 6 specified roles: GBS, HS, FL, MT, AR, ST |
+| T03 | PASS | URL nav to #governance.user_management stayed on Supervisor Upload; API user/list returned 403 |
+| T04 | PASS | After PHP session files cleared, app redirects to login screen; no previous session data visible |
+| T05 | PASS | Belt GB-TEST-01 created (id=63); appears in list with correct values; belt_code absent from edit form; belt/list API confirms |
+| T06 | PASS | Supervisor user_id=4 (Test Supervisor P2) assigned; start_date=2026-05-08 in panel; supervisorassignment/list confirms. UI note: SUPERVISOR column and END DATE render as blank/[object Object] |
+| T07 | PASS | Authority user_id=5 (Test Authority P2) assigned; start_date=2026-05-08 in panel; authorityassignment/list confirms. Same UI rendering note |
+| T08 | PASS | Cycle id=22 created with start_date=2026-05-08; second Start Cycle rejected with "An active cycle already exists for this belt." |
+| T09 | PASS | Upload id=110 created (WORK/GREEN_BELT/parent_id=63); in upload/my-list; authority_visibility absent from supervisor response; visible to Ops as HIDDEN. Upload id=109 used for T10 |
+| T10 | PASS | upload/delete succeeded within 2-min window; upload 109 removed from my-list; browser UI confirmed |
+| T11 | PASS | Upload id=110 backdated 10 min; delete blocked with HTTP 400 "Upload is outside the self-delete window."; upload remains in my-list |
+| T12 | FAIL | Belt selection is a free-text number input (not a dropdown restricted to assigned belts). Backend correctly returns HTTP 403 "You are not currently assigned to this green belt." for unassigned belt_id=1 |
+| T13 | PASS | watering/mark DONE for belt_id=1 (record id=2, date=2026-05-08); watering/list confirms watering_status=DONE; 36 other belts show PENDING derived (0 PENDING rows in DB) |
+| T14 | FAIL | HEAD_SUPERVISOR cannot correct watering at all — got "Only Ops can correct watering status once it is marked." (not the expected "Correction requires an override reason"). OPS CAN correct: without override_reason → expected error; with override_reason → NOT_REQUIRED, override_by_user_id=3 set ✓ |
+| T15 | PASS | attendance/mark created record id=5 (supervisor_user_id=4, status=PRESENT, date=2026-05-08); attendance/list confirms. UI note: overview shows UNKNOWN before filter applied |
+| T16 | PASS | labour/mark created record (labour_count=5, gardener_count=1, night_guard_count=2); fields are correct (no male/female); browser UI confirms in Section 3 Labour Entry |
+| T17 | PASS | issue/in-progress moved issue 13 to IN_PROGRESS; issue/close as HEAD_SUPERVISOR rejected HTTP 403 "Only Ops can close an issue." |
+| T18 | PASS | upload/review APPROVED upload 110 (WORK/GREEN_BELT/63); DB=APPROVED; in upload/list?authority_visibility=APPROVED; absent from HIDDEN filter |
+| T19 | PASS | Created ISSUE upload id=111 (auto-visibility=NOT_ELIGIBLE); upload/review APPROVED → HTTP 400 "Only authority-eligible work uploads can be reviewed."; DB still NOT_ELIGIBLE |
+| T20 | PASS | Bulk-approved uploads 13 and 15 in single call; both DB=APPROVED; ISSUE upload 111 untouched (NOT_ELIGIBLE) |
+| T21 | PASS | upload/review REJECTED upload 112 with comment; DB=REJECTED; cleanup-list empty (expected — threshold days not yet passed) |
+| T22 | FAIL | Browser shows same "Forbidden" error as T01 — APPROVED WORK uploads not visible in UI. API correct: authority/view returns only upload 110 (APPROVED WORK, belt 63 assigned); no HIDDEN/REJECTED/NOT_ELIGIBLE/ISSUE uploads returned |
+| T23 | PASS | Date/belt filters work via API; unassigned belt returns 0 items; authority/share-helper returns message_text + whatsapp_url; authority/summary returns correct stats |
+| T24 | PASS | Only green_belt.authority_view accessible; upload/review + upload/delete + issue/in-progress all return HTTP 403; no action fields in authority/view response; browser shows no modify buttons (only Forbidden panel) |
+| T25 | FAIL | Issue id=21 created (status=OPEN, priority=MEDIUM, belt_id=1) ✓; IS-XXXXX sequence ID NOT present — no such field in API response, issue/list, or anywhere in codebase |
+| T26 | PASS | OPEN→IN_PROGRESS (HS) ✓; link-task stored (tasks.linked_issue_id=21 on task 3) ✓; HS close blocked HTTP 403 "Only Ops can close an issue." ✓; OPS closed issue (status=CLOSED, closed_by=3) ✓; task 3 still OPEN after issue closed ✓ |
 | T27 | PENDING | |
 | T28 | PENDING | depends on T27 |
 | T29 | PENDING | use tests/fixtures/billboard_sector17a_greater_noida.jpg; depends on T28 |
@@ -123,11 +123,11 @@ Current status: IN PROGRESS — BLOCK 1 and BLOCK 2 complete, BLOCK 3 is next
 _Failures recorded here by agents during test runs._
 _Format: Test ID | Step | Expected | Actual | Error_
 
-T01 | Login as AUTHORITY_REPRESENTATIVE | Expected: Authority View loads cleanly | Actual: Red "Forbidden" error panel with "Something needs attention" — backend endpoints all confirmed 200 via direct API; likely transient CSRF/session timing on first load — re-test in BLOCK 6 (T22) | http://localhost/skite/public/ after login
-
-**UI bugs noted (not FAIL — assertions passed):**
-T06/T07 | Assignment list | Expected: supervisor_name renders | Actual: name column blank — field name mismatch between API response and column key
-T06/T07 | Assignment list | Expected: end_date shows null/empty | Actual: [object Object] — no null handler on end_date column renderer
+T01 | Step: Login as AUTHORITY_REPRESENTATIVE (test.authority.p2@skite.local), observe landing page | Expected: Authority View loads without error panel | Actual: Page loads Authority View module but body shows red "Forbidden" error panel with subtitle "Something needs attention" | URL: http://localhost/skite/public/ after login | Screenshot: browser capture ss_7627btnv2 (authority view forbidden on landing)
+T12 | Step: Open Supervisor Upload, check belt selection field | Expected: Dropdown showing only assigned belts | Actual: Field is a free-text number input (type=number) — any belt ID can be entered, no UI restriction to assigned belts | URL: http://localhost/skite/public/#green_belt.supervisor_upload | Screenshot: ss_3922ia1n5 | Note: Backend correctly blocks unassigned belts with HTTP 403
+T14 | Step: Login as HEAD_SUPERVISOR, attempt watering correction on belt_id=1, date=2026-05-08 (already DONE) with status=NOT_REQUIRED | Expected: "Correction requires an override reason" | Actual: HTTP 403 "Only Ops can correct watering status once it is marked." — HEAD_SUPERVISOR cannot correct at all, even with override_reason | URL: POST http://localhost/skite/index.php?route=watering/mark | Note: Correction logic works correctly under OPS_MANAGER role
+T22 | Step: Login as AUTHORITY_REPRESENTATIVE, open Authority View | Expected: Only APPROVED WORK uploads for assigned belts visible, no Forbidden error | Actual: Browser shows "Forbidden" error panel (same bug as T01); API authority/view correctly returns upload 110 only (APPROVED WORK, belt 63) | URL: http://localhost/skite/public/ (authority/view module) | Screenshot: ss_7426wb58p
+T25 | Step: Create issue, check for IS-XXXXX sequence ID in response | Expected: Issue appears with IS-XXXXX sequence ID | Actual: Issue created as id=21 (integer) only; no IS-XXXXX field in issue/create response, issue/list, issue/get, or anywhere in frontend/backend codebase | URL: POST http://localhost/skite/index.php?route=issue/create
 
 ---
 
