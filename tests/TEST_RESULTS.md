@@ -2,8 +2,8 @@
 
 _Each agent turn updates this file. Read it first to find where to continue._
 
-Last updated by: —
-Current status: NOT STARTED
+Last updated by: Manual sync from chat — agent failed to commit results
+Current status: IN PROGRESS — BLOCK 1 and BLOCK 2 complete, BLOCK 3 is next
 
 ---
 
@@ -11,8 +11,8 @@ Current status: NOT STARTED
 
 | Block | Status | PASS | FAIL | BLOCKED |
 |---|---|---|---|---|
-| BLOCK 1 — Auth & RBAC | PENDING | — | — | — |
-| BLOCK 2 — Green Belt Core | PENDING | — | — | — |
+| BLOCK 1 — Auth & RBAC | COMPLETE | 3 | 1 | 0 |
+| BLOCK 2 — Green Belt Core | COMPLETE | 4 | 0 | 0 |
 | BLOCK 3 — Field Ops (Supervisor) | PENDING | — | — | — |
 | BLOCK 4 — Head Supervisor | PENDING | — | — | — |
 | BLOCK 5 — Upload Review | PENDING | — | — | — |
@@ -38,14 +38,14 @@ Current status: NOT STARTED
 
 | Test | Status | Notes |
 |---|---|---|
-| T01 | PENDING | |
-| T02 | PENDING | |
-| T03 | PENDING | |
-| T04 | PENDING | |
-| T05 | PENDING | idempotency: check belt_code=GB-TEST-01 before creating |
-| T06 | PENDING | depends on T05 |
-| T07 | PENDING | depends on T05 |
-| T08 | PENDING | depends on T05 |
+| T01 | FAIL | AUTHORITY_REPRESENTATIVE lands on Authority View but shows red "Forbidden" error panel. All other 9 roles land correctly. |
+| T02 | PASS | Sidebar scope correct for all 6 tested roles |
+| T03 | PASS | GREEN_BELT_SUPERVISOR redirected away from user_management; API returns 403 |
+| T04 | PASS | Session cleared → redirect to login, no data leak |
+| T05 | PASS | Belt GB-TEST-01 (id=63) created; belt_code absent from edit form |
+| T06 | PASS | Supervisor assigned to GB-TEST-01; UI bug: supervisor name column blank, end_date shows [object Object] |
+| T07 | PASS | Authority rep assigned to GB-TEST-01; same UI rendering bugs as T06 |
+| T08 | PASS | Cycle started; second Start Cycle immediately rejected — uniqueness enforced |
 | T09 | PENDING | use tests/fixtures/billboard_sector108_noida.jpg |
 | T10 | PENDING | depends on T09 |
 | T11 | PENDING | requires 5-min wait or DB manipulation |
@@ -123,7 +123,11 @@ Current status: NOT STARTED
 _Failures recorded here by agents during test runs._
 _Format: Test ID | Step | Expected | Actual | Error_
 
-(empty — testing not started)
+T01 | Login as AUTHORITY_REPRESENTATIVE | Expected: Authority View loads cleanly | Actual: Red "Forbidden" error panel with "Something needs attention" — backend endpoints all confirmed 200 via direct API; likely transient CSRF/session timing on first load — re-test in BLOCK 6 (T22) | http://localhost/skite/public/ after login
+
+**UI bugs noted (not FAIL — assertions passed):**
+T06/T07 | Assignment list | Expected: supervisor_name renders | Actual: name column blank — field name mismatch between API response and column key
+T06/T07 | Assignment list | Expected: end_date shows null/empty | Actual: [object Object] — no null handler on end_date column renderer
 
 ---
 
