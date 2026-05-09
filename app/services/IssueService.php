@@ -114,6 +114,10 @@ class IssueService
             throw new InvalidArgumentException("Issue not found.");
         }
 
+        if ($issue['status'] !== 'IN_PROGRESS') {
+            throw new DomainException("Issue can only be closed from IN_PROGRESS status. Current status: " . $issue['status']);
+        }
+
         $this->issueRepo->update([
             'id' => $issueId,
             'status' => 'CLOSED',

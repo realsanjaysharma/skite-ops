@@ -283,8 +283,8 @@ class UploadController extends BaseController
                 return 'OUTSOURCED';
             case 'MONITORING_TEAM':
             case 'OPS_MANAGER':
-            case 'MANAGEMENT':
                 return 'MONITORING';
+            // MANAGEMENT is read-only — no upload surface
             case 'FABRICATION_LEAD':
                 return 'TASK';
             case 'SALES_TEAM':

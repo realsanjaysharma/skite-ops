@@ -180,6 +180,11 @@ class TaskService
             throw new InvalidArgumentException("Task not found.");
         }
 
+        $allowedStatuses = ['COMPLETED', 'CANCELLED'];
+        if (!in_array($task['status'], $allowedStatuses, true)) {
+            throw new DomainException("Only COMPLETED or CANCELLED tasks can be archived. Current status: " . $task['status']);
+        }
+
         $this->taskRepo->update([
             'id' => $taskId,
             'is_archived' => 1,
@@ -323,6 +328,10 @@ class TaskService
 
         if ($actorRoleKey === 'FABRICATION_LEAD' && $task['assigned_lead_user_id'] != $actorUserId) {
             throw new DomainException("You can only finalize tasks assigned to you.");
+        }
+
+        if ($task['status'] !== 'RUNNING') {
+            throw new DomainException("Work done can only be marked on a RUNNING task. Current status: " . $task['status']);
         }
 
         // Must validate AFTER_WORK uploads exist before allowing work-done to fire natively
