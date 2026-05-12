@@ -2382,8 +2382,15 @@ Views.register('green_belt.authority_view', {
       </div>
     `;
 
-    const settings = await Api.get('settings/list');
-    const waEnabled = settings?.items?.find(s => s.setting_key === 'authority_whatsapp_helper_enabled')?.setting_value === '1';
+    // AUTHORITY_REPRESENTATIVE does not have settings.system in scope.
+    // Catch 403 gracefully and default to hiding the WhatsApp helper.
+    let waEnabled = false;
+    try {
+      const settings = await Api.get('settings/list');
+      waEnabled = settings?.items?.find(s => s.setting_key === 'authority_whatsapp_helper_enabled')?.setting_value === '1';
+    } catch (_) {
+      // Role cannot access settings — WhatsApp helper disabled by default
+    }
 
     const actions = UI.button('Refresh', { icon: 'ph-arrows-clockwise', attr: 'data-refresh' }) +
                     (waEnabled ? `<a href="${share.whatsapp_url}" target="_blank" class="btn btn-primary" style="text-decoration: none;"><i class="ph ph-whatsapp-logo"></i><span>Share on WhatsApp</span></a>` : '');

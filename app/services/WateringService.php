@@ -83,18 +83,15 @@ class WateringService
 
         if ($existing) {
             // Update existing row
-            // Only Ops can correct DONE <-> NOT_REQUIRED
+            // Both OPS_MANAGER and HEAD_SUPERVISOR can correct an existing record,
+            // but an override_reason is always required for a correction.
             if ($existing['status'] !== $status) {
-                if ($actorRoleKey !== 'OPS_MANAGER') {
-                    throw new DomainException("Only Ops can correct watering status once it is marked.");
-                }
-                
-                if (empty($overrideReason) && empty($data['override_reason'])) {
-                     throw new DomainException("Correction requires an override reason.");
+                if (empty($data['override_reason'])) {
+                    throw new DomainException("Correction requires an override reason.");
                 }
 
                 $overrideByUserId = $actorUserId;
-                $overrideReason = $data['override_reason'] ?? $overrideReason;
+                $overrideReason = $data['override_reason'];
             }
 
             $updateData = [
