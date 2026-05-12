@@ -1607,8 +1607,23 @@ Views.register('task.request_intake', {
         if (isOps) {
           const modal = document.getElementById('modal-root');
           modal.querySelector('[data-approve]')?.addEventListener('click', async () => {
-            await simpleAction('request/approve', { request_id: request.id }, 'Request approved and task created');
+            // Step 1: approve the request
+            await Api.post('request/approve', { request_id: request.id });
             UI.closeModal();
+            UI.toast('Request approved — create the task below', 'good');
+            // Step 2: open task creation form pre-filled from request, with traceability
+            openSimpleForm('Create Task from Request', [
+              { name: 'request_id', type: 'hidden', value: request.id },
+              { name: 'task_source_type', type: 'hidden', value: 'REQUEST' },
+              { name: 'task_category', label: 'Category', type: 'select', options: ['GENERAL', 'CLIENT_CAMPAIGN', 'SITE_REPAIR'], value: request.request_type || 'GENERAL', required: true },
+              { name: 'vertical_type', label: 'Vertical', type: 'select', options: ['GREEN_BELT', 'ADVERTISEMENT', 'MONITORING'], required: true },
+              { name: 'priority', label: 'Priority', type: 'select', options: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'], value: request.priority || 'MEDIUM', required: true },
+              { name: 'work_description', label: 'Work Description', type: 'textarea', value: request.description || '', required: true },
+              { name: 'location_text', label: 'Location', type: 'text', required: true },
+              { name: 'assigned_lead_user_id', label: 'Assigned Lead User ID', type: 'number' },
+              { name: 'start_date', label: 'Start Date', type: 'date', value: UI.currentDate() },
+              { name: 'expected_close_date', label: 'Expected Close', type: 'date' }
+            ], 'Create Task', (payload) => simpleAction('task/create', payload, 'Task created from request'));
           });
 
           modal.querySelector('[data-reject]')?.addEventListener('click', () => {

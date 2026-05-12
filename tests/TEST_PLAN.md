@@ -341,7 +341,7 @@ Login as FABRICATION_LEAD. Open My Tasks. Find the task from T28.
 
 1. Click Start → status should become RUNNING
 2. Click Update Progress → set to 50%
-3. Upload an AFTER_WORK photo (browser upload)
+3. Upload an AFTER_WORK proof photo — use upload_type=WORK and photo_label=AFTER_WORK (these are separate fields; upload_type=AFTER_WORK does NOT exist and will be rejected)
 4. Click Mark Done
 
 **Assertions:**
