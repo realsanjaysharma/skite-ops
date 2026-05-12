@@ -105,9 +105,10 @@ class WateringService
             $this->wateringRepo->update($updateData);
 
             if ($existing['status'] !== $status || $overrideByUserId) {
+                $action = $overrideByUserId ? 'WATERING_OVERRIDE' : 'WATERING_UPDATED';
                 $this->auditService->logAction(
                     $actorUserId,
-                    'UPDATE',
+                    $action,
                     'watering_records',
                     $existing['id'],
                     $existing,

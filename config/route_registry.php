@@ -251,8 +251,9 @@ return [
     'watering/mark' => [
         'controller' => 'WateringController',
         'method'     => 'markWatering',
-        'module_key' => 'green_belt.watering_oversight',
-        // upload capability: supervisors (UPLOAD group) + Ops (MANAGE group) both satisfy this
+        // null module_key: GBS (supervisor_upload scope) and HS (watering_oversight scope) both need
+        // this route. WateringService enforces per-role business rules (assigned belt, same-day, etc.)
+        'module_key' => null,
         'capability' => 'upload',
     ],
 
