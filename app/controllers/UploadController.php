@@ -119,8 +119,12 @@ class UploadController extends BaseController
             $mimeType = $upload['mime_type'] ?? 'application/octet-stream';
             $originalName = $upload['original_file_name'] ?? basename($absolutePath);
 
+            $disposition = (!empty($_GET['download']) && $_GET['download'] === '1')
+                ? 'attachment'
+                : 'inline';
+
             header('Content-Type: ' . $mimeType);
-            header('Content-Disposition: inline; filename="' . $originalName . '"');
+            header('Content-Disposition: ' . $disposition . '; filename="' . $originalName . '"');
             header('Content-Length: ' . filesize($absolutePath));
             header('Cache-Control: private, max-age=3600');
 

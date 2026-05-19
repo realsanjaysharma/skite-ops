@@ -2394,79 +2394,654 @@ Views.register('green_belt.issue_management', {
   }
 });
 
+const AUTHORITY_VIEW_BUNDLE_CAP = 50;
+
+const AUTHORITY_WORK_TYPES = [
+  { value: '', label: 'All work types' },
+  { value: 'ROUTINE_MAINTENANCE', label: 'Routine maintenance' },
+  { value: 'REPAIR', label: 'Repair' },
+  { value: 'PLANTING', label: 'Planting' },
+  { value: 'WATERING', label: 'Watering' },
+  { value: 'CLEANING', label: 'Cleaning' }
+];
+
+const AUTHORITY_GROUP_BY = [
+  { value: 'date', label: 'Date' },
+  { value: 'belt', label: 'Belt' },
+  { value: 'work_type', label: 'Work Type' }
+];
+
+function authorityLocalDate(date = new Date()) {
+  const offset = date.getTimezoneOffset();
+  return new Date(date.getTime() - offset * 60000).toISOString().slice(0, 10);
+}
+
+function authorityShiftDate(days) {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return authorityLocalDate(date);
+}
+
+function authorityMonthStart() {
+  const date = new Date();
+  date.setDate(1);
+  return authorityLocalDate(date);
+}
+
+function authorityNormalizeParams(params = {}) {
+  const next = { ...params };
+  if (next.date && !next.date_from && !next.date_to) {
+    next.date_from = next.date;
+    next.date_to = next.date;
+  }
+  delete next.date;
+  if (!next.date_from && !next.date_to) {
+    const today = authorityLocalDate();
+    next.date_from = today;
+    next.date_to = today;
+  }
+  return next;
+}
+
+function authorityDateRangeDays(dateFrom, dateTo) {
+  if (!dateFrom || !dateTo) return 0;
+  const start = new Date(`${dateFrom}T00:00:00`);
+  const end = new Date(`${dateTo}T00:00:00`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0;
+  return Math.floor((end - start) / 86400000) + 1;
+}
+
+function authorityHumanDate(value) {
+  if (!value) return '';
+  const parts = String(value).split('-');
+  if (parts.length !== 3) return value;
+  return `${parts[2]}-${parts[1]}-${parts[0]}`;
+}
+
+function authorityFormatBytes(bytes) {
+  const size = Number(bytes || 0);
+  if (size <= 0) return 'size unknown';
+  if (size < 1024 * 1024) return `${Math.max(1, Math.round(size / 1024))} KB`;
+  return `${(size / (1024 * 1024)).toFixed(size >= 10 * 1024 * 1024 ? 0 : 1)} MB`;
+}
+
+function authorityWorkTypeLabel(value) {
+  return AUTHORITY_WORK_TYPES.find((item) => item.value === value)?.label || value || '';
+}
+
+function authoritySafeFilenamePart(value) {
+  return String(value || '')
+    .trim()
+    .replace(/[^a-z0-9_-]+/gi, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase();
+}
+
+function authorityZipName(params, beltOptions, mode) {
+  const parts = ['authority-proof'];
+  const selectedBelt = beltOptions.find((belt) => String(belt.id) === String(params.belt_id || ''));
+  if (selectedBelt?.belt_code) parts.push(selectedBelt.belt_code);
+  if (params.date_from || params.date_to) {
+    parts.push(`${params.date_from || 'start'}-to-${params.date_to || 'today'}`);
+  }
+  if (params.work_type) parts.push(params.work_type);
+  parts.push(mode);
+  return `${parts.map(authoritySafeFilenamePart).filter(Boolean).join('_')}.zip`;
+}
+
+function authorityActiveFilterChips(params, beltOptions) {
+  const chips = [];
+  const selectedBelt = beltOptions.find((belt) => String(belt.id) === String(params.belt_id || ''));
+  if (selectedBelt) chips.push({ label: selectedBelt.label, keys: ['belt_id'] });
+  if (params.date_from || params.date_to) {
+    chips.push({ label: `Range: ${authorityHumanDate(params.date_from) || 'Start'} to ${authorityHumanDate(params.date_to) || 'Today'}`, keys: ['date_from', 'date_to'] });
+  }
+  if (params.work_type) chips.push({ label: `Work: ${authorityWorkTypeLabel(params.work_type)}`, keys: ['work_type'] });
+  if (!chips.length) return '<div class="av-filter-chips av-filter-chips-empty">Showing all approved proof photos in your authority scope.</div>';
+  return `<div class="av-filter-chips">${chips.map((chip) => `
+    <button type="button" class="av-filter-chip" data-av-clear="${UI.escape(chip.keys.join(','))}">
+      <span>${UI.escape(chip.label)}</span><i class="ph ph-x"></i>
+    </button>
+  `).join('')}</div>`;
+}
+
+function authorityFormatLabel(row, groupKey) {
+  if (groupKey === 'date') return (row.timestamp || '').substring(0, 10) || 'Unknown date';
+  if (groupKey === 'belt') return row.belt_code ? `${row.belt_code} — ${row.belt_common_name || ''}` : 'Unassigned belt';
+  if (groupKey === 'work_type') return row.work_type || 'UNKNOWN';
+  return 'Group';
+}
+
+function authorityGroupItems(items, groupKey) {
+  const groups = new Map();
+  for (const item of items) {
+    const label = authorityFormatLabel(item, groupKey);
+    if (!groups.has(label)) groups.set(label, []);
+    groups.get(label).push(item);
+  }
+  return Array.from(groups.entries()).map(([label, rows]) => ({ label, rows }));
+}
+
+async function authorityDownloadSingle(uploadId) {
+  const url = Api.url('upload/serve', { id: uploadId, download: 1 });
+  const link = document.createElement('a');
+  link.href = url;
+  link.rel = 'noopener';
+  link.download = '';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+
+async function authorityDownloadBundle(uploadIds, zipName) {
+  if (!uploadIds.length) return;
+  if (uploadIds.length > AUTHORITY_VIEW_BUNDLE_CAP) {
+    UI.toast(`Too many photos selected (${uploadIds.length}). Limit is ${AUTHORITY_VIEW_BUNDLE_CAP}.`, 'bad');
+    return;
+  }
+  if (typeof JSZip !== 'function' && typeof window.JSZip !== 'function') {
+    UI.toast('JSZip library failed to load — single download only', 'bad');
+    return;
+  }
+  const ZipCtor = window.JSZip || JSZip;
+  const zip = new ZipCtor();
+  UI.toast(`Preparing ${uploadIds.length} photos…`);
+  for (const id of uploadIds) {
+    try {
+      const resp = await fetch(Api.url('upload/serve', { id, download: 1 }), { credentials: 'include' });
+      if (!resp.ok) {
+        console.warn(`upload ${id} fetch failed`, resp.status);
+        continue;
+      }
+      const blob = await resp.blob();
+      const disposition = resp.headers.get('Content-Disposition') || '';
+      const match = disposition.match(/filename="?([^";]+)"?/i);
+      const filename = (match && match[1]) ? match[1] : `photo-${id}.jpg`;
+      zip.file(filename, blob);
+    } catch (err) {
+      console.warn(`upload ${id} fetch threw`, err);
+    }
+  }
+  const archive = await zip.generateAsync({ type: 'blob' });
+  const url = URL.createObjectURL(archive);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = zipName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+  UI.toast(`Downloaded ${uploadIds.length} photos`, 'good');
+}
+
 Views.register('green_belt.authority_view', {
   async render({ params = {} }) {
-    const summary = await Api.get('authority/summary', params);
-    const data = await Api.get('authority/view', params);
-    const rows = normalizeItems(data);
-    const share = await Api.get('authority/share-helper', params);
+    const effectiveParams = authorityNormalizeParams(params);
+    const groupBy = effectiveParams.group_by || 'date';
+    const loadedLimit = Math.max(AUTHORITY_VIEW_BUNDLE_CAP, parseInt(effectiveParams.loaded || effectiveParams.limit || AUTHORITY_VIEW_BUNDLE_CAP, 10) || AUTHORITY_VIEW_BUNDLE_CAP);
+    let beltOptions = [];
+    try {
+      // Pass current filter context so the dropdown labels show counts that
+      // match what the gallery will display for each belt.
+      const beltLookupParams = {};
+      if (effectiveParams.date_from) beltLookupParams.date_from = effectiveParams.date_from;
+      if (effectiveParams.date_to) beltLookupParams.date_to = effectiveParams.date_to;
+      if (effectiveParams.work_type) beltLookupParams.work_type = effectiveParams.work_type;
+      const beltResp = await Api.get('authority/belt-options', beltLookupParams);
+      beltOptions = (beltResp && beltResp.items) ? beltResp.items : [];
+    } catch (err) {
+      // Ops-equivalent role: belt-options refuses; fall back to empty dropdown.
+    }
 
-    const columns = [
-      { key: 'upload_id', label: 'ID' },
-      { key: 'preview_photo', label: 'Photo', html: true, render: (row) => `<img src="${Api.url('upload/serve', { id: row.upload_id })}" alt="Proof" data-preview-id="${row.upload_id}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px; cursor: pointer;">` },
-      { key: 'timestamp', label: 'Date/Time' },
-      { key: 'time_of_day', label: 'Time of Day' },
-      { key: 'work_type', label: 'Work Type', html: true, render: (row) => UI.status(row.work_type) },
-      { key: 'supervisor_name', label: 'Supervisor' },
-      { key: 'gps_string', label: 'GPS', render: (row) => row.gps_string || '-' },
-      { key: 'photo_label', label: 'Label', render: (row) => row.photo_label || '-' }
-    ];
+    const apiParams = { ...effectiveParams, page: 1, limit: loadedLimit };
+    delete apiParams.group_by;
+    delete apiParams.loaded;
 
-    const filterUI = UI.panel('Filters', UI.filters([
-      { name: 'date', label: 'Date', type: 'date', value: params.date || '' },
-      { name: 'belt_id', label: 'Belt ID', type: 'number', value: params.belt_id || '' },
-      { name: 'supervisor_user_id', label: 'Supervisor ID', type: 'number', value: params.supervisor_user_id || '' },
-      { name: 'work_type', label: 'Work Type', type: 'select', value: params.work_type || '', options: ['', 'ROUTINE_MAINTENANCE', 'REPAIR', 'PLANTING', 'WATERING', 'CLEANING'] }
-    ], 'Apply Filters'));
+    const summary = await Api.get('authority/summary', apiParams);
+    const data = await Api.get('authority/view', apiParams);
+    const rows = normalizeItems(data).sort((a, b) => String(b.timestamp || '').localeCompare(String(a.timestamp || '')));
+    const totalFiltered = (data && data.pagination && data.pagination.total) ? data.pagination.total : rows.length;
+    const hasMore = rows.length < totalFiltered;
+
+    const beltOptionHtml = ['<option value="">All assigned belts</option>']
+      .concat(beltOptions.map((b) => {
+        const selected = String(b.id) === String(effectiveParams.belt_id || '') ? ' selected' : '';
+        return `<option value="${UI.escape(String(b.id))}"${selected}>${UI.escape(b.label)}</option>`;
+      }))
+      .join('');
+
+    const workTypeOptionHtml = AUTHORITY_WORK_TYPES.map((wt) => {
+      const selected = wt.value === (effectiveParams.work_type || '') ? ' selected' : '';
+      return `<option value="${UI.escape(wt.value)}"${selected}>${UI.escape(wt.label)}</option>`;
+    }).join('');
+
+    const groupByOptionHtml = AUTHORITY_GROUP_BY.map((g) => {
+      const selected = g.value === groupBy ? ' selected' : '';
+      return `<option value="${UI.escape(g.value)}"${selected}>${UI.escape(g.label)}</option>`;
+    }).join('');
+
+    const filterFormHtml = `
+      <form class="filter-grid js-filter-form av-filter-grid">
+        <label class="field">
+          <span>Belt</span>
+          <select name="belt_id">${beltOptionHtml}</select>
+        </label>
+        <label class="field">
+          <span>From</span>
+          <input type="date" name="date_from" value="${UI.escape(effectiveParams.date_from || '')}">
+        </label>
+        <label class="field">
+          <span>To</span>
+          <input type="date" name="date_to" value="${UI.escape(effectiveParams.date_to || '')}">
+        </label>
+        <label class="field">
+          <span>Work type</span>
+          <select name="work_type">${workTypeOptionHtml}</select>
+        </label>
+        <label class="field">
+          <span>Group by</span>
+          <select name="group_by">${groupByOptionHtml}</select>
+        </label>
+        <button type="submit" class="btn btn-primary"><i class="ph ph-funnel"></i><span>Apply Filters</span></button>
+      </form>
+      <div class="av-date-presets" aria-label="Date shortcuts">
+        <button type="button" class="btn btn-ghost btn-sm" data-av-preset="today">Today</button>
+        <button type="button" class="btn btn-ghost btn-sm" data-av-preset="yesterday">Yesterday</button>
+        <button type="button" class="btn btn-ghost btn-sm" data-av-preset="last7">Last 7 Days</button>
+        <button type="button" class="btn btn-ghost btn-sm" data-av-preset="month">This Month</button>
+      </div>
+      ${authorityActiveFilterChips(effectiveParams, beltOptions)}
+      <p class="av-filter-note">Defaults to today's approved photos to keep the page quick. Wider ranges load ${AUTHORITY_VIEW_BUNDLE_CAP} photos first, then you can load more.</p>
+      ${authorityDateRangeDays(effectiveParams.date_from, effectiveParams.date_to) > 7 ? '<p class="av-range-warning"><i class="ph ph-warning-circle"></i><span>This is a broad date range, so photos load 50 at a time to save mobile data and keep downloads safe.</span></p>' : ''}
+    `;
 
     const summaryHtml = `
-      <div class="stat-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
-        <div class="stat-card" style="padding: 1rem; background: var(--surface); border: 1px solid var(--line); border-radius: 8px;">
-          <div style="font-size: 0.8rem; color: var(--ink-500);">Active Belts</div>
-          <div style="font-size: 1.5rem; font-weight: bold;">${summary.total_belts}</div>
-        </div>
-        <div class="stat-card" style="padding: 1rem; background: var(--surface); border: 1px solid var(--line); border-radius: 8px;">
-          <div style="font-size: 0.8rem; color: var(--ink-500);">Morning Photos</div>
-          <div style="font-size: 1.5rem; font-weight: bold;">${summary.total_morning_photos}</div>
-        </div>
-        <div class="stat-card" style="padding: 1rem; background: var(--surface); border: 1px solid var(--line); border-radius: 8px;">
-          <div style="font-size: 0.8rem; color: var(--ink-500);">Evening Photos</div>
-          <div style="font-size: 1.5rem; font-weight: bold;">${summary.total_evening_photos}</div>
-        </div>
-        <div class="stat-card" style="padding: 1rem; background: var(--surface); border: 1px solid var(--line); border-radius: 8px;">
-          <div style="font-size: 0.8rem; color: var(--ink-500);">Total Photos</div>
-          <div style="font-size: 1.5rem; font-weight: bold;">${summary.total_photos}</div>
-        </div>
+      <div class="av-stat-grid">
+        <div class="av-stat"><span class="av-stat-label">Active belts</span><span class="av-stat-value">${summary.total_belts}</span></div>
+        <div class="av-stat"><span class="av-stat-label">Morning photos</span><span class="av-stat-value">${summary.total_morning_photos}</span></div>
+        <div class="av-stat"><span class="av-stat-label">Evening photos</span><span class="av-stat-value">${summary.total_evening_photos}</span></div>
+        <div class="av-stat"><span class="av-stat-label">Total photos</span><span class="av-stat-value">${summary.total_photos}</span></div>
       </div>
     `;
 
-    // AUTHORITY_REPRESENTATIVE does not have settings.system in scope.
-    // Catch 403 gracefully and default to hiding the WhatsApp helper.
-    let waEnabled = false;
-    try {
-      const settings = await Api.get('settings/list');
-      waEnabled = settings?.items?.find(s => s.setting_key === 'authority_whatsapp_helper_enabled')?.setting_value === '1';
-    } catch (_) {
-      // Role cannot access settings — WhatsApp helper disabled by default
+    let galleryHtml = '';
+    if (!rows.length) {
+      galleryHtml = `
+        <div class="av-empty">
+          <div class="av-empty-title">No approved photos found for this filter.</div>
+          <p>Try This Month, choose All assigned belts, or clear Work Type.</p>
+        </div>
+      `;
+    } else {
+      const groups = authorityGroupItems(rows, groupBy);
+      const groupHtml = groups.map((group) => {
+        const cards = group.rows.map((row) => {
+          const photoUrl = Api.url('upload/serve', { id: row.upload_id });
+          const time = (row.timestamp || '').replace('T', ' ').substring(0, 16);
+          const dateLabel = (row.timestamp || '').substring(0, 10);
+          const beltLabel = row.belt_code ? `${UI.escape(row.belt_code)} - ${UI.escape(row.belt_common_name || '')}` : 'Unassigned belt';
+          const workLabel = UI.escape(row.work_type || 'UNKNOWN');
+          return `
+            <article class="av-card" data-upload-id="${row.upload_id}" data-size="${row.file_size_bytes || 0}" data-photo-url="${photoUrl}" data-belt="${beltLabel}" data-work-type="${workLabel}" data-time="${UI.escape(time)}" data-date="${UI.escape(dateLabel)}" data-supervisor="${UI.escape(row.supervisor_name || '')}">
+              <div class="av-selected-badge"><i class="ph ph-check"></i></div>
+              <label class="av-card-select">
+                <input type="checkbox" class="js-av-check" data-upload-id="${row.upload_id}" aria-label="Select photo ${row.upload_id}">
+              </label>
+              <button type="button" class="av-card-photo" data-preview-id="${row.upload_id}" aria-label="Open photo ${row.upload_id}">
+                <img src="${photoUrl}" alt="Proof ${row.upload_id}" loading="lazy">
+              </button>
+              <div class="av-card-meta">
+                <div class="av-card-kv"><span>Belt</span><strong>${beltLabel}</strong></div>
+                <div class="av-card-row"><span class="av-card-type">${workLabel}</span><span>${UI.escape(authorityHumanDate(dateLabel))}</span></div>
+                <div class="av-card-row av-card-row-sub"><span>${UI.escape(time)}</span><span>${UI.escape(row.supervisor_name || '')}</span></div>
+              </div>
+              <div class="av-card-actions">
+                <button type="button" class="btn btn-ghost btn-sm js-av-download-single" data-upload-id="${row.upload_id}" aria-label="Download photo ${row.upload_id}">
+                  <i class="ph ph-download-simple"></i><span>Download</span>
+                </button>
+              </div>
+            </article>
+          `;
+        }).join('');
+        return `
+          <section class="av-group">
+            <header class="av-group-header">
+              <div class="av-group-title"><span>${UI.escape(group.label)}</span><span class="av-group-count">${group.rows.length}</span></div>
+              <label class="av-group-select"><input type="checkbox" class="js-av-group-check" data-group="${UI.escape(group.label)}"><span>Select group</span></label>
+            </header>
+            <div class="av-card-grid">${cards}</div>
+          </section>
+        `;
+      }).join('');
+      galleryHtml = `
+        <div class="av-gallery-toolbar">
+          <div><strong>Showing ${rows.length} of ${totalFiltered}</strong> approved photos</div>
+          <button type="button" class="btn btn-ghost btn-sm js-av-select-page"><i class="ph ph-check-square"></i><span>Select all on page</span></button>
+        </div>
+        ${groupHtml}
+      `;
     }
 
-    const actions = UI.button('Refresh', { icon: 'ph-arrows-clockwise', attr: 'data-refresh' }) +
-                    (waEnabled ? `<a href="${share.whatsapp_url}" target="_blank" class="btn btn-primary" style="text-decoration: none;"><i class="ph ph-whatsapp-logo"></i><span>Share on WhatsApp</span></a>` : '');
+    const loadMoreHtml = hasMore ? `
+      <div class="av-load-more-wrap">
+        <p>Showing ${rows.length} of ${totalFiltered} approved photos. Load the next ${Math.min(AUTHORITY_VIEW_BUNDLE_CAP, totalFiltered - rows.length)} to view more.</p>
+        <button type="button" class="btn btn-primary js-av-load-more" data-next-loaded="${Math.min(rows.length + AUTHORITY_VIEW_BUNDLE_CAP, totalFiltered)}">
+          <i class="ph ph-plus-circle"></i><span>Load 50 More</span>
+        </button>
+      </div>
+    ` : (rows.length ? `<div class="av-load-more-wrap av-load-more-done"><p>Showing all ${totalFiltered} approved photos for these filters.</p></div>` : '');
 
-    return UI.page('Authority View', 'Review approved green belt work submissions', actions)
-      + filterUI
-      + UI.panel('Summary Statistics', summaryHtml)
-      + UI.panel('Work Photos', UI.table(columns, rows, { empty: 'No approved work photos found for these filters' }));
+    const selectedZipName = authorityZipName(effectiveParams, beltOptions, 'selected');
+    const loadedZipName = authorityZipName(effectiveParams, beltOptions, 'loaded');
+    const bulkBar = `
+      <div class="av-bulk-bar js-av-bulk-bar" hidden>
+        <span class="av-bulk-count"><span class="js-av-bulk-count">0</span> selected</span>
+        <span class="av-bulk-meta js-av-bulk-meta">0 KB estimated</span>
+        <div class="av-bulk-spacer"></div>
+        <button type="button" class="btn btn-ghost btn-sm js-av-bulk-clear">Clear</button>
+        <button type="button" class="btn btn-primary btn-sm js-av-bulk-download" data-zip-name="${UI.escape(selectedZipName)}"><i class="ph ph-download-simple"></i><span>Download Selected</span></button>
+      </div>
+    `;
+
+    const headerActions = UI.button('Refresh', { icon: 'ph-arrows-clockwise', attr: 'data-refresh' }) +
+      `<button type="button" class="btn btn-primary btn-sm av-download-loaded js-av-download-filtered" data-zip-name="${UI.escape(loadedZipName)}" ${rows.length ? '' : 'disabled'}><i class="ph ph-download-simple"></i><span>Download Loaded Photos (${rows.length})</span></button>`;
+
+    return UI.page('Authority View', 'Approved green belt proof — filter, browse, download', headerActions)
+      + UI.panel('Filters', filterFormHtml)
+      + UI.panel('Summary statistics', summaryHtml)
+      + UI.panel('Work photos', galleryHtml)
+      + loadMoreHtml
+      + bulkBar;
   },
-  async afterRender() {
+  async afterRender({ params = {} }) {
     attachRefresh();
-    wireFilters((payload) => App.navigate('green_belt.authority_view', payload));
+    const effectiveParams = authorityNormalizeParams(params);
 
-    document.querySelectorAll('[data-preview-id]').forEach(img => {
-      img.addEventListener('click', (e) => {
+    document.querySelector('.js-filter-form')?.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const payload = UI.formData(event.currentTarget);
+      delete payload.date;
+      delete payload.page;
+      delete payload.loaded;
+      Object.keys(payload).forEach((key) => {
+        if (payload[key] === '' || payload[key] == null) delete payload[key];
+      });
+      // Auto-swap reversed date range so the AR never gets silent empty results.
+      if (payload.date_from && payload.date_to && payload.date_from > payload.date_to) {
+        const swap = payload.date_from;
+        payload.date_from = payload.date_to;
+        payload.date_to = swap;
+        UI.toast('Date range adjusted — From was after To', '');
+      }
+      App.navigate('green_belt.authority_view', payload);
+    });
+
+    const bulkBar = document.querySelector('.js-av-bulk-bar');
+    const bulkCount = document.querySelector('.js-av-bulk-count');
+    const bulkMeta = document.querySelector('.js-av-bulk-meta');
+    const selectedIds = new Set();
+    const selectedSizes = new Map();
+
+    document.querySelectorAll('.av-card').forEach((card) => {
+      selectedSizes.set(parseInt(card.dataset.uploadId, 10), Number(card.dataset.size || 0));
+    });
+
+    const refreshBulkBar = () => {
+      if (!bulkBar) return;
+      if (selectedIds.size === 0) {
+        bulkBar.setAttribute('hidden', '');
+      } else {
+        bulkBar.removeAttribute('hidden');
+        if (bulkCount) bulkCount.textContent = String(selectedIds.size);
+        if (bulkMeta) {
+          const bytes = Array.from(selectedIds).reduce((sum, id) => sum + (selectedSizes.get(id) || 0), 0);
+          bulkMeta.textContent = `${authorityFormatBytes(bytes)} estimated`;
+        }
+      }
+    };
+
+    document.querySelectorAll('[data-av-preset]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const next = { ...effectiveParams };
+        delete next.page;
+        delete next.loaded;
+        delete next.date;
+        if (btn.dataset.avPreset === 'today') {
+          next.date_from = authorityLocalDate();
+          next.date_to = authorityLocalDate();
+        } else if (btn.dataset.avPreset === 'yesterday') {
+          const yesterday = authorityShiftDate(-1);
+          next.date_from = yesterday;
+          next.date_to = yesterday;
+        } else if (btn.dataset.avPreset === 'last7') {
+          next.date_from = authorityShiftDate(-6);
+          next.date_to = authorityLocalDate();
+        } else if (btn.dataset.avPreset === 'month') {
+          next.date_from = authorityMonthStart();
+          next.date_to = authorityLocalDate();
+        }
+        App.navigate('green_belt.authority_view', next);
+      });
+    });
+
+    document.querySelectorAll('[data-av-clear]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const next = { ...effectiveParams };
+        btn.dataset.avClear.split(',').forEach((key) => delete next[key]);
+        delete next.page;
+        delete next.loaded;
+        App.navigate('green_belt.authority_view', next);
+      });
+    });
+
+    document.querySelector('.js-av-load-more')?.addEventListener('click', (event) => {
+      const next = { ...effectiveParams };
+      delete next.page;
+      next.loaded = event.currentTarget.dataset.nextLoaded || String(AUTHORITY_VIEW_BUNDLE_CAP);
+      App.navigate('green_belt.authority_view', next);
+    });
+
+    document.querySelectorAll('.js-av-check').forEach((box) => {
+      box.addEventListener('change', () => {
+        const id = parseInt(box.dataset.uploadId, 10);
+        if (box.checked) selectedIds.add(id); else selectedIds.delete(id);
+        box.closest('.av-card')?.classList.toggle('av-card-selected', box.checked);
+        refreshBulkBar();
+      });
+    });
+
+    document.querySelectorAll('.js-av-group-check').forEach((groupBox) => {
+      groupBox.addEventListener('change', () => {
+        const section = groupBox.closest('.av-group');
+        section?.querySelectorAll('.js-av-check').forEach((cb) => {
+          cb.checked = groupBox.checked;
+          const id = parseInt(cb.dataset.uploadId, 10);
+          if (groupBox.checked) selectedIds.add(id); else selectedIds.delete(id);
+          cb.closest('.av-card')?.classList.toggle('av-card-selected', groupBox.checked);
+        });
+        refreshBulkBar();
+      });
+    });
+
+    document.querySelector('.js-av-select-page')?.addEventListener('click', () => {
+      document.querySelectorAll('.js-av-check').forEach((cb) => {
+        cb.checked = true;
+        const id = parseInt(cb.dataset.uploadId, 10);
+        selectedIds.add(id);
+        cb.closest('.av-card')?.classList.add('av-card-selected');
+      });
+      document.querySelectorAll('.js-av-group-check').forEach((cb) => { cb.checked = true; });
+      refreshBulkBar();
+    });
+
+    document.querySelector('.js-av-bulk-clear')?.addEventListener('click', () => {
+      selectedIds.clear();
+      document.querySelectorAll('.js-av-check').forEach((cb) => { cb.checked = false; cb.closest('.av-card')?.classList.remove('av-card-selected'); });
+      document.querySelectorAll('.js-av-group-check').forEach((cb) => { cb.checked = false; });
+      refreshBulkBar();
+    });
+
+    document.querySelector('.js-av-bulk-download')?.addEventListener('click', async () => {
+      const ids = Array.from(selectedIds);
+      if (!ids.length) return;
+      const zipName = document.querySelector('.js-av-bulk-download')?.dataset.zipName || `authority-selected-${Date.now()}.zip`;
+      await authorityDownloadBundle(ids, zipName);
+    });
+
+    document.querySelectorAll('.js-av-download-single').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
         e.stopPropagation();
-        const url = Api.url('upload/serve', { id: img.dataset.previewId });
-        UI.showModal('Photo Details', `<div style="text-align: center;"><img src="${url}" style="max-width: 100%; max-height: 70vh; border-radius: 4px;"></div>`);
+        authorityDownloadSingle(parseInt(btn.dataset.uploadId, 10));
+      });
+    });
+
+    document.querySelector('.js-av-download-filtered')?.addEventListener('click', async () => {
+      const ids = Array.from(document.querySelectorAll('.js-av-check')).map((cb) => parseInt(cb.dataset.uploadId, 10));
+      if (!ids.length) return;
+      const zipName = document.querySelector('.js-av-download-filtered')?.dataset.zipName || `authority-filtered-${Date.now()}.zip`;
+      await authorityDownloadBundle(ids, zipName);
+    });
+
+    const previewItems = Array.from(document.querySelectorAll('.av-card')).map((card) => ({
+      id: parseInt(card.dataset.uploadId, 10),
+      url: card.dataset.photoUrl,
+      belt: card.dataset.belt || '',
+      workType: card.dataset.workType || '',
+      time: card.dataset.time || '',
+      date: card.dataset.date || '',
+      supervisor: card.dataset.supervisor || '',
+      size: Number(card.dataset.size || 0)
+    }));
+
+    let authorityPreviewKeyHandler = null;
+    let authorityPreviewTouchStart = null;
+    let authorityPreviewTouchMoveHandler = null;
+    let authorityPreviewTouchEndHandler = null;
+    let authorityPreviewTouchTarget = null;
+
+    const detachAuthorityPreviewKeys = () => {
+      if (authorityPreviewKeyHandler) {
+        document.removeEventListener('keydown', authorityPreviewKeyHandler);
+        authorityPreviewKeyHandler = null;
+      }
+    };
+
+    const detachAuthorityPreviewSwipe = () => {
+      if (authorityPreviewTouchTarget && authorityPreviewTouchMoveHandler) {
+        authorityPreviewTouchTarget.removeEventListener('touchstart', authorityPreviewTouchMoveHandler);
+        authorityPreviewTouchTarget.removeEventListener('touchend', authorityPreviewTouchEndHandler);
+      }
+      authorityPreviewTouchTarget = null;
+      authorityPreviewTouchMoveHandler = null;
+      authorityPreviewTouchEndHandler = null;
+      authorityPreviewTouchStart = null;
+    };
+
+    const openAuthorityPreview = (index) => {
+      const item = previewItems[index];
+      if (!item) return;
+      const counter = `${index + 1} of ${previewItems.length}`;
+      UI.showModal('Photo Details',
+        `<div class="av-preview-shell">
+           <div class="av-preview-media">
+             <img src="${item.url}" alt="Photo ${UI.escape(String(item.id))}">
+           </div>
+           <div class="av-preview-meta">
+             <div><span>Photo</span><strong>${UI.escape(counter)}</strong></div>
+             <div><span>Belt</span><strong>${UI.escape(item.belt)}</strong></div>
+             <div><span>Date/time</span><strong>${UI.escape(item.time)}</strong></div>
+             <div><span>Work type</span><strong>${UI.escape(item.workType)}</strong></div>
+             <div><span>Supervisor</span><strong>${UI.escape(item.supervisor || '-')}</strong></div>
+             <div><span>File size</span><strong>${UI.escape(authorityFormatBytes(item.size))}</strong></div>
+           </div>
+         </div>
+         <div class="av-preview-actions">
+           <button type="button" class="btn btn-ghost js-av-preview-prev" ${index <= 0 ? 'disabled' : ''}><i class="ph ph-caret-left"></i><span>Previous</span></button>
+           <button type="button" class="btn btn-ghost js-av-preview-next" ${index >= previewItems.length - 1 ? 'disabled' : ''}><span>Next</span><i class="ph ph-caret-right"></i></button>
+           <button type="button" class="btn btn-primary js-av-modal-download" data-upload-id="${item.id}"><i class="ph ph-download-simple"></i><span>Download</span></button>
+           <button type="button" class="btn btn-ghost" data-modal-close>Close</button>
+         </div>
+         <p class="av-preview-hint"><span class="av-preview-hint-keys">Shortcuts: <kbd>←</kbd> <kbd>→</kbd> navigate · <kbd>Esc</kbd> close · <kbd>D</kbd> download</span><span class="av-preview-hint-touch">Swipe left or right to navigate</span></p>`);
+      document.querySelector('.js-av-modal-download')?.addEventListener('click', () => authorityDownloadSingle(item.id));
+      document.querySelector('.js-av-preview-prev')?.addEventListener('click', () => openAuthorityPreview(index - 1));
+      document.querySelector('.js-av-preview-next')?.addEventListener('click', () => openAuthorityPreview(index + 1));
+
+      // Wire keyboard shortcuts. Re-attach on every reopen so the closure captures the current index.
+      detachAuthorityPreviewKeys();
+      authorityPreviewKeyHandler = (event) => {
+        if (!document.querySelector('.av-preview-shell')) {
+          detachAuthorityPreviewKeys();
+          return;
+        }
+        if (event.key === 'ArrowLeft' && index > 0) {
+          event.preventDefault();
+          openAuthorityPreview(index - 1);
+        } else if (event.key === 'ArrowRight' && index < previewItems.length - 1) {
+          event.preventDefault();
+          openAuthorityPreview(index + 1);
+        } else if (event.key === 'Escape') {
+          event.preventDefault();
+          detachAuthorityPreviewKeys();
+          UI.closeModal();
+        } else if (event.key === 'd' || event.key === 'D') {
+          event.preventDefault();
+          authorityDownloadSingle(item.id);
+        }
+      };
+      document.addEventListener('keydown', authorityPreviewKeyHandler);
+
+      // Wire swipe gestures on the photo area for mobile users.
+      // Threshold: horizontal travel > 50px AND |dx| > |dy| * 1.4 so vertical scrolls do not trigger nav.
+      detachAuthorityPreviewSwipe();
+      const swipeTarget = document.querySelector('.av-preview-media');
+      if (swipeTarget) {
+        authorityPreviewTouchTarget = swipeTarget;
+        authorityPreviewTouchMoveHandler = (event) => {
+          if (event.touches && event.touches.length === 1) {
+            authorityPreviewTouchStart = { x: event.touches[0].clientX, y: event.touches[0].clientY };
+          }
+        };
+        authorityPreviewTouchEndHandler = (event) => {
+          if (!authorityPreviewTouchStart || !event.changedTouches || event.changedTouches.length !== 1) {
+            authorityPreviewTouchStart = null;
+            return;
+          }
+          const dx = event.changedTouches[0].clientX - authorityPreviewTouchStart.x;
+          const dy = event.changedTouches[0].clientY - authorityPreviewTouchStart.y;
+          authorityPreviewTouchStart = null;
+          if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.4) return;
+          if (dx < 0 && index < previewItems.length - 1) {
+            // swipe left → next photo
+            openAuthorityPreview(index + 1);
+          } else if (dx > 0 && index > 0) {
+            // swipe right → previous photo
+            openAuthorityPreview(index - 1);
+          }
+        };
+        swipeTarget.addEventListener('touchstart', authorityPreviewTouchMoveHandler, { passive: true });
+        swipeTarget.addEventListener('touchend', authorityPreviewTouchEndHandler, { passive: true });
+      }
+
+      // Detach listeners when the modal is dismissed via click on backdrop / Close button.
+      const modalRoot = document.getElementById('modal-root');
+      if (modalRoot) {
+        const observer = new MutationObserver(() => {
+          if (!document.querySelector('.av-preview-shell')) {
+            detachAuthorityPreviewKeys();
+            detachAuthorityPreviewSwipe();
+            observer.disconnect();
+          }
+        });
+        observer.observe(modalRoot, { childList: true, subtree: true });
+      }
+    };
+
+    document.querySelectorAll('[data-preview-id]').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = parseInt(btn.dataset.previewId, 10);
+        const index = previewItems.findIndex((item) => item.id === id);
+        openAuthorityPreview(index >= 0 ? index : 0);
       });
     });
   }
