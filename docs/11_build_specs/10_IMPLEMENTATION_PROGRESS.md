@@ -147,7 +147,7 @@ Local test credentials:
 
 ## Asset Cache Markers
 
-Current: `modules.js?v=29`, `navigation.js?v=12`, `app.js?v=11`, `api/auth/ui?v=3`, `style.css?v=3`.
+Current: `modules.js?v=31`, `navigation.js?v=12`, `app.js?v=13`, `ui.js?v=4`, `api/auth/ui?v=3`, `style.css?v=3`.
 Bump relevant script version in `public/index.html` after any frontend JS change.
 
 ## Test Infrastructure

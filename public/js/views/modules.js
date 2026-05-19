@@ -157,6 +157,7 @@ function openSimpleForm(title, fields, submitLabel, handler, extraHTML = '') {
   UI.showModal(title, UI.form(fields, submitLabel, extraHTML));
   const form = document.querySelector('.js-action-form');
   if (!form) return;
+  bindVisibleValidation(form);
 
   form.onsubmit = async (event) => {
     event.preventDefault();
@@ -171,6 +172,24 @@ function openSimpleForm(title, fields, submitLabel, handler, extraHTML = '') {
       UI.toast(error.message, 'bad');
     }
   };
+}
+
+function bindVisibleValidation(form) {
+  const errorBox = form.querySelector('.js-form-error');
+  if (!errorBox) return;
+
+  form.querySelectorAll('[required]').forEach((field) => {
+    field.addEventListener('invalid', () => {
+      const label = field.closest('.field')?.querySelector('span')?.textContent || field.name || 'This field';
+      errorBox.textContent = `${label} is required.`;
+    });
+    field.addEventListener('input', () => {
+      if (field.checkValidity()) errorBox.textContent = '';
+    });
+    field.addEventListener('change', () => {
+      if (field.checkValidity()) errorBox.textContent = '';
+    });
+  });
 }
 
 function dashboardView(route, title, subtitle, actionsHTML) {
@@ -1039,13 +1058,35 @@ Views.register('media.free_media_inventory', {
 function uploadView(surface, parentType, title) {
   return {
     async render() {
+      let parentField = UI.field({ name: 'parent_id', label: `${UI.titleize(parentType)} ID`, type: 'number', required: true });
+      if (parentType === 'GREEN_BELT') {
+        try {
+          const targetData = await Api.get('upload/targets');
+          const targets = normalizeItems(targetData);
+          if (targets.length) {
+            parentField = UI.field({
+              name: 'parent_id',
+              label: 'Assigned Green Belt',
+              type: 'select',
+              required: true,
+              options: targets.map((target) => ({
+                value: target.id,
+                label: target.label || `Belt #${target.id}`
+              }))
+            });
+          }
+        } catch (_) {
+          // Keep numeric fallback for roles without scoped target lists.
+        }
+      }
+
       return UI.page(title, 'Submit field proof with photos')
         + UI.panel('Upload Proof', `
           <form class="stack-form js-upload-form">
             <input type="hidden" name="gps_latitude" id="gps_latitude" value="">
             <input type="hidden" name="gps_longitude" id="gps_longitude" value="">
             <div class="form-grid">
-              ${UI.field({ name: 'parent_id', label: `${UI.titleize(parentType)} ID`, type: 'number', required: true })}
+              ${parentField}
               ${UI.field({ name: 'upload_type', label: 'Upload Type', type: 'select', value: 'WORK', options: parentType === 'TASK' ? ['WORK'] : ['WORK', 'ISSUE'] })}
               ${parentType === 'TASK' ? UI.field({ name: 'photo_label', label: 'Photo Label', type: 'select', value: 'AFTER_WORK', options: ['BEFORE_WORK', 'AFTER_WORK', 'GENERAL'] }) : ''}
               ${parentType === 'SITE' ? UI.field({ name: 'discovery_mode', label: 'Discovery Mode', type: 'select', value: '0', options: [{ value: '0', label: 'No' }, { value: '1', label: 'Yes' }] }) : ''}
@@ -1496,7 +1537,7 @@ Views.register('task.request_intake', {
     const data = await Api.get('request/list', params);
     const rows = normalizeItems(data);
     const columns = [
-      { key: 'id', label: 'ID' },
+      { key: 'request_code', label: 'Request ID', render: (row) => row.request_code || `RQ-${String(row.id).padStart(5, '0')}` },
       { key: 'requester_name', label: 'Requester' },
       { key: 'request_type', label: 'Type' },
       { key: 'client_name', label: 'Client' },
@@ -1593,6 +1634,7 @@ Views.register('task.request_intake', {
         UI.showModal('Request Details', `
           <div class="stack-form">
             <div class="form-grid">
+              <div class="field"><span>Request ID</span><input type="text" value="${UI.escape(request.request_code || `RQ-${String(request.id).padStart(5, '0')}`)}" readonly></div>
               <div class="field"><span>Type</span><input type="text" value="${request.request_type}" readonly></div>
               <div class="field"><span>Requester</span><input type="text" value="${request.requester_name}" readonly></div>
               <div class="field"><span>Client</span><input type="text" value="${request.client_name || 'N/A'}" readonly></div>
@@ -2065,6 +2107,7 @@ Views.register('green_belt.upload_review', {
       { 
         key: 'thumbnail', 
         label: '<input type="checkbox" id="selectAllUploads">', 
+        headerHtml: true,
         html: true, 
         render: (row) => {
           const disabled = isReviewableWorkUpload(row) ? '' : 'disabled';
@@ -2234,7 +2277,7 @@ Views.register('green_belt.issue_management', {
     const data = await Api.get('issue/list', params);
     const rows = normalizeItems(data);
     const columns = [
-      { key: 'id', label: 'ID' },
+      { key: 'issue_code', label: 'Issue ID', render: (row) => row.issue_code || `IS-${String(row.id).padStart(5, '0')}` },
       { key: 'title', label: 'Title' },
       { key: 'priority', label: 'Priority', html: true, render: (row) => UI.status(row.priority) },
       { key: 'status', label: 'Status', html: true, render: (row) => UI.status(row.status) },
@@ -2290,7 +2333,7 @@ Views.register('green_belt.issue_management', {
         UI.showModal('Issue Detail', `
           <div class="stack-form">
             <div class="form-grid">
-              <div class="field"><span>ID</span><input type="text" value="${issue.id}" readonly></div>
+              <div class="field"><span>Issue ID</span><input type="text" value="${UI.escape(issue.issue_code || `IS-${String(issue.id).padStart(5, '0')}`)}" readonly></div>
               <div class="field"><span>Title</span><input type="text" value="${UI.escape(issue.title)}" readonly></div>
               <div class="field"><span>Status</span><input type="text" value="${issue.status}" readonly></div>
               <div class="field"><span>Priority</span><input type="text" value="${issue.priority}" readonly></div>

@@ -315,6 +315,10 @@ This section is the single place for all recurring traps, enum facts, field name
 - **The `authority_assignments` table is named `belt_authority_assignments`** (not `authority_assignments`). Similarly supervisor assignments live in `belt_supervisor_assignments` and outsourced in `belt_outsourced_assignments`. (Found when debugging T22.)
 - **Supervisor Upload parent_type must be `GREEN_BELT`** (not `BELT`) when calling `upload/create` as GREEN_BELT_SUPERVISOR. The SUPERVISOR surface config requires exactly `GREEN_BELT` as parent_type or it throws "Invalid parent_type for this upload surface." The file field name is `files[]` (not `photos[]`). (Found in T09.)
 - **The `issues` table has no `is_deleted` column** — issues use status transitions (OPEN → IN_PROGRESS → CLOSED) rather than soft delete. Do not add `is_deleted` filters to issue queries. (Found in T25 pre-flight.)
+- **`task_requests` and `issues` expose derived readable IDs.** Use `request_code` (`RQ-00001`) and `issue_code` (`IS-00001`) from API responses for UI/test display; the database still uses integer `id` as the primary key. (Fixed after T25, T27.)
+- **Task request status should become `CONVERTED` when a task is created from it.** A request is `APPROVED` after `request/approve`, then `task/create` with `request_id` moves it to `CONVERTED`. (Verified after T28.)
+- **TASK completion proof uses `upload_type=WORK` plus `photo_label=AFTER_WORK`.** Do not send `upload_type=AFTER_WORK`; the upload type remains canonical `WORK`, and `photo_label` carries BEFORE/AFTER labeling. (Verified after T29.)
+- **`task_requests` context field is required:** `request/create` requires at least one of `campaign_id`, `site_id`, or `belt_id`. Omitting all three returns 400 "At least one operational context field must be provided." (Found in T27.)
 
 ## Validation Commands
 

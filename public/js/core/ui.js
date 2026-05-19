@@ -104,11 +104,14 @@ const UI = {
     `;
   },
 
-  panel(title, body, actions = '') {
+  panel(title, body, actions = '', options = {}) {
+    const renderedTitle = options.titleHtml || /<span\b/i.test(String(title))
+      ? title
+      : this.escape(title);
     return `
       <section class="panel">
         <div class="section-header">
-          <h2>${this.escape(title)}</h2>
+          <h2>${renderedTitle}</h2>
           ${actions ? `<div class="inline-actions">${actions}</div>` : ''}
         </div>
         <div class="section-body">${body}</div>
@@ -125,7 +128,7 @@ const UI = {
       <div class="data-table-wrap">
         <table class="data-table">
           <thead>
-            <tr>${columns.map((column) => `<th>${this.escape(column.label)}</th>`).join('')}</tr>
+            <tr>${columns.map((column) => `<th>${column.headerHtml ? column.label : this.escape(column.label)}</th>`).join('')}</tr>
           </thead>
           <tbody>
             ${rows.map((row) => {
@@ -197,6 +200,7 @@ const UI = {
   form(fields, submitLabel = 'Save', extra = '') {
     return `
       <form class="stack-form js-action-form">
+        <div class="form-error js-form-error" role="alert" aria-live="polite"></div>
         <div class="form-grid">${fields.map((field) => this.field(field)).join('')}</div>
         ${extra}
         <div class="modal-actions">

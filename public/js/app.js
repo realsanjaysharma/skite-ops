@@ -39,6 +39,14 @@ const App = {
     this.els.btnLogout?.addEventListener('click', this.handleLogout.bind(this));
     this.els.btnMobileMenu?.addEventListener('click', () => this.els.appShell.classList.add('nav-open'));
     this.els.mobileScrim?.addEventListener('click', () => this.els.appShell.classList.remove('nav-open'));
+    window.addEventListener('hashchange', () => {
+      if (this.els.appShell?.classList.contains('hidden')) return;
+      const hashState = this.parseHash();
+      const paramsChanged = JSON.stringify(hashState?.params || {}) !== JSON.stringify(this.currentParams || {});
+      if (hashState?.moduleKey && (hashState.moduleKey !== this.currentModuleKey || paramsChanged)) {
+        this.navigate(hashState.moduleKey, hashState.params, { replaceHistory: true });
+      }
+    });
   },
 
   async handleLogin(event) {
@@ -79,12 +87,15 @@ const App = {
     this.allowedModuleKeys = Auth.getAllowedModuleKeys();
     Navigation.renderSidebar(this.allowedModuleKeys, roleKey);
 
-    const landingModule = Navigation.findModuleByRoute(Auth.getLandingRoute())
+    const hashState = this.parseHash();
+    const landingModule = hashState?.moduleKey && this.allowedModuleKeys.includes(hashState.moduleKey)
+      ? hashState.moduleKey
+      : Navigation.findModuleByRoute(Auth.getLandingRoute())
       || Navigation.firstVisibleModule(this.allowedModuleKeys, roleKey);
-    this.navigate(landingModule);
+    this.navigate(landingModule, hashState?.params || {}, { replaceHistory: true });
   },
 
-  async navigate(moduleKey, params = {}) {
+  async navigate(moduleKey, params = {}, options = {}) {
     const config = Navigation.getConfig(moduleKey);
     if (!config) {
       this.render(UI.error(`Unknown module: ${moduleKey}`));
@@ -98,6 +109,7 @@ const App = {
 
     this.currentModuleKey = moduleKey;
     this.currentParams = params;
+    this.updateHash(moduleKey, params, options.replaceHistory);
     this.els.appShell.classList.remove('nav-open');
     this.els.pageKicker.textContent = config.section || 'Workspace';
     Navigation.setActive(moduleKey);
@@ -121,6 +133,31 @@ const App = {
 
   render(html) {
     this.els.moduleContainer.innerHTML = html;
+  },
+
+  parseHash() {
+    const hash = window.location.hash.replace(/^#/, '');
+    if (!hash) return null;
+    const [moduleKey, query = ''] = hash.split('?');
+    if (!moduleKey) return null;
+    return {
+      moduleKey,
+      params: Object.fromEntries(new URLSearchParams(query).entries())
+    };
+  },
+
+  updateHash(moduleKey, params = {}, replace = false) {
+    const search = new URLSearchParams();
+    Object.entries(params || {}).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') search.set(key, value);
+    });
+    const nextHash = `#${moduleKey}${search.toString() ? `?${search.toString()}` : ''}`;
+    if (window.location.hash === nextHash) return;
+    if (replace) {
+      window.history.replaceState(null, '', nextHash);
+    } else {
+      window.history.pushState(null, '', nextHash);
+    }
   }
 };
 

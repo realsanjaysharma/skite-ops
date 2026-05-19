@@ -25,6 +25,7 @@ class RequestRepository extends BaseRepository
     {
         return $this->fetchOne(
             "SELECT r.*,
+                    CONCAT('RQ-', LPAD(r.id, 5, '0')) AS request_code,
                     creator.full_name AS requester_name,
                     reviewer.full_name AS reviewer_name,
                     gb.belt_code,
@@ -70,6 +71,7 @@ class RequestRepository extends BaseRepository
 
         return $this->fetchAll(
             "SELECT r.*,
+                    CONCAT('RQ-', LPAD(r.id, 5, '0')) AS request_code,
                     creator.full_name AS requester_name,
                     reviewer.full_name AS reviewer_name,
                     gb.belt_code,

@@ -376,8 +376,11 @@ class BeltService
         $becameHidden = (int) $existing['is_hidden'] === 0 && (int) $newValues['is_hidden'] === 1;
         $becameExpired = $existing['permission_status'] !== 'EXPIRED'
             && $newValues['permission_status'] === 'EXPIRED';
+        $permissionEndDate = $newValues['permission_end_date'] ?? null;
+        $hasExpiredPermissionDate = !empty($permissionEndDate)
+            && $permissionEndDate < date('Y-m-d');
 
-        if (!$becameHidden && !$becameExpired) {
+        if (!$becameHidden && !$becameExpired && !$hasExpiredPermissionDate) {
             return;
         }
 

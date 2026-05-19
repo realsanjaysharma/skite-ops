@@ -28,6 +28,7 @@ class IssueRepository extends BaseRepository
     {
         return $this->fetchOne(
             "SELECT i.*,
+                    CONCAT('IS-', LPAD(i.id, 5, '0')) AS issue_code,
                     creator.full_name AS raised_by_user_name,
                     closer.full_name AS closed_by_user_name,
                     gb.belt_code,
@@ -81,6 +82,7 @@ class IssueRepository extends BaseRepository
 
         return $this->fetchAll(
             "SELECT i.*,
+                    CONCAT('IS-', LPAD(i.id, 5, '0')) AS issue_code,
                     gb.belt_code,
                     gb.common_name AS belt_name,
                     s.site_code,

@@ -532,6 +532,12 @@ return [
         'module_key' => null,
         'capability' => 'upload',
     ],
+    'upload/targets' => [
+        'controller' => 'UploadController',
+        'method'     => 'targets',
+        'module_key' => null,
+        'capability' => 'read',
+    ],
     'upload/my-list' => [
         'controller' => 'UploadController',
         'method'     => 'myList',
@@ -549,7 +555,7 @@ return [
     'upload/serve' => [
         'controller' => 'UploadController',
         'method'     => 'serve',
-        'module_key' => 'green_belt.detail',
+        'module_key' => null,
         'capability' => 'read',
     ],
 
@@ -922,4 +928,3 @@ return [
     ],
 
 ];
-

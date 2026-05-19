@@ -166,6 +166,56 @@ class UploadController extends BaseController
     }
 
     /**
+     * GET upload/targets — current-role upload parent choices.
+     *
+     * Used by upload forms to avoid free-text IDs for assigned green belts.
+     */
+    public function targets(): void
+    {
+        if (!$this->requireMethod('GET')) return;
+
+        $actor = $this->getActor();
+        $roleKey = $actor['role_key'];
+
+        try {
+            if ($roleKey === 'GREEN_BELT_SUPERVISOR' || $roleKey === 'OUTSOURCED_MAINTAINER') {
+                require_once __DIR__ . '/../repositories/BeltAssignmentRepository.php';
+                $assignmentType = $roleKey === 'GREEN_BELT_SUPERVISOR' ? 'supervisor' : 'outsourced';
+                $repo = new BeltAssignmentRepository();
+                $assignments = $repo->findByUserId($assignmentType, $actor['user_id']);
+                $today = date('Y-m-d');
+
+                $items = array_values(array_map(
+                    static function (array $assignment): array {
+                        return [
+                            'id' => (int) $assignment['belt_id'],
+                            'label' => trim(($assignment['belt_code'] ?? '') . ' - ' . ($assignment['common_name'] ?? '')),
+                        ];
+                    },
+                    array_filter(
+                        $assignments,
+                        static fn(array $assignment): bool =>
+                            empty($assignment['end_date']) || $assignment['end_date'] >= $today
+                    )
+                ));
+
+                Response::success([
+                    'items' => $items,
+                    'pagination' => ['page' => 1, 'limit' => count($items), 'total' => count($items)],
+                ]);
+                return;
+            }
+
+            Response::success([
+                'items' => [],
+                'pagination' => ['page' => 1, 'limit' => 0, 'total' => 0],
+            ]);
+        } catch (Throwable $e) {
+            Response::error($e->getMessage(), 400);
+        }
+    }
+
+    /**
      * GET upload/my-list — creator-scoped upload list for My Uploads page.
      *
      * Response strips authority_visibility and review-state fields per Page Spec §9:

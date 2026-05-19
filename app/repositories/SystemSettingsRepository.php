@@ -7,14 +7,14 @@ class SystemSettingsRepository extends BaseRepository
     public function getAllSettings(): array
     {
         return $this->fetchAll(
-            "SELECT setting_key, setting_value, value_type, description FROM system_settings ORDER BY setting_key ASC"
+            "SELECT id, setting_key, setting_value, value_type, description FROM system_settings ORDER BY setting_key ASC"
         );
     }
 
     public function getSettingByKey(string $key): ?array
     {
         $row = $this->fetchOne(
-            "SELECT setting_key, setting_value, value_type, description FROM system_settings WHERE setting_key = :key",
+            "SELECT id, setting_key, setting_value, value_type, description FROM system_settings WHERE setting_key = :key",
             ['key' => $key]
         );
         return $row ?: null;
