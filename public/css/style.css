@@ -46,7 +46,8 @@ textarea {
   font: inherit;
 }
 
-.hidden {
+.hidden,
+[hidden] {
   display: none !important;
 }
 
@@ -1588,5 +1589,306 @@ textarea {
 @media (max-width: 380px) {
   .av-card-grid {
     grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* ==========================================================================
+   Upload form — mobile-first (Supervisor Upload + Outsourced Upload)
+   ========================================================================== */
+
+.upload-mobile-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.upload-section {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line, #e2e8f0);
+}
+
+.upload-section:last-of-type {
+  border-bottom: 0;
+}
+
+.upload-section-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--ink-700, #334155);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.upload-required {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--bad, #b91c1c);
+  background: rgba(185, 28, 28, 0.08);
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Upload type chips (WORK / ISSUE) */
+.upload-type-chips {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.upload-type-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 14px 10px;
+  border: 2px solid var(--line, #e2e8f0);
+  border-radius: 12px;
+  background: var(--surface, #fff);
+  color: var(--ink-500, #64748b);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 120ms, background 120ms, color 120ms;
+  min-height: 72px;
+}
+
+.upload-type-chip i {
+  font-size: 1.4rem;
+}
+
+.upload-type-chip:hover {
+  border-color: var(--brand, #0f766e);
+  color: var(--brand-deep, #115e59);
+}
+
+.upload-type-chip.active {
+  border-color: var(--brand, #0f766e);
+  background: rgba(15, 118, 110, 0.07);
+  color: var(--brand-deep, #115e59);
+}
+
+/* Work type chips */
+.upload-work-type-chips {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: 10px;
+}
+
+.upload-work-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 12px 8px;
+  border: 2px solid var(--line, #e2e8f0);
+  border-radius: 12px;
+  background: var(--surface, #fff);
+  color: var(--ink-500, #64748b);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 120ms, background 120ms, color 120ms;
+  min-height: 72px;
+}
+
+.upload-work-chip i {
+  font-size: 1.3rem;
+}
+
+.upload-work-chip:hover {
+  border-color: var(--brand, #0f766e);
+  color: var(--brand-deep, #115e59);
+}
+
+.upload-work-chip.active {
+  border-color: var(--brand, #0f766e);
+  background: rgba(15, 118, 110, 0.09);
+  color: var(--brand-deep, #115e59);
+}
+
+/* Camera / gallery file picker button */
+.upload-file-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 64px;
+  padding: 16px;
+  border: 2px dashed var(--line-strong, #b8c4d2);
+  border-radius: 14px;
+  background: var(--surface-soft, #f0f4f8);
+  color: var(--ink-700, #334155);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  position: relative;
+  transition: border-color 120ms, background 120ms;
+}
+
+.upload-file-btn:hover,
+.upload-file-btn:focus-within {
+  border-color: var(--brand, #0f766e);
+  background: rgba(15, 118, 110, 0.05);
+}
+
+.upload-file-btn i {
+  font-size: 1.6rem;
+  color: var(--brand, #0f766e);
+}
+
+.upload-file-input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+}
+
+/* Thumbnail preview grid */
+.upload-preview {
+  padding: 12px 0;
+}
+
+.upload-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--ink-700, #334155);
+}
+
+.upload-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 8px;
+}
+
+.upload-thumb-wrap {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.upload-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.upload-thumb-remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.72);
+  border: 0;
+  color: #fff;
+  font-size: 0.7rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+
+/* Progress bar */
+.upload-progress {
+  padding: 12px 0;
+}
+
+.upload-progress-track {
+  height: 6px;
+  background: var(--line, #e2e8f0);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.upload-progress-fill {
+  height: 100%;
+  background: var(--brand, #0f766e);
+  border-radius: 999px;
+  transition: width 200ms ease;
+}
+
+.upload-progress-text {
+  font-size: 0.88rem;
+  color: var(--ink-500, #64748b);
+  margin: 0;
+  text-align: center;
+}
+
+/* Submit button */
+.upload-submit-btn {
+  margin-top: 8px;
+  min-height: 52px;
+  font-size: 1rem;
+  border-radius: 14px;
+  justify-content: center;
+}
+
+.upload-submit-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Success card */
+.upload-success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 32px 16px;
+  gap: 8px;
+}
+
+.upload-success-icon {
+  font-size: 3rem;
+  color: var(--good, #047857);
+}
+
+.upload-success h3 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.upload-success-sub {
+  margin: 0;
+  color: var(--ink-500, #64748b);
+  font-size: 0.9rem;
+}
+
+.upload-success-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 12px;
+}
+
+/* Wider screens — work type chips in one row */
+@media (min-width: 480px) {
+  .upload-work-type-chips {
+    grid-template-columns: repeat(5, 1fr);
+  }
+  .upload-type-chips {
+    grid-template-columns: repeat(2, minmax(0, 160px));
+    justify-content: flex-start;
   }
 }

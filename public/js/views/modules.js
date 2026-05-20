@@ -1055,80 +1055,342 @@ Views.register('media.free_media_inventory', {
 });
 
 
+const UPLOAD_WORK_TYPES = [
+  { value: 'ROUTINE_MAINTENANCE', label: 'Routine',  icon: 'ph-broom'    },
+  { value: 'REPAIR',              label: 'Repair',   icon: 'ph-wrench'   },
+  { value: 'PLANTING',            label: 'Planting', icon: 'ph-plant'    },
+  { value: 'WATERING',            label: 'Watering', icon: 'ph-drop'     },
+  { value: 'CLEANING',            label: 'Cleaning', icon: 'ph-sparkle'  },
+];
+
+/**
+ * Upload files with real XHR progress events.
+ * Returns a Promise resolving to the server response data.
+ * @param {FormData} formData
+ * @param {function(percent: number)} onProgress  — called with 0-100
+ */
+function uploadWithProgress(formData, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '../index.php?route=upload/create');
+    xhr.setRequestHeader('Accept', 'application/json');
+    const csrf = Auth.getCsrfToken();
+    if (csrf) xhr.setRequestHeader('X-CSRF-Token', csrf);
+    xhr.withCredentials = true;
+
+    xhr.upload.addEventListener('progress', (e) => {
+      if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+    });
+
+    xhr.addEventListener('load', () => {
+      let parsed;
+      try { parsed = JSON.parse(xhr.responseText); } catch (_) {
+        reject(new Error('Invalid server response')); return;
+      }
+      if (xhr.status === 401) { Auth.clearSession(); App.showLogin(); reject(new Error('Unauthorized')); return; }
+      if (xhr.status < 200 || xhr.status >= 300 || !parsed.success) {
+        reject(new Error(parsed?.error || `HTTP ${xhr.status}`)); return;
+      }
+      resolve(parsed.data);
+    });
+
+    xhr.addEventListener('error', () => reject(new Error('Network error — check connection')));
+    xhr.send(formData);
+  });
+}
+
 function uploadView(surface, parentType, title) {
   return {
     async render() {
+      // Belt / parent selector
       let parentField = UI.field({ name: 'parent_id', label: `${UI.titleize(parentType)} ID`, type: 'number', required: true });
       if (parentType === 'GREEN_BELT') {
         try {
-          const targetData = await Api.get('upload/targets');
-          const targets = normalizeItems(targetData);
+          const targets = normalizeItems(await Api.get('upload/targets'));
           if (targets.length) {
             parentField = UI.field({
               name: 'parent_id',
               label: 'Assigned Green Belt',
               type: 'select',
               required: true,
-              options: targets.map((target) => ({
-                value: target.id,
-                label: target.label || `Belt #${target.id}`
-              }))
+              options: targets.map((t) => ({ value: t.id, label: t.label || `Belt #${t.id}` }))
             });
           }
-        } catch (_) {
-          // Keep numeric fallback for roles without scoped target lists.
-        }
+        } catch (_) {}
       }
 
+      // Upload type chips (WORK / ISSUE)
+      const uploadTypeChips = parentType !== 'TASK' ? `
+        <div class="upload-section">
+          <div class="upload-section-label">Upload type</div>
+          <div class="upload-type-chips">
+            <button type="button" class="upload-type-chip active js-upload-type-chip" data-type="WORK">
+              <i class="ph ph-image"></i><span>Work proof</span>
+            </button>
+            <button type="button" class="upload-type-chip js-upload-type-chip" data-type="ISSUE">
+              <i class="ph ph-warning-circle"></i><span>Issue report</span>
+            </button>
+          </div>
+          <input type="hidden" name="upload_type" value="WORK">
+        </div>
+      ` : `<input type="hidden" name="upload_type" value="WORK">`;
+
+      // Work type chips (only shown for GREEN_BELT WORK uploads)
+      const workTypeSection = parentType === 'GREEN_BELT' ? `
+        <div class="upload-section js-work-type-section">
+          <div class="upload-section-label">Work type <span class="upload-required">Required</span></div>
+          <div class="upload-work-type-chips">
+            ${UPLOAD_WORK_TYPES.map((wt) => `
+              <button type="button" class="upload-work-chip js-work-type-chip" data-value="${wt.value}" aria-pressed="false">
+                <i class="ph ${wt.icon}"></i>
+                <span>${wt.label}</span>
+              </button>
+            `).join('')}
+          </div>
+          <input type="hidden" name="work_type" class="js-work-type-hidden">
+        </div>
+      ` : '';
+
+      // Extra fields
+      const extraFields = parentType === 'TASK'
+        ? UI.field({ name: 'photo_label', label: 'Photo Label', type: 'select', value: 'AFTER_WORK', options: ['BEFORE_WORK', 'AFTER_WORK', 'GENERAL'] })
+        : parentType === 'SITE'
+          ? UI.field({ name: 'discovery_mode', label: 'Discovery Mode', type: 'select', value: '0', options: [{ value: '0', label: 'No' }, { value: '1', label: 'Yes' }] })
+          : '';
+
       return UI.page(title, 'Submit field proof with photos')
-        + UI.panel('Upload Proof', `
-          <form class="stack-form js-upload-form">
-            <input type="hidden" name="gps_latitude" id="gps_latitude" value="">
+        + UI.panel('Upload proof', `
+          <form class="upload-mobile-form js-upload-form" autocomplete="off" novalidate>
+            <input type="hidden" name="gps_latitude"  id="gps_latitude"  value="">
             <input type="hidden" name="gps_longitude" id="gps_longitude" value="">
-            <div class="form-grid">
-              ${parentField}
-              ${UI.field({ name: 'upload_type', label: 'Upload Type', type: 'select', value: 'WORK', options: parentType === 'TASK' ? ['WORK'] : ['WORK', 'ISSUE'] })}
-              ${parentType === 'TASK' ? UI.field({ name: 'photo_label', label: 'Photo Label', type: 'select', value: 'AFTER_WORK', options: ['BEFORE_WORK', 'AFTER_WORK', 'GENERAL'] }) : ''}
-              ${parentType === 'SITE' ? UI.field({ name: 'discovery_mode', label: 'Discovery Mode', type: 'select', value: '0', options: [{ value: '0', label: 'No' }, { value: '1', label: 'Yes' }] }) : ''}
-              ${UI.field({ name: 'comment_text', label: 'Comment', type: 'textarea', full: true })}
-              <label class="field full">
-                <span>Photos</span>
-                <input type="file" name="files[]" multiple accept="image/*" required>
+
+            <div class="upload-section">${parentField}</div>
+
+            ${uploadTypeChips}
+            ${workTypeSection}
+
+            ${extraFields ? `<div class="upload-section">${extraFields}</div>` : ''}
+
+            <div class="upload-section">
+              ${UI.field({ name: 'comment_text', label: 'Comment (optional)', type: 'textarea', full: true })}
+            </div>
+
+            <div class="upload-section">
+              <div class="upload-section-label">Photos</div>
+              <label class="upload-file-btn js-upload-file-btn">
+                <i class="ph ph-camera-plus"></i>
+                <span class="js-upload-file-label">Take a photo or choose from gallery</span>
+                <input type="file" name="files[]" multiple accept="image/*"
+                       class="upload-file-input js-file-input" aria-label="Select photos">
               </label>
             </div>
-            <button type="submit" class="btn btn-primary"><i class="ph ph-upload-simple"></i><span>Upload</span></button>
+
+            <div class="upload-preview js-upload-preview" hidden>
+              <div class="upload-preview-header">
+                <span class="js-preview-count"></span>
+                <button type="button" class="btn btn-ghost btn-sm js-clear-files">Clear all</button>
+              </div>
+              <div class="upload-preview-grid js-preview-grid"></div>
+            </div>
+
+            <div class="upload-progress js-upload-progress" hidden>
+              <div class="upload-progress-track"><div class="upload-progress-fill js-progress-fill"></div></div>
+              <p class="js-progress-text upload-progress-text">Uploading…</p>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block upload-submit-btn js-upload-submit" disabled>
+              <i class="ph ph-upload-simple"></i>
+              <span class="js-upload-submit-label">Select photos to upload</span>
+            </button>
           </form>
+
+          <div class="upload-success js-upload-success" hidden>
+            <i class="ph ph-check-circle upload-success-icon"></i>
+            <h3 class="js-success-headline">Photos uploaded</h3>
+            <p class="upload-success-sub">Submitted for review.</p>
+            <div class="upload-success-actions">
+              <button type="button" class="btn btn-ghost js-upload-more">Upload more</button>
+              <button type="button" class="btn btn-primary" data-nav="green_belt.my_uploads">
+                <i class="ph ph-images"></i><span>View My Uploads</span>
+              </button>
+            </div>
+          </div>
         `);
     },
+
     async afterRender() {
-      // Silent GPS capture
-      const latField = document.getElementById('gps_latitude');
-      const lngField = document.getElementById('gps_longitude');
-      if (latField && navigator.geolocation) {
+      // Silent GPS
+      if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           (pos) => {
-            latField.value = pos.coords.latitude;
-            lngField.value = pos.coords.longitude;
+            const lat = document.getElementById('gps_latitude');
+            const lng = document.getElementById('gps_longitude');
+            if (lat) lat.value = pos.coords.latitude;
+            if (lng) lng.value = pos.coords.longitude;
           },
-          () => {} // Silently fail — never block submission
+          () => {}
         );
       }
 
-      document.querySelector('.js-upload-form')?.addEventListener('submit', async (event) => {
+      // Selected files (maintained as an array since FileList is immutable)
+      let selectedFiles = [];
+
+      const form       = document.querySelector('.js-upload-form');
+      const fileInput  = form?.querySelector('.js-file-input');
+      const previewBox = form?.querySelector('.js-upload-preview');
+      const previewGrid= form?.querySelector('.js-preview-grid');
+      const previewCount = form?.querySelector('.js-preview-count');
+      const progressBox  = form?.querySelector('.js-upload-progress');
+      const progressFill = form?.querySelector('.js-progress-fill');
+      const progressText = form?.querySelector('.js-progress-text');
+      const submitBtn    = form?.querySelector('.js-upload-submit');
+      const submitLabel  = form?.querySelector('.js-upload-submit-label');
+      const successBox   = document.querySelector('.js-upload-success');
+
+      const refreshSubmitState = () => {
+        if (!submitBtn) return;
+        const hasFiles = selectedFiles.length > 0;
+        submitBtn.disabled = !hasFiles;
+        if (submitLabel) {
+          submitLabel.textContent = hasFiles
+            ? `Upload ${selectedFiles.length} photo${selectedFiles.length > 1 ? 's' : ''}`
+            : 'Select photos to upload';
+        }
+      };
+
+      const renderPreviews = () => {
+        if (!previewGrid) return;
+        previewGrid.innerHTML = selectedFiles.map((file, i) => {
+          const url = URL.createObjectURL(file);
+          return `
+            <div class="upload-thumb-wrap">
+              <img src="${url}" class="upload-thumb" alt="Preview ${i + 1}">
+              <button type="button" class="upload-thumb-remove js-remove-file" data-index="${i}" aria-label="Remove photo ${i + 1}">
+                <i class="ph ph-x"></i>
+              </button>
+            </div>
+          `;
+        }).join('');
+        if (previewCount) {
+          previewCount.textContent = `${selectedFiles.length} photo${selectedFiles.length > 1 ? 's' : ''} selected`;
+        }
+        if (previewBox) previewBox.hidden = selectedFiles.length === 0;
+        refreshSubmitState();
+      };
+
+      fileInput?.addEventListener('change', () => {
+        Array.from(fileInput.files).forEach((f) => selectedFiles.push(f));
+        fileInput.value = '';
+        renderPreviews();
+      });
+
+      previewGrid?.addEventListener('click', (e) => {
+        const btn = e.target.closest('.js-remove-file');
+        if (!btn) return;
+        const idx = parseInt(btn.dataset.index, 10);
+        selectedFiles.splice(idx, 1);
+        renderPreviews();
+      });
+
+      form?.querySelector('.js-clear-files')?.addEventListener('click', () => {
+        selectedFiles = [];
+        renderPreviews();
+      });
+
+      // Upload type toggle (WORK / ISSUE)
+      form?.querySelectorAll('.js-upload-type-chip').forEach((chip) => {
+        chip.addEventListener('click', () => {
+          form.querySelectorAll('.js-upload-type-chip').forEach((c) => c.classList.remove('active'));
+          chip.classList.add('active');
+          const typeInput = form.querySelector('[name="upload_type"]');
+          if (typeInput) typeInput.value = chip.dataset.type;
+          const workSection = form.querySelector('.js-work-type-section');
+          if (workSection) workSection.hidden = chip.dataset.type !== 'WORK';
+          if (chip.dataset.type !== 'WORK') {
+            form.querySelectorAll('.js-work-type-chip').forEach((c) => c.classList.remove('active'));
+            form.querySelectorAll('.js-work-type-hidden').forEach((inp) => { inp.value = ''; });
+          }
+        });
+      });
+
+      // Work type chip selection
+      form?.querySelectorAll('.js-work-type-chip').forEach((chip) => {
+        chip.addEventListener('click', () => {
+          form.querySelectorAll('.js-work-type-chip').forEach((c) => {
+            c.classList.remove('active');
+            c.setAttribute('aria-pressed', 'false');
+          });
+          chip.classList.add('active');
+          chip.setAttribute('aria-pressed', 'true');
+          const hidden = form.querySelector('.js-work-type-hidden');
+          if (hidden) hidden.value = chip.dataset.value;
+        });
+      });
+
+      // My Uploads nav button in success card
+      successBox?.querySelector('[data-nav]')?.addEventListener('click', (e) => {
+        App.navigate(e.currentTarget.dataset.nav);
+      });
+
+      form?.querySelector('.js-upload-more')?.addEventListener('click', () => {
+        successBox.hidden = true;
+        form.hidden = false;
+        form.reset();
+        selectedFiles = [];
+        renderPreviews();
+        form.querySelectorAll('.js-work-type-chip').forEach((c) => { c.classList.remove('active'); c.setAttribute('aria-pressed','false'); });
+        form.querySelectorAll('.js-upload-type-chip').forEach((c, i) => c.classList.toggle('active', i === 0));
+        const typeInput = form.querySelector('[name="upload_type"]'); if (typeInput) typeInput.value = 'WORK';
+        const workSection = form.querySelector('.js-work-type-section'); if (workSection) workSection.hidden = false;
+        refreshSubmitState();
+      });
+
+      // Form submit
+      form?.addEventListener('submit', async (event) => {
         event.preventDefault();
-        const form = event.currentTarget;
+
+        // Validate work type for GREEN_BELT WORK uploads
+        const uploadType = form.querySelector('[name="upload_type"]')?.value || 'WORK';
+        if (parentType === 'GREEN_BELT' && uploadType === 'WORK') {
+          const workType = form.querySelector('.js-work-type-hidden')?.value;
+          if (!workType) { UI.toast('Please select a work type', 'bad'); return; }
+        }
+        if (!selectedFiles.length) { UI.toast('Please select at least one photo', 'bad'); return; }
+
+        // Build FormData
         const formData = new FormData(form);
         formData.set('parent_type', parentType);
-        Array.from(form.querySelector('input[type="file"]').files).forEach((file, index) => formData.append(`files[${index}]`, file));
+        formData.delete('files[]');
+        selectedFiles.forEach((file, i) => formData.append(`files[${i}]`, file));
+
+        // Show progress, hide form controls
+        if (submitBtn) submitBtn.disabled = true;
+        if (progressBox) progressBox.hidden = false;
+        if (progressFill) progressFill.style.width = '0%';
+        if (progressText) progressText.textContent = `Uploading ${selectedFiles.length} photo${selectedFiles.length > 1 ? 's' : ''}…`;
 
         try {
-          await Api.upload('upload/create', formData);
-          UI.toast('Upload submitted', 'good');
-          form.reset();
-        } catch (error) {
-          UI.toast(error.message, 'bad');
+          await uploadWithProgress(formData, (pct) => {
+            if (progressFill) progressFill.style.width = `${pct}%`;
+            if (progressText) progressText.textContent = `Uploading… ${pct}%`;
+          });
+
+          // Success
+          const count = selectedFiles.length;
+          form.hidden = true;
+          if (successBox) {
+            successBox.hidden = false;
+            const headline = successBox.querySelector('.js-success-headline');
+            if (headline) headline.textContent = `${count} photo${count > 1 ? 's' : ''} uploaded successfully`;
+          }
+        } catch (err) {
+          UI.toast(err.message, 'bad');
+          if (progressBox) progressBox.hidden = true;
+          if (submitBtn) { submitBtn.disabled = false; refreshSubmitState(); }
         }
       });
+
+      refreshSubmitState();
     }
   };
 }
