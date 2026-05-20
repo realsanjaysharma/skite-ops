@@ -108,14 +108,36 @@ const UI = {
     const renderedTitle = options.titleHtml || /<span\b/i.test(String(title))
       ? title
       : this.escape(title);
+    const { collapsible = false, defaultOpen = true, alwaysVisible = '' } = options;
+    const collapsed = collapsible && !defaultOpen;
+    const panelClass = collapsible ? 'panel panel-collapsible' + (collapsed ? ' panel-collapsed' : '') : 'panel';
+    const headerClass = collapsible ? 'section-header panel-toggle-header' : 'section-header';
+    const toggleBtn = collapsible
+      ? `<button type="button" class="icon-btn panel-toggle-btn" aria-label="Toggle panel" aria-expanded="${!collapsed}"><i class="ph ph-caret-down"></i></button>`
+      : '';
     return `
-      <section class="panel">
-        <div class="section-header">
+      <section class="${panelClass}">
+        <div class="${headerClass}">
           <h2>${renderedTitle}</h2>
           ${actions ? `<div class="inline-actions">${actions}</div>` : ''}
+          ${toggleBtn}
         </div>
         <div class="section-body">${body}</div>
+        ${alwaysVisible ? `<div class="panel-always-visible">${alwaysVisible}</div>` : ''}
       </section>
+    `;
+  },
+
+  statGrid(items) {
+    return `
+      <div class="stat-compact-grid">
+        ${items.map((item) => `
+          <div class="stat-compact" ${item.attr || ''}>
+            <span class="stat-compact-label">${this.escape(String(item.label))}</span>
+            <span class="stat-compact-value">${item.value ?? 0}</span>
+          </div>
+        `).join('')}
+      </div>
     `;
   },
 

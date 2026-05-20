@@ -462,6 +462,132 @@ textarea {
   padding: 16px;
 }
 
+/* ==========================================================================
+   Universal collapsible panel (UI.panel with { collapsible: true })
+   ========================================================================== */
+
+.panel-collapsible .panel-toggle-header {
+  cursor: pointer;
+  user-select: none;
+}
+
+.panel-collapsible .panel-toggle-header:hover h2 {
+  color: var(--brand-deep, #115e59);
+}
+
+.panel-toggle-btn {
+  background: transparent;
+  border-color: transparent;
+  color: var(--ink-500, #64748b);
+  flex-shrink: 0;
+}
+
+.panel-toggle-btn i {
+  display: inline-block;
+  transition: transform 180ms ease;
+}
+
+/* Chevron points up when expanded */
+.panel-collapsible:not(.panel-collapsed) .panel-toggle-btn i {
+  transform: rotate(180deg);
+}
+
+/* Hide the body when collapsed */
+.panel-collapsible.panel-collapsed .section-body {
+  display: none;
+}
+
+/* Remove bottom border from section-header when collapsed and no always-visible content */
+.panel-collapsible.panel-collapsed .section-header {
+  border-bottom: 0;
+}
+
+/* Slot for content always visible regardless of collapse state (e.g. filter chips) */
+.panel-always-visible {
+  padding: 0 16px 12px;
+}
+
+.panel-always-visible:empty {
+  display: none;
+}
+
+.panel-collapsible.panel-collapsed .panel-always-visible {
+  padding-top: 8px;
+}
+
+/* ==========================================================================
+   Universal compact stat grid (UI.statGrid)
+   ========================================================================== */
+
+.stat-compact-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+}
+
+.stat-compact {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 8px 10px;
+  background: var(--surface, #fff);
+  border: 1px solid var(--line, #e2e8f0);
+  border-radius: 8px;
+  text-align: center;
+  cursor: default;
+}
+
+.stat-compact[data-nav],
+.stat-compact[onclick] {
+  cursor: pointer;
+}
+
+.stat-compact[data-nav]:hover,
+.stat-compact[onclick]:hover {
+  border-color: var(--brand, #0f766e);
+}
+
+.stat-compact-label {
+  font-size: 0.72rem;
+  color: var(--ink-500, #64748b);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.stat-compact-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--ink-900, #0f172a);
+}
+
+/* ==========================================================================
+   Universal photo thumbnail (replaces inline style="width:48px …")
+   ========================================================================== */
+
+.photo-thumb {
+  display: inline-block;
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 4px;
+  cursor: pointer;
+  vertical-align: middle;
+  border: 1px solid var(--line, #e2e8f0);
+}
+
+.photo-thumb-sm {
+  width: 40px;
+  height: 40px;
+}
+
+.photo-thumb-lg {
+  width: 80px;
+  height: 80px;
+  border-radius: 6px;
+}
+
 .filter-grid {
   align-items: end;
   display: grid;

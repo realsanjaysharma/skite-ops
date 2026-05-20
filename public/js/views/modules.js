@@ -2111,7 +2111,7 @@ Views.register('green_belt.upload_review', {
         html: true, 
         render: (row) => {
           const disabled = isReviewableWorkUpload(row) ? '' : 'disabled';
-          return `<input type="checkbox" class="upload-select" value="${row.id}" ${disabled}> <img src="${Api.url('upload/serve', { id: row.id })}" alt="Proof" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px; vertical-align: middle;">`;
+          return `<input type="checkbox" class="upload-select" value="${row.id}" ${disabled}> <img src="${Api.url('upload/serve', { id: row.id })}" alt="Proof" class="photo-thumb photo-thumb-sm" data-gallery-id="${row.id}">`;
         }
       },
       { key: 'id', label: 'ID' },
@@ -2164,6 +2164,28 @@ Views.register('green_belt.upload_review', {
     }
 
     wireFilters((payload) => App.navigate('green_belt.upload_review', payload));
+
+    // Thumbnail click → shared gallery viewer with prev/next across all visible uploads.
+    const uploadReviewItems = Array.from(document.querySelectorAll('[data-gallery-id]')).map((img) => {
+      const row = img.closest('[data-upload]');
+      const upload = row ? JSON.parse(row.dataset.upload) : {};
+      return {
+        id: parseInt(img.dataset.galleryId, 10),
+        url: Api.url('upload/serve', { id: img.dataset.galleryId }),
+        label: upload.photo_label || upload.work_type || '',
+        time: upload.created_at || '',
+        workType: upload.work_type || '',
+        supervisor: upload.created_by_user_name || ''
+      };
+    });
+    document.querySelectorAll('[data-gallery-id]').forEach((img) => {
+      img.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = parseInt(img.dataset.galleryId, 10);
+        const index = uploadReviewItems.findIndex((item) => item.id === id);
+        openPhotoGallery(uploadReviewItems, index >= 0 ? index : 0);
+      });
+    });
 
     const selectAll = document.getElementById('selectAllUploads');
     selectAll?.addEventListener('change', (e) => {
@@ -2574,6 +2596,129 @@ async function authorityDownloadBundle(uploadIds, zipName) {
   UI.toast(`Downloaded ${uploadIds.length} photos`, 'good');
 }
 
+/**
+ * openPhotoGallery — universal photo preview modal.
+ *
+ * Opens a full-screen modal with the photo, optional metadata, Prev/Next
+ * navigation, keyboard shortcuts (← → Esc D), and mobile swipe gestures.
+ * Can be used by any page that displays upload thumbnails.
+ *
+ * @param {Array}  items       Array of photo descriptors:
+ *   { id, url, [belt], [time], [workType], [supervisor], [label], [size] }
+ * @param {number} startIndex  Index within items to open first (default 0)
+ */
+function openPhotoGallery(items, startIndex = 0) {
+  if (!items || !items.length) return;
+
+  let _keyHandler = null;
+  let _touchStart = null;
+  let _swipeTarget = null;
+  let _touchStartHandler = null;
+  let _touchEndHandler = null;
+
+  const _detachKeys = () => {
+    if (_keyHandler) { document.removeEventListener('keydown', _keyHandler); _keyHandler = null; }
+  };
+
+  const _detachSwipe = () => {
+    if (_swipeTarget) {
+      if (_touchStartHandler) _swipeTarget.removeEventListener('touchstart', _touchStartHandler);
+      if (_touchEndHandler) _swipeTarget.removeEventListener('touchend', _touchEndHandler);
+    }
+    _swipeTarget = null; _touchStartHandler = null; _touchEndHandler = null; _touchStart = null;
+  };
+
+  const _open = (index) => {
+    const item = items[index];
+    if (!item) return;
+
+    const counter = items.length > 1 ? `${index + 1} of ${items.length}` : '';
+    const metaRows = [
+      counter ? `<div><span>Photo</span><strong>${UI.escape(counter)}</strong></div>` : '',
+      item.belt ? `<div><span>Belt</span><strong>${UI.escape(item.belt)}</strong></div>` : '',
+      item.time ? `<div><span>Date / time</span><strong>${UI.escape(item.time)}</strong></div>` : '',
+      item.label ? `<div><span>Label</span><strong>${UI.escape(item.label)}</strong></div>` : '',
+      item.workType ? `<div><span>Work type</span><strong>${UI.escape(item.workType)}</strong></div>` : '',
+      item.supervisor ? `<div><span>Supervisor</span><strong>${UI.escape(item.supervisor)}</strong></div>` : '',
+      item.size ? `<div><span>File size</span><strong>${UI.escape(authorityFormatBytes(item.size))}</strong></div>` : '',
+    ].filter(Boolean).join('');
+
+    const hasPrev = index > 0;
+    const hasNext = index < items.length - 1;
+
+    UI.showModal('Photo Details', `
+      <div class="av-preview-shell">
+        <div class="av-preview-media">
+          <img src="${UI.escape(item.url)}" alt="Photo ${UI.escape(String(item.id))}">
+        </div>
+        ${metaRows ? `<div class="av-preview-meta">${metaRows}</div>` : ''}
+      </div>
+      <div class="av-preview-actions">
+        ${items.length > 1 ? `
+          <button type="button" class="btn btn-ghost js-gallery-prev" ${hasPrev ? '' : 'disabled'}><i class="ph ph-caret-left"></i><span>Previous</span></button>
+          <button type="button" class="btn btn-ghost js-gallery-next" ${hasNext ? '' : 'disabled'}><span>Next</span><i class="ph ph-caret-right"></i></button>
+        ` : ''}
+        <button type="button" class="btn btn-primary js-gallery-download"><i class="ph ph-download-simple"></i><span>Download</span></button>
+        <button type="button" class="btn btn-ghost" data-modal-close>Close</button>
+      </div>
+      ${items.length > 1 ? `
+        <p class="av-preview-hint">
+          <span class="av-preview-hint-keys"><kbd>←</kbd> <kbd>→</kbd> navigate · <kbd>Esc</kbd> close · <kbd>D</kbd> download</span>
+          <span class="av-preview-hint-touch">Swipe left or right to navigate</span>
+        </p>
+      ` : ''}
+    `);
+
+    document.querySelector('.js-gallery-download')?.addEventListener('click', () => authorityDownloadSingle(item.id));
+    document.querySelector('.js-gallery-prev')?.addEventListener('click', () => _open(index - 1));
+    document.querySelector('.js-gallery-next')?.addEventListener('click', () => _open(index + 1));
+
+    // Keyboard shortcuts
+    _detachKeys();
+    _keyHandler = (e) => {
+      if (!document.querySelector('.av-preview-shell')) { _detachKeys(); return; }
+      if (e.key === 'ArrowLeft' && hasPrev) { e.preventDefault(); _open(index - 1); }
+      else if (e.key === 'ArrowRight' && hasNext) { e.preventDefault(); _open(index + 1); }
+      else if (e.key === 'Escape') { e.preventDefault(); _detachKeys(); _detachSwipe(); UI.closeModal(); }
+      else if (e.key === 'd' || e.key === 'D') { e.preventDefault(); authorityDownloadSingle(item.id); }
+    };
+    document.addEventListener('keydown', _keyHandler);
+
+    // Swipe gestures (mobile)
+    _detachSwipe();
+    _swipeTarget = document.querySelector('.av-preview-media');
+    if (_swipeTarget && items.length > 1) {
+      _touchStartHandler = (e) => {
+        if (e.touches && e.touches.length === 1) {
+          _touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        }
+      };
+      _touchEndHandler = (e) => {
+        if (!_touchStart || !e.changedTouches || e.changedTouches.length !== 1) { _touchStart = null; return; }
+        const dx = e.changedTouches[0].clientX - _touchStart.x;
+        const dy = e.changedTouches[0].clientY - _touchStart.y;
+        _touchStart = null;
+        if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.4) return;
+        if (dx < 0 && hasNext) _open(index + 1);
+        else if (dx > 0 && hasPrev) _open(index - 1);
+      };
+      _swipeTarget.addEventListener('touchstart', _touchStartHandler, { passive: true });
+      _swipeTarget.addEventListener('touchend', _touchEndHandler, { passive: true });
+    }
+
+    // Detach listeners when modal closes
+    const modalRoot = document.getElementById('modal-root');
+    if (modalRoot) {
+      const obs = new MutationObserver(() => {
+        if (!document.querySelector('.av-preview-shell')) { _detachKeys(); _detachSwipe(); obs.disconnect(); }
+      });
+      obs.observe(modalRoot, { childList: true, subtree: true });
+    }
+  };
+
+  _open(startIndex);
+}
+
 Views.register('green_belt.authority_view', {
   async render({ params = {} }) {
     const effectiveParams = authorityNormalizeParams(params);
@@ -2624,61 +2769,56 @@ Views.register('green_belt.authority_view', {
     // gets full focus; user clicks the chevron to expand and edit. The chips
     // showing the active filter stay visible even when collapsed so the AR
     // always knows what range/belt is being shown.
-    const filterPanelHtml = `
-      <section class="panel av-filter-panel av-filters-collapsed js-av-filter-panel">
-        <div class="section-header av-filter-header js-av-filter-toggle" role="button" tabindex="0" aria-expanded="false" aria-controls="av-filter-body">
-          <h2>Filters</h2>
-          <button type="button" class="icon-btn av-filter-chevron js-av-filter-chevron" aria-label="Toggle filters">
-            <i class="ph ph-caret-down"></i>
-          </button>
-        </div>
-        <div class="section-body av-filter-body" id="av-filter-body">
-          <form class="filter-grid js-filter-form av-filter-grid">
-            <label class="field">
-              <span>Belt</span>
-              <select name="belt_id">${beltOptionHtml}</select>
-            </label>
-            <label class="field">
-              <span>From</span>
-              <input type="date" name="date_from" value="${UI.escape(effectiveParams.date_from || '')}">
-            </label>
-            <label class="field">
-              <span>To</span>
-              <input type="date" name="date_to" value="${UI.escape(effectiveParams.date_to || '')}">
-            </label>
-            <label class="field">
-              <span>Work type</span>
-              <select name="work_type">${workTypeOptionHtml}</select>
-            </label>
-            <label class="field">
-              <span>Group by</span>
-              <select name="group_by">${groupByOptionHtml}</select>
-            </label>
-            <button type="submit" class="btn btn-primary"><i class="ph ph-funnel"></i><span>Apply Filters</span></button>
-          </form>
-          <div class="av-date-presets" aria-label="Date shortcuts">
-            <button type="button" class="btn btn-ghost btn-sm" data-av-preset="today">Today</button>
-            <button type="button" class="btn btn-ghost btn-sm" data-av-preset="yesterday">Yesterday</button>
-            <button type="button" class="btn btn-ghost btn-sm" data-av-preset="last7">Last 7 Days</button>
-            <button type="button" class="btn btn-ghost btn-sm" data-av-preset="month">This Month</button>
-          </div>
-          <p class="av-filter-note">Defaults to today's approved photos to keep the page quick. Wider ranges load ${AUTHORITY_VIEW_BUNDLE_CAP} photos first, then you can load more.</p>
-          ${authorityDateRangeDays(effectiveParams.date_from, effectiveParams.date_to) > 7 ? '<p class="av-range-warning"><i class="ph ph-warning-circle"></i><span>This is a broad date range, so photos load 50 at a time to save mobile data and keep downloads safe.</span></p>' : ''}
-        </div>
-        <div class="av-filter-chips-row">
-          ${authorityActiveFilterChips(effectiveParams, beltOptions)}
-        </div>
-      </section>
+    // Filter panel body (collapses) + chips (always visible via UI.panel alwaysVisible slot)
+    const filterBody = `
+      <form class="filter-grid js-filter-form av-filter-grid">
+        <label class="field">
+          <span>Belt</span>
+          <select name="belt_id">${beltOptionHtml}</select>
+        </label>
+        <label class="field">
+          <span>From</span>
+          <input type="date" name="date_from" value="${UI.escape(effectiveParams.date_from || '')}">
+        </label>
+        <label class="field">
+          <span>To</span>
+          <input type="date" name="date_to" value="${UI.escape(effectiveParams.date_to || '')}">
+        </label>
+        <label class="field">
+          <span>Work type</span>
+          <select name="work_type">${workTypeOptionHtml}</select>
+        </label>
+        <label class="field">
+          <span>Group by</span>
+          <select name="group_by">${groupByOptionHtml}</select>
+        </label>
+        <button type="submit" class="btn btn-primary"><i class="ph ph-funnel"></i><span>Apply Filters</span></button>
+      </form>
+      <div class="av-date-presets" aria-label="Date shortcuts">
+        <button type="button" class="btn btn-ghost btn-sm" data-av-preset="today">Today</button>
+        <button type="button" class="btn btn-ghost btn-sm" data-av-preset="yesterday">Yesterday</button>
+        <button type="button" class="btn btn-ghost btn-sm" data-av-preset="last7">Last 7 Days</button>
+        <button type="button" class="btn btn-ghost btn-sm" data-av-preset="month">This Month</button>
+      </div>
+      <p class="av-filter-note">Defaults to today's approved photos to keep the page quick. Wider ranges load ${AUTHORITY_VIEW_BUNDLE_CAP} photos first, then you can load more.</p>
+      ${authorityDateRangeDays(effectiveParams.date_from, effectiveParams.date_to) > 7 ? '<p class="av-range-warning"><i class="ph ph-warning-circle"></i><span>This is a broad date range, so photos load 50 at a time to save mobile data and keep downloads safe.</span></p>' : ''}
     `;
 
-    const summaryHtml = `
-      <div class="av-stat-grid">
-        <div class="av-stat"><span class="av-stat-label">Active belts</span><span class="av-stat-value">${summary.total_belts}</span></div>
-        <div class="av-stat"><span class="av-stat-label">Morning photos</span><span class="av-stat-value">${summary.total_morning_photos}</span></div>
-        <div class="av-stat"><span class="av-stat-label">Evening photos</span><span class="av-stat-value">${summary.total_evening_photos}</span></div>
-        <div class="av-stat"><span class="av-stat-label">Total photos</span><span class="av-stat-value">${summary.total_photos}</span></div>
-      </div>
-    `;
+    // Build filter panel using universal UI.panel collapsible option.
+    // Chips go in alwaysVisible so they show even when collapsed.
+    const filterPanelHtml = UI.panel('Filters', filterBody, '', {
+      collapsible: true,
+      defaultOpen: false,
+      alwaysVisible: authorityActiveFilterChips(effectiveParams, beltOptions)
+    });
+
+    // Summary uses universal UI.statGrid
+    const summaryHtml = UI.statGrid([
+      { label: 'Active belts',   value: summary.total_belts },
+      { label: 'Morning photos', value: summary.total_morning_photos },
+      { label: 'Evening photos', value: summary.total_evening_photos },
+      { label: 'Total photos',   value: summary.total_photos }
+    ]);
 
     let galleryHtml = '';
     if (!rows.length) {
@@ -2778,33 +2918,7 @@ Views.register('green_belt.authority_view', {
   async afterRender({ params = {} }) {
     attachRefresh();
     const effectiveParams = authorityNormalizeParams(params);
-
-    // Filter panel collapse / expand. Default is collapsed (CSS class
-    // av-filters-collapsed is rendered on the panel). Toggling is in-place
-    // and does not navigate, so each Apply / preset click naturally returns
-    // the panel to its default collapsed state on re-render.
-    const filterPanel = document.querySelector('.js-av-filter-panel');
-    const filterHeader = document.querySelector('.js-av-filter-toggle');
-    const toggleFilterPanel = (force) => {
-      if (!filterPanel) return;
-      const willCollapse = typeof force === 'boolean'
-        ? force
-        : !filterPanel.classList.contains('av-filters-collapsed');
-      filterPanel.classList.toggle('av-filters-collapsed', willCollapse);
-      if (filterHeader) filterHeader.setAttribute('aria-expanded', String(!willCollapse));
-    };
-    filterHeader?.addEventListener('click', (event) => {
-      // Don't toggle when the click came from an interactive control inside
-      // the header (currently just the chevron button — which itself bubbles).
-      if (event.target.closest('input,select,textarea')) return;
-      toggleFilterPanel();
-    });
-    filterHeader?.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
-        toggleFilterPanel();
-      }
-    });
+    // Filter panel collapse/expand is now handled by the global delegation in app.js.
 
     document.querySelector('.js-filter-form')?.addEventListener('submit', (event) => {
       event.preventDefault();
@@ -2951,146 +3065,24 @@ Views.register('green_belt.authority_view', {
       await authorityDownloadBundle(ids, zipName);
     });
 
+    // Build items array for the shared gallery viewer from card data attributes.
     const previewItems = Array.from(document.querySelectorAll('.av-card')).map((card) => ({
       id: parseInt(card.dataset.uploadId, 10),
       url: card.dataset.photoUrl,
       belt: card.dataset.belt || '',
       workType: card.dataset.workType || '',
       time: card.dataset.time || '',
-      date: card.dataset.date || '',
       supervisor: card.dataset.supervisor || '',
       size: Number(card.dataset.size || 0)
     }));
 
-    let authorityPreviewKeyHandler = null;
-    let authorityPreviewTouchStart = null;
-    let authorityPreviewTouchMoveHandler = null;
-    let authorityPreviewTouchEndHandler = null;
-    let authorityPreviewTouchTarget = null;
-
-    const detachAuthorityPreviewKeys = () => {
-      if (authorityPreviewKeyHandler) {
-        document.removeEventListener('keydown', authorityPreviewKeyHandler);
-        authorityPreviewKeyHandler = null;
-      }
-    };
-
-    const detachAuthorityPreviewSwipe = () => {
-      if (authorityPreviewTouchTarget && authorityPreviewTouchMoveHandler) {
-        authorityPreviewTouchTarget.removeEventListener('touchstart', authorityPreviewTouchMoveHandler);
-        authorityPreviewTouchTarget.removeEventListener('touchend', authorityPreviewTouchEndHandler);
-      }
-      authorityPreviewTouchTarget = null;
-      authorityPreviewTouchMoveHandler = null;
-      authorityPreviewTouchEndHandler = null;
-      authorityPreviewTouchStart = null;
-    };
-
-    const openAuthorityPreview = (index) => {
-      const item = previewItems[index];
-      if (!item) return;
-      const counter = `${index + 1} of ${previewItems.length}`;
-      UI.showModal('Photo Details',
-        `<div class="av-preview-shell">
-           <div class="av-preview-media">
-             <img src="${item.url}" alt="Photo ${UI.escape(String(item.id))}">
-           </div>
-           <div class="av-preview-meta">
-             <div><span>Photo</span><strong>${UI.escape(counter)}</strong></div>
-             <div><span>Belt</span><strong>${UI.escape(item.belt)}</strong></div>
-             <div><span>Date/time</span><strong>${UI.escape(item.time)}</strong></div>
-             <div><span>Work type</span><strong>${UI.escape(item.workType)}</strong></div>
-             <div><span>Supervisor</span><strong>${UI.escape(item.supervisor || '-')}</strong></div>
-             <div><span>File size</span><strong>${UI.escape(authorityFormatBytes(item.size))}</strong></div>
-           </div>
-         </div>
-         <div class="av-preview-actions">
-           <button type="button" class="btn btn-ghost js-av-preview-prev" ${index <= 0 ? 'disabled' : ''}><i class="ph ph-caret-left"></i><span>Previous</span></button>
-           <button type="button" class="btn btn-ghost js-av-preview-next" ${index >= previewItems.length - 1 ? 'disabled' : ''}><span>Next</span><i class="ph ph-caret-right"></i></button>
-           <button type="button" class="btn btn-primary js-av-modal-download" data-upload-id="${item.id}"><i class="ph ph-download-simple"></i><span>Download</span></button>
-           <button type="button" class="btn btn-ghost" data-modal-close>Close</button>
-         </div>
-         <p class="av-preview-hint"><span class="av-preview-hint-keys">Shortcuts: <kbd>←</kbd> <kbd>→</kbd> navigate · <kbd>Esc</kbd> close · <kbd>D</kbd> download</span><span class="av-preview-hint-touch">Swipe left or right to navigate</span></p>`);
-      document.querySelector('.js-av-modal-download')?.addEventListener('click', () => authorityDownloadSingle(item.id));
-      document.querySelector('.js-av-preview-prev')?.addEventListener('click', () => openAuthorityPreview(index - 1));
-      document.querySelector('.js-av-preview-next')?.addEventListener('click', () => openAuthorityPreview(index + 1));
-
-      // Wire keyboard shortcuts. Re-attach on every reopen so the closure captures the current index.
-      detachAuthorityPreviewKeys();
-      authorityPreviewKeyHandler = (event) => {
-        if (!document.querySelector('.av-preview-shell')) {
-          detachAuthorityPreviewKeys();
-          return;
-        }
-        if (event.key === 'ArrowLeft' && index > 0) {
-          event.preventDefault();
-          openAuthorityPreview(index - 1);
-        } else if (event.key === 'ArrowRight' && index < previewItems.length - 1) {
-          event.preventDefault();
-          openAuthorityPreview(index + 1);
-        } else if (event.key === 'Escape') {
-          event.preventDefault();
-          detachAuthorityPreviewKeys();
-          UI.closeModal();
-        } else if (event.key === 'd' || event.key === 'D') {
-          event.preventDefault();
-          authorityDownloadSingle(item.id);
-        }
-      };
-      document.addEventListener('keydown', authorityPreviewKeyHandler);
-
-      // Wire swipe gestures on the photo area for mobile users.
-      // Threshold: horizontal travel > 50px AND |dx| > |dy| * 1.4 so vertical scrolls do not trigger nav.
-      detachAuthorityPreviewSwipe();
-      const swipeTarget = document.querySelector('.av-preview-media');
-      if (swipeTarget) {
-        authorityPreviewTouchTarget = swipeTarget;
-        authorityPreviewTouchMoveHandler = (event) => {
-          if (event.touches && event.touches.length === 1) {
-            authorityPreviewTouchStart = { x: event.touches[0].clientX, y: event.touches[0].clientY };
-          }
-        };
-        authorityPreviewTouchEndHandler = (event) => {
-          if (!authorityPreviewTouchStart || !event.changedTouches || event.changedTouches.length !== 1) {
-            authorityPreviewTouchStart = null;
-            return;
-          }
-          const dx = event.changedTouches[0].clientX - authorityPreviewTouchStart.x;
-          const dy = event.changedTouches[0].clientY - authorityPreviewTouchStart.y;
-          authorityPreviewTouchStart = null;
-          if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.4) return;
-          if (dx < 0 && index < previewItems.length - 1) {
-            // swipe left → next photo
-            openAuthorityPreview(index + 1);
-          } else if (dx > 0 && index > 0) {
-            // swipe right → previous photo
-            openAuthorityPreview(index - 1);
-          }
-        };
-        swipeTarget.addEventListener('touchstart', authorityPreviewTouchMoveHandler, { passive: true });
-        swipeTarget.addEventListener('touchend', authorityPreviewTouchEndHandler, { passive: true });
-      }
-
-      // Detach listeners when the modal is dismissed via click on backdrop / Close button.
-      const modalRoot = document.getElementById('modal-root');
-      if (modalRoot) {
-        const observer = new MutationObserver(() => {
-          if (!document.querySelector('.av-preview-shell')) {
-            detachAuthorityPreviewKeys();
-            detachAuthorityPreviewSwipe();
-            observer.disconnect();
-          }
-        });
-        observer.observe(modalRoot, { childList: true, subtree: true });
-      }
-    };
-
+    // Use shared openPhotoGallery — no per-page preview logic needed.
     document.querySelectorAll('[data-preview-id]').forEach((btn) => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         const id = parseInt(btn.dataset.previewId, 10);
         const index = previewItems.findIndex((item) => item.id === id);
-        openAuthorityPreview(index >= 0 ? index : 0);
+        openPhotoGallery(previewItems, index >= 0 ? index : 0);
       });
     });
   }
@@ -3383,11 +3375,21 @@ Views.register('task.progress_read', {
           const uploads = await Api.get('upload/list', { parent_type: 'TASK', parent_id: taskId });
           const items = normalizeItems(uploads);
           if (items.length > 0) {
-            proofsHtml = `<div class="photo-grid" style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;">` + 
-              items.map(u => `<div style="text-align: center;">
-                <img src="${Api.url('upload/serve', { id: u.id })}" style="width: 100px; height: 100px; object-fit: cover; border-radius: 4px; border: 1px solid var(--border); cursor: pointer;" onclick="UI.showModal('Photo', '<div style=\\'text-align:center;\\'><img src=\\'${Api.url('upload/serve', { id: u.id })}\\' style=\\'max-width:100%;max-height:70vh;border-radius:4px;\\'></div>')">
-                <div style="font-size: 0.75rem; margin-top: 4px;">${UI.escape(u.photo_label || 'Proof')}</div>
+            // Build gallery items for shared openPhotoGallery viewer.
+            const taskProofGallery = items.map((u) => ({
+              id: u.id,
+              url: Api.url('upload/serve', { id: u.id }),
+              label: u.photo_label || 'Proof',
+              workType: u.work_type || '',
+              time: u.created_at || ''
+            }));
+            proofsHtml = `<div class="photo-grid" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;">` +
+              items.map((u, idx) => `<div style="text-align:center;">
+                <img src="${Api.url('upload/serve', { id: u.id })}" class="photo-thumb photo-thumb-lg" data-task-proof-idx="${idx}" alt="Proof">
+                <div style="font-size:0.75rem;margin-top:4px;">${UI.escape(u.photo_label || 'Proof')}</div>
               </div>`).join('') + `</div>`;
+            // Must open gallery after modal renders, so we store on window temporarily.
+            window.__taskProofGallery = taskProofGallery;
           }
         } catch (e) {
           console.error("Failed to load uploads", e);
@@ -3422,6 +3424,18 @@ Views.register('task.progress_read', {
             </div>
           </div>
         `);
+
+        // Wire proof thumbnails to the shared gallery viewer after modal renders.
+        const gallery = window.__taskProofGallery;
+        if (gallery && gallery.length) {
+          document.querySelectorAll('[data-task-proof-idx]').forEach((img) => {
+            img.addEventListener('click', (e) => {
+              e.stopPropagation();
+              openPhotoGallery(gallery, parseInt(img.dataset.taskProofIdx, 10) || 0);
+            });
+          });
+          window.__taskProofGallery = null;
+        }
       });
     });
   }
@@ -3562,7 +3576,7 @@ Views.register('commercial.client_media_library', {
       { key: 'belt_code', label: 'Belt Code' },
       { key: 'belt_name', label: 'Belt Name' },
       { key: 'work_type', label: 'Work Type', html: true, render: (row) => UI.status(row.work_type) },
-      { key: 'thumbnail', label: 'Thumbnail', html: true, render: (row) => `<img src="${Api.url('upload/serve', { id: row.id })}" alt="Proof" style="width:48px;height:48px;object-fit:cover;border-radius:4px;cursor:pointer;" data-preview-id="${row.id}">` },
+      { key: 'thumbnail', label: 'Thumbnail', html: true, render: (row) => `<img src="${Api.url('upload/serve', { id: row.id })}" alt="Proof" class="photo-thumb" data-gallery-id="${row.id}">` },
       { key: 'comment_text', label: 'Comment', render: (row) => (row.comment_text || '-').substring(0, 40) }
     ];
 
@@ -3577,16 +3591,29 @@ Views.register('commercial.client_media_library', {
           empty: 'No approved media found for these filters.',
         }) + renderPagination(data.pagination, 'commercial.client_media_library', params));
   },
-  async afterRender() {
+  async afterRender({ params = {} }) {
     attachRefresh();
     attachPagination();
     wireFilters((payload) => App.navigate('commercial.client_media_library', payload));
 
-    document.querySelectorAll('[data-preview-id]').forEach(img => {
+    // Build gallery items from table rows and wire shared gallery viewer.
+    const mediaLibItems = Array.from(document.querySelectorAll('[data-gallery-id]')).map((img) => {
+      const row = img.closest('tr');
+      const cells = row ? Array.from(row.querySelectorAll('td')) : [];
+      return {
+        id: parseInt(img.dataset.galleryId, 10),
+        url: Api.url('upload/serve', { id: img.dataset.galleryId }),
+        time: cells[0]?.innerText?.trim() || '',
+        belt: [cells[1]?.innerText?.trim(), cells[2]?.innerText?.trim()].filter(Boolean).join(' — '),
+        workType: cells[3]?.innerText?.trim() || '',
+      };
+    });
+    document.querySelectorAll('[data-gallery-id]').forEach((img) => {
       img.addEventListener('click', (e) => {
         e.stopPropagation();
-        const url = Api.url('upload/serve', { id: img.dataset.previewId });
-        UI.showModal('Photo Preview', `<div style="text-align:center;"><img src="${url}" style="max-width:100%;max-height:70vh;border-radius:4px;"></div>`);
+        const id = parseInt(img.dataset.galleryId, 10);
+        const index = mediaLibItems.findIndex((item) => item.id === id);
+        openPhotoGallery(mediaLibItems, index >= 0 ? index : 0);
       });
     });
   }

@@ -162,3 +162,18 @@ const App = {
 };
 
 document.addEventListener('DOMContentLoaded', () => App.init());
+
+// Global event delegation: collapsible panel toggle.
+// UI.panel(title, body, actions, { collapsible: true }) renders .panel-toggle-header;
+// clicking anywhere on the header (except interactive controls inside) toggles the panel.
+document.addEventListener('click', (event) => {
+  const header = event.target.closest('.panel-toggle-header');
+  if (!header) return;
+  // Ignore clicks on non-toggle buttons, inputs, selects, links inside the header
+  if (event.target.closest('a, input, select, textarea, button:not(.panel-toggle-btn)')) return;
+  const panel = header.closest('.panel-collapsible');
+  if (!panel) return;
+  const collapsed = panel.classList.toggle('panel-collapsed');
+  const btn = header.querySelector('.panel-toggle-btn');
+  if (btn) btn.setAttribute('aria-expanded', String(!collapsed));
+});
