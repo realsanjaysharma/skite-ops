@@ -2620,39 +2620,55 @@ Views.register('green_belt.authority_view', {
       return `<option value="${UI.escape(g.value)}"${selected}>${UI.escape(g.label)}</option>`;
     }).join('');
 
-    const filterFormHtml = `
-      <form class="filter-grid js-filter-form av-filter-grid">
-        <label class="field">
-          <span>Belt</span>
-          <select name="belt_id">${beltOptionHtml}</select>
-        </label>
-        <label class="field">
-          <span>From</span>
-          <input type="date" name="date_from" value="${UI.escape(effectiveParams.date_from || '')}">
-        </label>
-        <label class="field">
-          <span>To</span>
-          <input type="date" name="date_to" value="${UI.escape(effectiveParams.date_to || '')}">
-        </label>
-        <label class="field">
-          <span>Work type</span>
-          <select name="work_type">${workTypeOptionHtml}</select>
-        </label>
-        <label class="field">
-          <span>Group by</span>
-          <select name="group_by">${groupByOptionHtml}</select>
-        </label>
-        <button type="submit" class="btn btn-primary"><i class="ph ph-funnel"></i><span>Apply Filters</span></button>
-      </form>
-      <div class="av-date-presets" aria-label="Date shortcuts">
-        <button type="button" class="btn btn-ghost btn-sm" data-av-preset="today">Today</button>
-        <button type="button" class="btn btn-ghost btn-sm" data-av-preset="yesterday">Yesterday</button>
-        <button type="button" class="btn btn-ghost btn-sm" data-av-preset="last7">Last 7 Days</button>
-        <button type="button" class="btn btn-ghost btn-sm" data-av-preset="month">This Month</button>
-      </div>
-      ${authorityActiveFilterChips(effectiveParams, beltOptions)}
-      <p class="av-filter-note">Defaults to today's approved photos to keep the page quick. Wider ranges load ${AUTHORITY_VIEW_BUNDLE_CAP} photos first, then you can load more.</p>
-      ${authorityDateRangeDays(effectiveParams.date_from, effectiveParams.date_to) > 7 ? '<p class="av-range-warning"><i class="ph ph-warning-circle"></i><span>This is a broad date range, so photos load 50 at a time to save mobile data and keep downloads safe.</span></p>' : ''}
+    // Collapsible Filters panel. Default state is collapsed so the gallery
+    // gets full focus; user clicks the chevron to expand and edit. The chips
+    // showing the active filter stay visible even when collapsed so the AR
+    // always knows what range/belt is being shown.
+    const filterPanelHtml = `
+      <section class="panel av-filter-panel av-filters-collapsed js-av-filter-panel">
+        <div class="section-header av-filter-header js-av-filter-toggle" role="button" tabindex="0" aria-expanded="false" aria-controls="av-filter-body">
+          <h2>Filters</h2>
+          <button type="button" class="icon-btn av-filter-chevron js-av-filter-chevron" aria-label="Toggle filters">
+            <i class="ph ph-caret-down"></i>
+          </button>
+        </div>
+        <div class="section-body av-filter-body" id="av-filter-body">
+          <form class="filter-grid js-filter-form av-filter-grid">
+            <label class="field">
+              <span>Belt</span>
+              <select name="belt_id">${beltOptionHtml}</select>
+            </label>
+            <label class="field">
+              <span>From</span>
+              <input type="date" name="date_from" value="${UI.escape(effectiveParams.date_from || '')}">
+            </label>
+            <label class="field">
+              <span>To</span>
+              <input type="date" name="date_to" value="${UI.escape(effectiveParams.date_to || '')}">
+            </label>
+            <label class="field">
+              <span>Work type</span>
+              <select name="work_type">${workTypeOptionHtml}</select>
+            </label>
+            <label class="field">
+              <span>Group by</span>
+              <select name="group_by">${groupByOptionHtml}</select>
+            </label>
+            <button type="submit" class="btn btn-primary"><i class="ph ph-funnel"></i><span>Apply Filters</span></button>
+          </form>
+          <div class="av-date-presets" aria-label="Date shortcuts">
+            <button type="button" class="btn btn-ghost btn-sm" data-av-preset="today">Today</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-av-preset="yesterday">Yesterday</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-av-preset="last7">Last 7 Days</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-av-preset="month">This Month</button>
+          </div>
+          <p class="av-filter-note">Defaults to today's approved photos to keep the page quick. Wider ranges load ${AUTHORITY_VIEW_BUNDLE_CAP} photos first, then you can load more.</p>
+          ${authorityDateRangeDays(effectiveParams.date_from, effectiveParams.date_to) > 7 ? '<p class="av-range-warning"><i class="ph ph-warning-circle"></i><span>This is a broad date range, so photos load 50 at a time to save mobile data and keep downloads safe.</span></p>' : ''}
+        </div>
+        <div class="av-filter-chips-row">
+          ${authorityActiveFilterChips(effectiveParams, beltOptions)}
+        </div>
+      </section>
     `;
 
     const summaryHtml = `
@@ -2677,12 +2693,17 @@ Views.register('green_belt.authority_view', {
       const groupHtml = groups.map((group) => {
         const cards = group.rows.map((row) => {
           const photoUrl = Api.url('upload/serve', { id: row.upload_id });
-          const time = (row.timestamp || '').replace('T', ' ').substring(0, 16);
-          const dateLabel = (row.timestamp || '').substring(0, 10);
-          const beltLabel = row.belt_code ? `${UI.escape(row.belt_code)} - ${UI.escape(row.belt_common_name || '')}` : 'Unassigned belt';
+          const ts = row.timestamp || '';
+          const dateLabel = ts.substring(0, 10);
+          const timeOnly = ts.length >= 16 ? ts.substring(11, 16) : '';
+          const humanDate = authorityHumanDate(dateLabel);
+          const beltLabel = row.belt_code ? `${UI.escape(row.belt_code)} — ${UI.escape(row.belt_common_name || '')}` : 'Unassigned belt';
           const workLabel = UI.escape(row.work_type || 'UNKNOWN');
+          const supervisorName = UI.escape(row.supervisor_name || '—');
+          // data-time stores full timestamp for preview modal; card display uses dateLabel + timeOnly separately
+          const fullTime = ts.replace('T', ' ').substring(0, 16);
           return `
-            <article class="av-card" data-upload-id="${row.upload_id}" data-size="${row.file_size_bytes || 0}" data-photo-url="${photoUrl}" data-belt="${beltLabel}" data-work-type="${workLabel}" data-time="${UI.escape(time)}" data-date="${UI.escape(dateLabel)}" data-supervisor="${UI.escape(row.supervisor_name || '')}">
+            <article class="av-card" data-upload-id="${row.upload_id}" data-size="${row.file_size_bytes || 0}" data-photo-url="${photoUrl}" data-belt="${beltLabel}" data-work-type="${workLabel}" data-time="${UI.escape(fullTime)}" data-date="${UI.escape(dateLabel)}" data-supervisor="${UI.escape(row.supervisor_name || '')}">
               <div class="av-selected-badge"><i class="ph ph-check"></i></div>
               <label class="av-card-select">
                 <input type="checkbox" class="js-av-check" data-upload-id="${row.upload_id}" aria-label="Select photo ${row.upload_id}">
@@ -2691,9 +2712,9 @@ Views.register('green_belt.authority_view', {
                 <img src="${photoUrl}" alt="Proof ${row.upload_id}" loading="lazy">
               </button>
               <div class="av-card-meta">
-                <div class="av-card-kv"><span>Belt</span><strong>${beltLabel}</strong></div>
-                <div class="av-card-row"><span class="av-card-type">${workLabel}</span><span>${UI.escape(authorityHumanDate(dateLabel))}</span></div>
-                <div class="av-card-row av-card-row-sub"><span>${UI.escape(time)}</span><span>${UI.escape(row.supervisor_name || '')}</span></div>
+                <div class="av-card-belt-row"><span class="av-meta-belt">${beltLabel}</span></div>
+                <div class="av-card-row"><span class="av-meta-date">${UI.escape(humanDate)}</span><span class="av-meta-time">${UI.escape(timeOnly)}</span></div>
+                <div class="av-card-row av-card-row-supervisor"><span class="av-meta-supervisor">${supervisorName}</span><span class="av-card-type av-meta-worktype">${workLabel}</span></div>
               </div>
               <div class="av-card-actions">
                 <button type="button" class="btn btn-ghost btn-sm js-av-download-single" data-upload-id="${row.upload_id}" aria-label="Download photo ${row.upload_id}">
@@ -2743,19 +2764,47 @@ Views.register('green_belt.authority_view', {
       </div>
     `;
 
-    const headerActions = UI.button('Refresh', { icon: 'ph-arrows-clockwise', attr: 'data-refresh' }) +
+    const pageActions = UI.button('Refresh', { icon: 'ph-arrows-clockwise', attr: 'data-refresh' });
+    const workPhotosActions =
       `<button type="button" class="btn btn-primary btn-sm av-download-loaded js-av-download-filtered" data-zip-name="${UI.escape(loadedZipName)}" ${rows.length ? '' : 'disabled'}><i class="ph ph-download-simple"></i><span>Download Loaded Photos (${rows.length})</span></button>`;
 
-    return UI.page('Authority View', 'Approved green belt proof — filter, browse, download', headerActions)
-      + UI.panel('Filters', filterFormHtml)
+    return UI.page('Daily Work and Maintenance Photos', 'filter, browse, download', pageActions)
+      + filterPanelHtml
       + UI.panel('Summary statistics', summaryHtml)
-      + UI.panel('Work photos', galleryHtml)
+      + UI.panel('Work photos', galleryHtml, workPhotosActions)
       + loadMoreHtml
       + bulkBar;
   },
   async afterRender({ params = {} }) {
     attachRefresh();
     const effectiveParams = authorityNormalizeParams(params);
+
+    // Filter panel collapse / expand. Default is collapsed (CSS class
+    // av-filters-collapsed is rendered on the panel). Toggling is in-place
+    // and does not navigate, so each Apply / preset click naturally returns
+    // the panel to its default collapsed state on re-render.
+    const filterPanel = document.querySelector('.js-av-filter-panel');
+    const filterHeader = document.querySelector('.js-av-filter-toggle');
+    const toggleFilterPanel = (force) => {
+      if (!filterPanel) return;
+      const willCollapse = typeof force === 'boolean'
+        ? force
+        : !filterPanel.classList.contains('av-filters-collapsed');
+      filterPanel.classList.toggle('av-filters-collapsed', willCollapse);
+      if (filterHeader) filterHeader.setAttribute('aria-expanded', String(!willCollapse));
+    };
+    filterHeader?.addEventListener('click', (event) => {
+      // Don't toggle when the click came from an interactive control inside
+      // the header (currently just the chevron button — which itself bubbles).
+      if (event.target.closest('input,select,textarea')) return;
+      toggleFilterPanel();
+    });
+    filterHeader?.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        toggleFilterPanel();
+      }
+    });
 
     document.querySelector('.js-filter-form')?.addEventListener('submit', (event) => {
       event.preventDefault();
