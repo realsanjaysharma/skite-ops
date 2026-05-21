@@ -89,6 +89,32 @@ Work on **main branch** only. Ask before committing or pushing.
 
 ---
 
+## ⚠️ Mandatory end-of-session updates
+
+**Before ending any session, update ALL THREE of the following files.
+Skipping any one of them makes the docs stale for the next agent.**
+
+### `docs/AGENT_START.md` (this file)
+- [ ] "Last updated by" line — your agent name + date
+- [ ] "Last commit" — most recent commit hash + subject
+- [ ] "What was recently completed" — add your session's work
+- [ ] "Current focus" — update to what comes next
+- [ ] "What NOT to touch" — add anything newly stabilised
+- [ ] "Known open issues" — add anything discovered but not fixed
+
+### `docs/PRODUCT_BACKLOG.md`
+- [ ] Feature entry status — mark in-progress items ✅ Done with commit hash
+- [ ] Page Status table — update status of every page you touched (even 🔧 partial)
+- [ ] Planned section — add any new items identified during your session
+- [ ] Deferred section — add anything explicitly decided not to do yet
+
+### `docs/PRODUCT_LOG.md`
+- [ ] Append a dated entry for every significant decision made this session
+- [ ] Include: what was observed → what was decided → what was deferred and why
+- [ ] Keep it short — 3–6 bullet points per decision is enough
+
+---
+
 ## Key document pointers
 
 | Need | File |

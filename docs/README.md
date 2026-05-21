@@ -1,146 +1,115 @@
-# Skyte Ops Documentation System
+# Skite Ops — Documentation Index
 
-This repository now uses a two-layer documentation model:
+This file explains what every doc folder and file is for, who maintains it, and when to read it.
 
-- `docs/10_recovered_product` = canonical product truth
-- `docs/11_build_specs` = canonical implementation-spec layer
+---
 
-For AI-assisted multi-tool development, also read:
+## Quick start for any agent
 
-- `docs/AI_TOOL_HANDOFF_GUIDE.md` = code patterns, tool workflow, and session start instructions
+```
+1. Read docs/AGENT_START.md          — current state, focus, what not to touch
+2. Read docs/PRODUCT_BACKLOG.md      — all planned / done / deferred work + page status
+3. Read .claude/CLAUDE.md            — governance rules (non-negotiable)
+4. Read docs/AI_TOOL_HANDOFF_GUIDE.md — codebase pitfalls before writing any code
+```
 
-Older docs outside those layers remain useful as references, but many are legacy interpretation docs from the trimmed-system phase.
+That is the full required reading for every session. Everything else is reference.
 
-## Reading Order
+---
 
-Use this order during active planning and implementation:
+## Active documentation (read and maintain)
 
-1. `docs/10_recovered_product/00_FINAL_PRODUCT_BEHAVIOR_MODEL.md`
-2. `docs/10_recovered_product/01_ROLE_AND_ACCESS_MODEL.md`
-3. `docs/10_recovered_product/02_DOMAIN_AND_ENTITY_MODEL.md`
-4. `docs/10_recovered_product/03_WORKFLOWS_AND_LIFECYCLES.md`
-5. `docs/10_recovered_product/04_PAGE_AND_MODULE_MODEL.md`
-6. `docs/10_recovered_product/06_REPORT_AND_EXPORT_MODEL.md`
-7. `docs/10_recovered_product/07_AUTHORITY_SHARE_AND_SUMMARY_MODEL.md`
-8. `docs/11_build_specs/*`
+These files are live. Agents update them every session.
 
-Only after that should rewritten legacy docs be treated as synchronized repo-facing references.
+| File | Purpose | Updated by |
+|---|---|---|
+| `docs/AGENT_START.md` | Current product state, last work, current focus, what NOT to touch, mandatory end-of-session checklist | Every agent, end of every session |
+| `docs/PRODUCT_BACKLOG.md` | All features done / in progress / planned / deferred. Page status table for all 10 roles and ~30 pages | Every agent when work is completed or planned |
+| `docs/PRODUCT_LOG.md` | Append-only log of why decisions were made — never edited, only appended | Every agent, key decisions only |
+| `docs/AI_TOOL_HANDOFF_GUIDE.md` | Codebase pitfalls, tricky patterns, and gotchas discovered during development and testing | Any agent that finds a new pitfall |
+| `.claude/CLAUDE.md` | Governance rules: architecture, schema discipline, git rules, naming, error handling | Only updated when governance rules change |
 
-## Documentation Layers
+---
 
-### Product Truth
+## Reference documentation (read, do not update)
 
-`docs/10_recovered_product/`
+### `docs/06_schema/`
 
-This folder captures the recovered intended product from the original transcripts.
-It is the canonical source for:
+The schema is the source of truth for all database work.
 
-- scope
-- roles
-- entities
-- workflows
-- pages
-- reporting
-- authority-sharing behavior
+| File | Purpose |
+|---|---|
+| `schema_v1_full.sql` | **READ BEFORE WRITING ANY QUERY.** Exact column names, types, ENUMs, FKs |
+| `12_SCHEMA_SPECIFICATION_v1.md` | Schema decisions and rationale |
+| `11_SCHEMA_BASELINE_v1_FINAL_WITH_DDL.md` | Baseline DDL reference |
 
-### Build Specs
+### `docs/10_recovered_product/`
 
-`docs/11_build_specs/`
+Original product intent recovered from design transcripts before the build. Useful for
+understanding *why* the system works the way it does — scope, roles, entities, workflows.
 
-This folder captures implementation-level truth.
-It is the canonical source for:
+**Do not update.** If the actual product has drifted from these docs, the product wins.
+Record the deviation in `PRODUCT_LOG.md` if it matters.
 
-- build order
-- RBAC details
-- schema roadmap
-- route contracts
-- page field behavior
-- workflow state machines
-- upload retention and storage rules
-- formulas
-- system settings
-- acceptance checklists
+| File | What it covers |
+|---|---|
+| `00_FINAL_PRODUCT_BEHAVIOR_MODEL.md` | Overall product behaviour |
+| `01_ROLE_AND_ACCESS_MODEL.md` | Role definitions and what each role can do |
+| `02_DOMAIN_AND_ENTITY_MODEL.md` | Core entities and relationships |
+| `03_WORKFLOWS_AND_LIFECYCLES.md` | Key operational workflows |
+| `04_PAGE_AND_MODULE_MODEL.md` | Page catalogue |
+| `06_REPORT_AND_EXPORT_MODEL.md` | Reporting |
+| `07_AUTHORITY_SHARE_AND_SUMMARY_MODEL.md` | Authority representative workflows |
 
-### Legacy References
+### `docs/11_build_specs/`
 
-Legacy folders still exist:
+**ARCHIVED.** Written before the product was built. Many things have been added,
+changed, and improved through development, agent testing, and real-world product owner
+feedback. These files reflect original design intent — they do not reflect the current
+implementation. Each file has an archive notice at the top.
 
-- `docs/01_structure`
-- `docs/02_interface`
-- `docs/03_context`
-- `docs/04_operations`
-- `docs/06_schema`
+Use these only to understand the original reasoning behind a design decision.
+For current state, use `PRODUCT_BACKLOG.md`.
 
-These folders are not all equal in value anymore.
-Some files should be kept, some rewritten, some merged, and some archived.
+**Do not update these files.**
 
-See:
+### `docs/01_structure/`, `docs/02_interface/`, `docs/03_context/`, `docs/04_operations/`
 
-- `docs/10_recovered_product/08_LEGACY_DOC_REWRITE_PLAN.md`
-- `docs/10_recovered_product/09_LEGACY_DOC_CLASSIFICATION.md`
+Legacy reference folders from the pre-build phase. Variable quality and accuracy.
+Some files are still useful for context; others are outdated. Not maintained.
 
-## Document Authority Rules
+---
 
-Use this precedence rule everywhere:
+## Historical records (read-only)
 
-1. `docs/10_recovered_product/*` wins on product meaning, scope, roles, entities, workflows, pages, and reporting intent
-2. `docs/11_build_specs/*` wins on implementation behavior, schema design, routes, fields, state transitions, formulas, settings, and acceptance criteria
-3. rewritten legacy docs are repo-facing mirrors only and must not override either canonical layer
-4. operational support docs help environment and workflow decisions, but they do not redefine product scope or implementation contracts
+| File | What it is |
+|---|---|
+| `tests/TEST_RESULTS.md` | QA phase archive (T01–T70, E2E-01–E2E-07). Testing phase is complete. Do not add entries. |
 
-If two documents appear to conflict:
+---
 
-- use `docs/10_recovered_product/*` to settle what the system is supposed to be
-- use `docs/11_build_specs/*` to settle how that behavior must be implemented
-- update mirror docs to match; do not treat drift as intentional truth
+## Document authority rules
 
-## Active Rule
+When two documents conflict:
 
-When a legacy doc conflicts with recovered product truth:
+1. **`docs/06_schema/schema_v1_full.sql`** — final authority on database structure
+2. **`.claude/CLAUDE.md`** — final authority on architecture and governance rules
+3. **`docs/PRODUCT_BACKLOG.md`** — final authority on current product feature state
+4. **`docs/PRODUCT_LOG.md`** — final authority on why decisions were made
+5. **`docs/10_recovered_product/`** — authority on original product intent
+6. **`docs/11_build_specs/`** — historical only, does not override anything above
 
-- recovered product docs win on product intent
-- build-spec docs win on implementation contract
-- legacy docs must be rewritten, merged, or archived
+---
 
-## Still Useful Existing Folders
+## Development philosophy
 
-These remain useful support layers and should be realigned gradually:
-
-- `docs/04_operations`
-- `docs/06_schema`
-
-## Backend Layer Rule
-
-Controllers handle HTTP input/output only and must not contain business logic.
-Controllers handle request validation for format and required fields.
-Services handle business validation and domain rules.
-Repositories handle database access only.
-RBAC must be enforced at middleware before controllers.
-
-## Development Philosophy
-
+```
 Governance > Convenience
 Auditability > Automation
 Clarity > Cleverness
+```
 
-## Repo-Facing Legacy Mirrors
-
-The following legacy files are now rewritten mirrors of the canon rather than independent product authorities:
-
-- `docs/03_context/00_PROJECT_OVERVIEW_FINAL.md`
-- `docs/03_context/01_REQUIREMENTS_CONTEXT_FINAL.md`
-- `docs/02_interface/02_ROLES_AND_ACCESS_FINAL.md`
-- `docs/02_interface/04_PAGE_CATALOG_FINAL_V4_LOCKED.md`
-- `docs/01_structure/05_DATA_AND_FLOW_NOTES_FINAL.md`
-- `docs/01_structure/06_DECISIONS_LOG_FINAL_LOCKED.md`
-- `docs/06_schema/11_SCHEMA_BASELINE_v1_FINAL_WITH_DDL.md`
-- `docs/06_schema/12_SCHEMA_SPECIFICATION_v1.md`
-- `docs/06_schema/schema_v1_full.sql`
-
-These files should help repo navigation and onboarding, but they should stay synchronized to the canon rather than redefine it.
-
-For executable first-run DB setup:
-
-1. run `docs/06_schema/schema_v1_full.sql`
-2. run `migrations/001_seed_foundation.sql`
-3. optionally create the first Ops user from `migrations/002_bootstrap_ops_user.template.sql`
+Architecture (non-negotiable):
+```
+Controller → Service → Repository → Database
+```
