@@ -104,7 +104,9 @@ Skipping any one of them makes the docs stale for the next agent.**
 
 ### `docs/PRODUCT_BACKLOG.md`
 - [ ] Feature entry status — mark in-progress items ✅ Done with commit hash
-- [ ] Page Status table — update status of every page you touched (even 🔧 partial)
+- [ ] **Improvement Sequence table** — update Overall Status for the role you worked on
+- [ ] **Role section header** — update "X of Y pages done" count
+- [ ] **Individual page row** — update status + add notes on what changed
 - [ ] Planned section — add any new items identified during your session
 - [ ] Deferred section — add anything explicitly decided not to do yet
 

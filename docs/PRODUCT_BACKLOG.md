@@ -16,11 +16,14 @@ in a session MUST update the following sections before ending the session:
 |---|---|
 | Feature entry status (✅ / 🔄 / 📋) | When you start or finish a feature |
 | Feature entry — add commit hash | When work is committed |
-| Page Status table | When ANY page is improved, even partially |
+| **Improvement Sequence table** | When a user role is started or completed — update the overall status column |
+| **User-level status header** in Page Status | When any page for that user changes — update "X of Y pages done" |
+| **Per-page row** in Page Status | When ANY page is improved, even partially — update status + notes |
 | Planned / Deferred sections | When new work is identified or a decision is deferred |
 
-**Do not end a session without updating the Page Status table.** That table is how the
-next agent knows which pages have been improved and which have never been touched.
+**Do not end a session without updating all three levels of the Page Status section:**
+the Improvement Sequence table (user-level), the role section header (pages done count),
+and the individual page rows. Each level tells the next agent something different.
 A stale table is worse than no table — it creates false confidence.
 
 The same mandate applies to `docs/AGENT_START.md` (current focus + last completed)
@@ -240,8 +243,12 @@ for the full options analysis.
 
 ## Page Status — All Roles
 
-**Every agent must update this table when any page is changed, even partially.**
-A page not in this table has not been reviewed since the initial build.
+**Every agent must update this section at THREE levels when any page changes:**
+1. **Improvement Sequence table** — overall user status column
+2. **Role section header** — pages-done count
+3. **Individual page row** — status + notes
+
+A page not updated here has not been reviewed since the initial build.
 
 Status key:
 - ✅ **Fully improved** — deliberate UX/mobile review and redesign
@@ -251,54 +258,68 @@ Status key:
 
 ---
 
-### AUTHORITY_REPRESENTATIVE
+### Improvement Sequence
 
-| Page | Module key | Status | Notes |
-|---|---|---|---|
-| Authority View | `green_belt.authority_view` | ✅ Fully improved | Full gallery redesign — belt dropdown, date range, group-by, JSZip, photo preview modal, mobile swipe, work type chips in filters, stat cards, collapsible filters |
+The product owner's strategy: **update users in order from least complex to most complex.**
+Roles with fewer pages and simpler workflows come first. OPS_MANAGER (25+ pages) comes last.
+Note: roles that share pages (GBS + Outsourced share My Uploads; Sales/CS/MP share Task Progress)
+are worked together so shared improvements land once for all.
 
----
+**Update the Overall Status column every time a role's pages change.**
 
-### GREEN_BELT_SUPERVISOR
-
-| Page | Module key | Status | Notes |
-|---|---|---|---|
-| Supervisor Upload | `green_belt.supervisor_upload` | ✅ Fully improved | Work type chips, mobile camera picker, photo preview, XHR progress, success card |
-| My Uploads | `green_belt.my_uploads` | 🔄 In progress | Currently a basic table — gallery view next |
-
----
-
-### OUTSOURCED_MAINTAINER
-
-| Page | Module key | Status | Notes |
-|---|---|---|---|
-| Outsourced Upload | `green_belt.outsourced_upload` | ✅ Fully improved | Shares `uploadView` with Supervisor Upload — same redesign applies |
-| My Uploads | `green_belt.my_uploads` | 🔄 In progress | Same as Supervisor |
+| # | Role | Total pages | Pages done | Overall Status |
+|---|---|---|---|---|
+| 1 | AUTHORITY_REPRESENTATIVE | 1 | 1 | ✅ Complete |
+| 2 | GREEN_BELT_SUPERVISOR | 2 | 1 | 🔄 In progress |
+| 3 | OUTSOURCED_MAINTAINER | 2 | 1 | 🔄 In progress (shares My Uploads with GBS) |
+| 4 | MONITORING_TEAM | 2 | 0 | ⬜ Not started |
+| 5 | FABRICATION_LEAD | 2 | 0 | ⬜ Not started |
+| 6 | SALES_TEAM / CLIENT_SERVICING / MEDIA_PLANNING | 2–3 | 1 partial | 🔧 Partial (shared gallery only) |
+| 7 | MANAGEMENT | 1–2 | 0 | ⬜ Not started |
+| 8 | HEAD_SUPERVISOR | 5 | 0 | ⬜ Not started |
+| 9 | OPS_MANAGER | 25+ | 3 partial | 🔧 Partial (targeted fixes + shared components) |
 
 ---
 
-### HEAD_SUPERVISOR
+---
+### 1 · AUTHORITY_REPRESENTATIVE — ✅ Complete (1 of 1 pages done)
 
 | Page | Module key | Status | Notes |
 |---|---|---|---|
-| Watering Oversight | `green_belt.watering_oversight` | ⬜ Not yet reviewed | Backend watering correction fixed (T14). UI override-reason UX not verified. Tables not mobile-optimised |
-| Supervisor Attendance | `green_belt.supervisor_attendance` | ⬜ Not yet reviewed | |
-| Labour Entries | `green_belt.labour_entries` | ⬜ Not yet reviewed | |
-| Issue Management | `green_belt.issue_management` | ⬜ Not yet reviewed | IS-XXXXX codes now showing (T25 fix) |
-| Green Belt Dashboard | `dashboard.green_belt` | ⬜ Not yet reviewed | |
+| Authority View | `green_belt.authority_view` | ✅ Fully improved | Full gallery redesign — belt name dropdown with photo counts, date range, group-by, JSZip bulk download, preview modal with keyboard nav + swipe, collapsible filters, compact stat cards |
 
 ---
 
-### MONITORING_TEAM
+### 2 · GREEN_BELT_SUPERVISOR — 🔄 In progress (1 of 2 pages done)
 
 | Page | Module key | Status | Notes |
 |---|---|---|---|
-| Monitoring Upload | `monitoring.upload` | ⬜ Not yet reviewed | |
-| Monitoring History | `monitoring.history` | ⬜ Not yet reviewed | |
+| Supervisor Upload | `green_belt.supervisor_upload` | ✅ Fully improved | Work type chips, mobile camera picker, thumbnail preview, XHR progress, success card with My Uploads link |
+| My Uploads | `green_belt.my_uploads` | 🔄 In progress | Basic table currently — gallery view is next target |
 
 ---
 
-### FABRICATION_LEAD
+### 3 · OUTSOURCED_MAINTAINER — 🔄 In progress (1 of 2 pages done)
+
+Shares `my_uploads` with GREEN_BELT_SUPERVISOR — completing that page finishes both roles simultaneously.
+
+| Page | Module key | Status | Notes |
+|---|---|---|---|
+| Outsourced Upload | `green_belt.outsourced_upload` | ✅ Fully improved | Shares `uploadView` function with Supervisor Upload — identical redesign |
+| My Uploads | `green_belt.my_uploads` | 🔄 In progress | Same page as GBS — done together |
+
+---
+
+### 4 · MONITORING_TEAM — ⬜ Not started (0 of 2 pages done)
+
+| Page | Module key | Status | Notes |
+|---|---|---|---|
+| Monitoring Upload | `monitoring.upload` | ⬜ Not yet reviewed | Consider applying `uploadView` pattern if applicable |
+| Monitoring History | `monitoring.history` | ⬜ Not yet reviewed | Photo history — consider gallery view |
+
+---
+
+### 5 · FABRICATION_LEAD — ⬜ Not started (0 of 2 pages done)
 
 | Page | Module key | Status | Notes |
 |---|---|---|---|
@@ -307,59 +328,75 @@ Status key:
 
 ---
 
-### SALES_TEAM / CLIENT_SERVICING / MEDIA_PLANNING
+### 6 · SALES_TEAM / CLIENT_SERVICING / MEDIA_PLANNING — 🔧 Partial (0 of 2 pages fully done)
 
-These three roles share the same pages.
+Three roles that share the same pages. Work done here lands for all three simultaneously.
 
 | Page | Module key | Status | Notes |
 |---|---|---|---|
-| Task Progress | `task.progress_read` | 🔧 Component upgrade | `openPhotoGallery` wired to task proof thumbnails — no page-specific review done |
-| Task Requests | `task.request_intake` | ⬜ Not yet reviewed | RQ-XXXXX codes now showing (T27 fix) |
+| Task Progress | `task.progress_read` | 🔧 Component upgrade | `openPhotoGallery` wired to task proof thumbnails — no page-specific review done yet |
+| Task Requests | `task.request_intake` | ⬜ Not yet reviewed | RQ-XXXXX codes showing (T27 fix). Page itself not reviewed |
 
 ---
 
-### MANAGEMENT
+### 7 · MANAGEMENT — ⬜ Not started (0 of 1 pages done)
 
 | Page | Module key | Status | Notes |
 |---|---|---|---|
-| Management Dashboard | `dashboard.management` | ⬜ Not yet reviewed | |
+| Management Dashboard | `dashboard.management` | ⬜ Not yet reviewed | Read-only overview — stat cards could use `UI.statGrid()` |
 
 ---
 
-### OPS_MANAGER (key pages — full list is large)
-
-OPS has access to all modules. Pages that have been improved are noted; all others are untouched.
+### 8 · HEAD_SUPERVISOR — ⬜ Not started (0 of 5 pages done)
 
 | Page | Module key | Status | Notes |
 |---|---|---|---|
+| Watering Oversight | `green_belt.watering_oversight` | ⬜ Not yet reviewed | Backend correction fixed (T14). UI override-reason flow not verified. Tables not mobile-optimised |
+| Supervisor Attendance | `green_belt.supervisor_attendance` | ⬜ Not yet reviewed | |
+| Labour Entries | `green_belt.labour_entries` | ⬜ Not yet reviewed | |
+| Issue Management | `green_belt.issue_management` | ⬜ Not yet reviewed | IS-XXXXX codes showing (T25 fix). Page not reviewed |
+| Green Belt Dashboard | `dashboard.green_belt` | ⬜ Not yet reviewed | |
+
+---
+
+### 9 · OPS_MANAGER — 🔧 Partial (0 of 25+ pages fully done)
+
+OPS accesses all modules. Reviewed last due to volume and complexity.
+Pages listed where any improvement has landed — all others are completely untouched.
+
+**Update the count in the Improvement Sequence table when any OPS page reaches ✅.**
+
+| Page | Module key | Status | Notes |
+|---|---|---|---|
+| Authority View | `green_belt.authority_view` | ✅ Fully improved | OPS can access — improvement was AR-focused but OPS benefits too |
+| Supervisor Upload | `green_belt.supervisor_upload` | ✅ Fully improved | OPS can access — improvement was GBS-focused |
+| Upload Review | `green_belt.upload_review` | 🔧 Component upgrade | `openPhotoGallery` on thumbnails. No page-specific review |
+| Task Progress | `task.progress_read` | 🔧 Component upgrade | `openPhotoGallery` on proof photos |
+| Client Media Library | `commercial.client_media_library` | 🔧 Component upgrade | `openPhotoGallery` wired. No page-specific review |
+| Green Belts List | `green_belt.master` | ⬜ Not yet reviewed | Create Belt form has visible validation (T46 fix) |
+| Belt Detail | `green_belt.detail` | ⬜ Not yet reviewed | |
+| Issue Management | `green_belt.issue_management` | ⬜ Not yet reviewed | IS-XXXXX codes showing |
+| Task Requests | `task.request_intake` | ⬜ Not yet reviewed | RQ-XXXXX codes showing |
 | Master Dashboard | `dashboard.master_ops` | ⬜ Not yet reviewed | |
 | Green Belt Dashboard | `dashboard.green_belt` | ⬜ Not yet reviewed | |
 | Advertisement Dashboard | `dashboard.advertisement` | ⬜ Not yet reviewed | |
 | Monitoring Dashboard | `dashboard.monitoring` | ⬜ Not yet reviewed | |
-| Green Belts List | `green_belt.master` | ⬜ Not yet reviewed | Create Belt form has visible validation (T46 fix) |
-| Belt Detail | `green_belt.detail` | ⬜ Not yet reviewed | |
-| Upload Review | `green_belt.upload_review` | 🔧 Component upgrade | `openPhotoGallery` wired to thumbnails (prev/next across 50 photos). No other page review done |
-| Issue Management | `green_belt.issue_management` | ⬜ Not yet reviewed | IS-XXXXX codes showing (T25 fix) |
 | Maintenance Cycles | `green_belt.maintenance_cycles` | ⬜ Not yet reviewed | |
 | Watering Oversight | `green_belt.watering_oversight` | ⬜ Not yet reviewed | |
 | Supervisor Attendance | `green_belt.supervisor_attendance` | ⬜ Not yet reviewed | |
 | Labour Entries | `green_belt.labour_entries` | ⬜ Not yet reviewed | |
-| Authority View | `green_belt.authority_view` | ✅ Fully improved | Full redesign — OPS can access but it is primarily the AR's page |
 | Task Management | `task.management` | ⬜ Not yet reviewed | |
-| Task Requests | `task.request_intake` | ⬜ Not yet reviewed | RQ-XXXXX codes showing (T27 fix) |
-| Task Progress | `task.progress_read` | 🔧 Component upgrade | `openPhotoGallery` on proof photos |
 | Task Detail | `task.detail` | ⬜ Not yet reviewed | |
 | Worker Allocation | `task.worker_allocation` | ⬜ Not yet reviewed | |
-| Alert Panel | `governance.alert_panel` | ⬜ Not yet reviewed | Section badges fixed (T45 fix) |
+| Alert Panel | `governance.alert_panel` | ⬜ Not yet reviewed | Section badges fixed (T45) |
 | Audit Logs | `governance.audit_logs` | ⬜ Not yet reviewed | |
 | User Management | `governance.user_management` | ⬜ Not yet reviewed | |
 | Rejected Upload Cleanup | `governance.rejected_upload_cleanup` | ⬜ Not yet reviewed | |
-| System Settings | `settings.system` | ⬜ Not yet reviewed | PHP notice on update fixed (T39 fix) |
+| System Settings | `settings.system` | ⬜ Not yet reviewed | PHP notice on update fixed (T39) |
 | Monthly Reports | `reports.monthly` | ⬜ Not yet reviewed | |
 | Site Master | `advertisement.site_master` | ⬜ Not yet reviewed | |
 | Campaign Management | `advertisement.campaign_management` | ⬜ Not yet reviewed | |
 | Free Media | `media.free_media_inventory` | ⬜ Not yet reviewed | |
-| Client Media Library | `commercial.client_media_library` | 🔧 Component upgrade | `openPhotoGallery` wired. No page-specific review |
 | Media Planning View | `commercial.media_planning_inventory` | ⬜ Not yet reviewed | |
 | Monitoring Plan | `monitoring.plan` | ⬜ Not yet reviewed | |
 | Monitoring History | `monitoring.history` | ⬜ Not yet reviewed | |
