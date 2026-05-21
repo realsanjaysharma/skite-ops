@@ -6,7 +6,7 @@
 ---
 
 Last updated by: Claude Sonnet 4.6 — 2026-05-21
-Last commit: `d35967c feat(supervisor-upload): mobile-first redesign`
+Last commit: `ea9d580 feat(my-uploads): replace basic table with mobile gallery`
 
 ---
 
@@ -42,14 +42,17 @@ Agent testing (T01–T70 QA pass) is **complete**. That phase is archived in
 | `f392038` | Authority View UX polish: collapsible filters, compact stat cards, card layout, Refresh moved, sticky group headers, keyboard nav, swipe gestures, per-belt photo count, auto-swap dates |
 | `1ab21c1` | Shared components: `UI.panel(collapsible)`, `UI.statGrid()`, `openPhotoGallery()`, `.photo-thumb` CSS — wired to Upload Review, Client Media Library, Task Progress |
 | `d35967c` | Supervisor + Outsourced Upload: work type chips, mobile camera picker, thumbnail preview, XHR progress bar, success card with My Uploads link |
+| `ea9d580` | My Uploads: gallery cards, photo preview (openPhotoGallery 1-of-27), collapsible filters, 5-min self-delete with live countdown, "Window closed" badge |
 
 ---
 
 ## Current focus
 
-**In-field user pages — Green Belt Supervisor role.**
+**In-field user pages — completing GBS + Outsourced, then moving to Monitoring Team.**
 
-Pages in scope: `green_belt.supervisor_upload` ✅ done, `green_belt.my_uploads` ← next.
+GREEN_BELT_SUPERVISOR: all pages done ✅ (`supervisor_upload` + `my_uploads`)
+OUTSOURCED_MAINTAINER: all pages done ✅ (shares both pages with GBS)
+Next role: **MONITORING_TEAM** (`monitoring.upload` + `monitoring.history`)
 
 After that: Head Supervisor pages (`green_belt.watering_oversight` and related).
 
@@ -59,8 +62,9 @@ After that: Head Supervisor pages (`green_belt.watering_oversight` and related).
 
 - **Authority View** — stable after multiple polish passes. Do not refactor.
 - **`uploadView` shared function** — just redesigned. Do not change without instruction.
-- **`openPhotoGallery()`** — shared function, used by 4 pages. Changes affect all.
+- **`openPhotoGallery()`** — shared function, used by 5 pages. Changes affect all.
 - **`UI.panel()` in `ui.js`** — extended with `collapsible` option. Test any changes across pages.
+- **`green_belt.my_uploads`** — just completed. Do not refactor.
 - **`tests/TEST_RESULTS.md`** — QA phase is archived. Do not add new test results there.
 
 ---

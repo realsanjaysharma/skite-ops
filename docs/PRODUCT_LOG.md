@@ -118,3 +118,11 @@ built, tested, changed by 3+ AI agents, and improved based on real usage. Mainta
 accuracy of 11 original spec files simultaneously is impossible and creates false confidence
 ("the spec says X so it must work that way"). The code + git history + PRODUCT_BACKLOG.md
 is the truth. Pre-build specs remain as design-intent references only.
+
+## 2026-05-22 — My Uploads gallery + documentation system
+
+**My Uploads self-delete window:** 5 minutes confirmed from `config/constants.php UPLOAD_SELF_DELETE_WINDOW_MINUTES = 5`. UI checks client-side from `created_at` to show countdown vs "Window closed" badge — avoids a server round-trip for every card render. Backend still enforces the window server-side; client check is UX only.
+
+**Authority visibility not shown on My Uploads:** The `upload/my-list` API strips `authority_visibility` per Page Spec §9 (supervisor should not see approval status). This is intentional — supervisor's job is to submit, not to track review outcomes. Design kept as-is.
+
+**Documentation system established:** Created `AGENT_START.md`, `PRODUCT_BACKLOG.md`, `PRODUCT_LOG.md`, `GOVERNANCE.md`. Archived `docs/11_build_specs/` with notice. Rewrote `docs/README.md`. `AI_TOOL_HANDOFF_GUIDE.md` updated to point to new files. `CLAUDE.md` updated to reference `GOVERNANCE.md` as neutral path for all agents. Added Improvement Sequence table to backlog with hierarchy order (AR → GBS → Outsourced → Monitoring → Fabrication → Sales/CS/MP → Management → HS → OPS). Mandatory end-of-session update checklist added to AGENT_START.md.

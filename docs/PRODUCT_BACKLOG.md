@@ -141,10 +141,19 @@ Applies to both `green_belt.supervisor_upload` and `green_belt.outsourced_upload
 
 ---
 
-## 🔄 In Progress — Green Belt Supervisor Pages
+## ✅ My Uploads Gallery (commit `ea9d580`, 2026-05-21)
 
-**`green_belt.my_uploads`** — next improvement target.
-Current state: basic data table. Needs gallery view consistent with Authority View style.
+`green_belt.my_uploads` redesigned from a 6-column generic table into a photo gallery.
+Applies to both GREEN_BELT_SUPERVISOR and OUTSOURCED_MAINTAINER (shared page).
+
+**What was built:**
+- Gallery card grid (4-column auto-fill, 2-column on mobile)
+- Each card: thumbnail + belt name + date/time + upload type badge (Work/Issue with icon) + comment preview (2-line clamp) + delete control
+- Photo preview via `openPhotoGallery` — navigates across all visible uploads (1 of 27 etc.), keyboard + swipe
+- Self-delete: 5-minute window matches `UPLOAD_SELF_DELETE_WINDOW_MINUTES = 5` in `config/constants.php`. Within window → red Delete button + live second countdown. After window → "Window closed" badge. Confirmation modal before delete.
+- Collapsible filter panel (defaultOpen: false): From / To date + upload type (All / Work proof / Issue report)
+- "Showing X of N uploads" count bar
+- No backend changes — reuses `upload/my-list` and `upload/delete`
 
 ---
 
@@ -270,8 +279,8 @@ are worked together so shared improvements land once for all.
 | # | Role | Total pages | Pages done | Overall Status |
 |---|---|---|---|---|
 | 1 | AUTHORITY_REPRESENTATIVE | 1 | 1 | ✅ Complete |
-| 2 | GREEN_BELT_SUPERVISOR | 2 | 1 | 🔄 In progress |
-| 3 | OUTSOURCED_MAINTAINER | 2 | 1 | 🔄 In progress (shares My Uploads with GBS) |
+| 2 | GREEN_BELT_SUPERVISOR | 2 | 2 | ✅ Complete |
+| 3 | OUTSOURCED_MAINTAINER | 2 | 2 | ✅ Complete (shares both pages with GBS) |
 | 4 | MONITORING_TEAM | 2 | 0 | ⬜ Not started |
 | 5 | FABRICATION_LEAD | 2 | 0 | ⬜ Not started |
 | 6 | SALES_TEAM / CLIENT_SERVICING / MEDIA_PLANNING | 2–3 | 1 partial | 🔧 Partial (shared gallery only) |
@@ -290,23 +299,23 @@ are worked together so shared improvements land once for all.
 
 ---
 
-### 2 · GREEN_BELT_SUPERVISOR — 🔄 In progress (1 of 2 pages done)
+### 2 · GREEN_BELT_SUPERVISOR — ✅ Complete (2 of 2 pages done)
 
 | Page | Module key | Status | Notes |
 |---|---|---|---|
 | Supervisor Upload | `green_belt.supervisor_upload` | ✅ Fully improved | Work type chips, mobile camera picker, thumbnail preview, XHR progress, success card with My Uploads link |
-| My Uploads | `green_belt.my_uploads` | 🔄 In progress | Basic table currently — gallery view is next target |
+| My Uploads | `green_belt.my_uploads` | ✅ Fully improved | Gallery cards, openPhotoGallery (1 of 27), 5-min self-delete countdown, "Window closed" badge, collapsible filters |
 
 ---
 
-### 3 · OUTSOURCED_MAINTAINER — 🔄 In progress (1 of 2 pages done)
+### 3 · OUTSOURCED_MAINTAINER — ✅ Complete (2 of 2 pages done)
 
-Shares `my_uploads` with GREEN_BELT_SUPERVISOR — completing that page finishes both roles simultaneously.
+Shares both pages with GREEN_BELT_SUPERVISOR — completing GBS completed this role simultaneously.
 
 | Page | Module key | Status | Notes |
 |---|---|---|---|
-| Outsourced Upload | `green_belt.outsourced_upload` | ✅ Fully improved | Shares `uploadView` function with Supervisor Upload — identical redesign |
-| My Uploads | `green_belt.my_uploads` | 🔄 In progress | Same page as GBS — done together |
+| Outsourced Upload | `green_belt.outsourced_upload` | ✅ Fully improved | Shares `uploadView` — identical redesign |
+| My Uploads | `green_belt.my_uploads` | ✅ Fully improved | Shares page with GBS — same gallery redesign |
 
 ---
 
