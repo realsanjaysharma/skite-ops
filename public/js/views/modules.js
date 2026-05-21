@@ -1463,15 +1463,213 @@ Views.register('monitoring.upload', {
   }
 });
 
+// Self-delete window in milliseconds — matches config/constants.php UPLOAD_SELF_DELETE_WINDOW_MINUTES
+const MY_UPLOADS_DELETE_WINDOW_MS = 5 * 60 * 1000;
+
+function myUploadsSecondsLeft(createdAt) {
+  const created = new Date(createdAt.replace(' ', 'T')).getTime();
+  const ms = MY_UPLOADS_DELETE_WINDOW_MS - (Date.now() - created);
+  return Math.max(0, Math.ceil(ms / 1000));
+}
+
+function myUploadsWorkTypeIcon(workType) {
+  const map = {
+    ROUTINE_MAINTENANCE: 'ph-broom',
+    REPAIR: 'ph-wrench',
+    PLANTING: 'ph-plant',
+    WATERING: 'ph-drop',
+    CLEANING: 'ph-sparkle'
+  };
+  return map[workType] || 'ph-image';
+}
+
 Views.register('green_belt.my_uploads', {
-  async render() {
-    const data = await Api.get('upload/my-list');
-    return renderListPage('My Uploads', 'upload/my-list', data, 'green_belt.my_uploads', {
-      columns: ['id', 'parent_type', 'parent_name', 'upload_type', 'work_type', 'created_at']
-    });
+  async render({ params = {} }) {
+    const apiParams = {};
+    if (params.date_from) apiParams.date_from = params.date_from;
+    if (params.date_to)   apiParams.date_to   = params.date_to;
+    if (params.upload_type) apiParams.upload_type = params.upload_type;
+
+    const data = await Api.get('upload/my-list', apiParams);
+    const rows = normalizeItems(data);
+    const total = data?.pagination?.total ?? rows.length;
+
+    const filterBody = `
+      <form class="filter-grid js-filter-form my-uploads-filter-grid">
+        <label class="field">
+          <span>From</span>
+          <input type="date" name="date_from" value="${UI.escape(params.date_from || '')}">
+        </label>
+        <label class="field">
+          <span>To</span>
+          <input type="date" name="date_to" value="${UI.escape(params.date_to || '')}">
+        </label>
+        <label class="field">
+          <span>Type</span>
+          <select name="upload_type">
+            <option value="" ${!params.upload_type ? 'selected' : ''}>All types</option>
+            <option value="WORK" ${params.upload_type === 'WORK' ? 'selected' : ''}>Work proof</option>
+            <option value="ISSUE" ${params.upload_type === 'ISSUE' ? 'selected' : ''}>Issue report</option>
+          </select>
+        </label>
+        <button type="submit" class="btn btn-primary"><i class="ph ph-funnel"></i><span>Apply</span></button>
+      </form>
+    `;
+
+    let galleryHtml = '';
+    if (!rows.length) {
+      galleryHtml = `
+        <div class="av-empty">
+          <div class="av-empty-title">No uploads found.</div>
+          <p>Try a different date range or type filter.</p>
+        </div>
+      `;
+    } else {
+      const cards = rows.map((row) => {
+        const photoUrl = Api.url('upload/serve', { id: row.id });
+        const ts       = row.created_at || '';
+        const dateOnly = ts.substring(0, 10);
+        const timeOnly = ts.length >= 16 ? ts.substring(11, 16) : '';
+        const humanDate = authorityHumanDate(dateOnly);
+        const secsLeft  = myUploadsSecondsLeft(ts);
+        const canDelete  = secsLeft > 0;
+        const isIssue    = row.upload_type === 'ISSUE';
+        const workType   = row.work_type || '';
+        const wtIcon     = myUploadsWorkTypeIcon(workType);
+        const typeBadge  = isIssue
+          ? `<span class="mu-badge mu-badge-issue"><i class="ph ph-warning-circle"></i> Issue</span>`
+          : `<span class="mu-badge mu-badge-work"><i class="ph ${wtIcon}"></i> ${UI.escape(workType.replace('_', ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase()))}</span>`;
+        const deleteCtrl = canDelete
+          ? `<button type="button" class="btn btn-danger btn-sm js-mu-delete" data-upload-id="${row.id}" data-secs-left="${secsLeft}">
+               <i class="ph ph-trash"></i><span>Delete</span>
+             </button>
+             <span class="mu-window-hint js-mu-window-hint" data-upload-id="${row.id}">${secsLeft}s left</span>`
+          : `<span class="mu-window-closed"><i class="ph ph-lock-simple"></i> Window closed</span>`;
+        const comment = row.comment_preview
+          ? `<p class="mu-card-comment">${UI.escape(row.comment_preview)}${row.comment_preview.length >= 80 ? '…' : ''}</p>`
+          : '';
+
+        return `
+          <article class="mu-card" data-upload-id="${row.id}" data-created-at="${UI.escape(ts)}">
+            <button type="button" class="av-card-photo js-mu-preview"
+                    data-upload-id="${row.id}"
+                    data-photo-url="${photoUrl}"
+                    data-belt="${UI.escape(row.parent_name || '')}"
+                    data-time="${UI.escape(humanDate + (timeOnly ? ' ' + timeOnly : ''))}"
+                    data-work-type="${UI.escape(workType)}"
+                    aria-label="Preview upload ${row.id}">
+              <img src="${photoUrl}" alt="Upload ${row.id}" loading="lazy">
+            </button>
+            <div class="mu-card-body">
+              <div class="mu-card-belt">${UI.escape(row.parent_name || 'Unknown belt')}</div>
+              <div class="mu-card-row">
+                <span>${UI.escape(humanDate)}</span>
+                <span class="mu-card-time">${UI.escape(timeOnly)}</span>
+              </div>
+              <div class="mu-card-row">${typeBadge}</div>
+              ${comment}
+              <div class="mu-card-actions">${deleteCtrl}</div>
+            </div>
+          </article>
+        `;
+      }).join('');
+
+      galleryHtml = `
+        <div class="mu-gallery-bar">
+          <span>Showing <strong>${rows.length}</strong> of <strong>${total}</strong> uploads</span>
+        </div>
+        <div class="mu-card-grid">${cards}</div>
+        ${renderPagination(data.pagination, 'green_belt.my_uploads', params)}
+      `;
+    }
+
+    return UI.page('My Uploads', 'Your submitted field proof', UI.button('Refresh', { icon: 'ph-arrows-clockwise', attr: 'data-refresh' }))
+      + UI.panel('Filters', filterBody, '', { collapsible: true, defaultOpen: false })
+      + UI.panel('Uploads', galleryHtml);
   },
-  async afterRender() {
+
+  async afterRender({ params = {} }) {
     attachRefresh();
+    wireFilters((payload) => {
+      Object.keys(payload).forEach((k) => { if (!payload[k]) delete payload[k]; });
+      App.navigate('green_belt.my_uploads', payload);
+    });
+
+    // Build items for gallery preview
+    const previewItems = Array.from(document.querySelectorAll('.js-mu-preview')).map((btn) => ({
+      id: parseInt(btn.dataset.uploadId, 10),
+      url: btn.dataset.photoUrl,
+      belt: btn.dataset.belt || '',
+      time: btn.dataset.time || '',
+      workType: btn.dataset.workType || ''
+    }));
+    document.querySelectorAll('.js-mu-preview').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const id = parseInt(btn.dataset.uploadId, 10);
+        const idx = previewItems.findIndex((item) => item.id === id);
+        openPhotoGallery(previewItems, idx >= 0 ? idx : 0);
+      });
+    });
+
+    // Live countdown for delete window
+    const hints = document.querySelectorAll('.js-mu-window-hint');
+    if (hints.length) {
+      const ticker = setInterval(() => {
+        let anyLeft = false;
+        document.querySelectorAll('.mu-card[data-created-at]').forEach((card) => {
+          const secs = myUploadsSecondsLeft(card.dataset.createdAt);
+          const hint = card.querySelector('.js-mu-window-hint');
+          const btn  = card.querySelector('.js-mu-delete');
+          if (hint) {
+            if (secs > 0) {
+              hint.textContent = `${secs}s left`;
+              anyLeft = true;
+            } else {
+              // Window just expired — replace controls with "Window closed"
+              const actionsEl = card.querySelector('.mu-card-actions');
+              if (actionsEl) {
+                actionsEl.innerHTML = `<span class="mu-window-closed"><i class="ph ph-lock-simple"></i> Window closed</span>`;
+              }
+            }
+          }
+          if (btn && secs <= 0) btn.disabled = true;
+        });
+        if (!anyLeft) clearInterval(ticker);
+      }, 1000);
+    }
+
+    // Self-delete
+    document.querySelectorAll('.js-mu-delete').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = parseInt(btn.dataset.uploadId, 10);
+        const card = btn.closest('.mu-card');
+        const secsLeft = myUploadsSecondsLeft(card?.dataset.createdAt || '');
+        if (secsLeft <= 0) { UI.toast('Delete window has closed.', 'bad'); return; }
+        UI.showModal('Delete Upload', `
+          <p style="color:var(--ink-700);margin-bottom:20px;">
+            Delete this upload? This cannot be undone and is only possible within the 5-minute window.
+          </p>
+          <div class="modal-actions">
+            <button class="btn btn-ghost" data-modal-close>Cancel</button>
+            <button class="btn btn-danger js-mu-confirm-delete" data-upload-id="${id}">
+              <i class="ph ph-trash"></i><span>Delete</span>
+            </button>
+          </div>
+        `);
+        document.querySelector('.js-mu-confirm-delete')?.addEventListener('click', async () => {
+          try {
+            await Api.post('upload/delete', { upload_id: id });
+            UI.closeModal();
+            UI.toast('Upload deleted.', 'good');
+            App.refresh();
+          } catch (err) {
+            UI.closeModal();
+            UI.toast(err.message, 'bad');
+          }
+        });
+      });
+    });
   }
 });
 

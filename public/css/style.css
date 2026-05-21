@@ -1892,3 +1892,152 @@ textarea {
     justify-content: flex-start;
   }
 }
+
+/* ==========================================================================
+   My Uploads gallery (green_belt.my_uploads)
+   Mobile-first, consistent with the upload form and authority gallery.
+   ========================================================================== */
+
+.my-uploads-filter-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.my-uploads-filter-grid .field {
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .my-uploads-filter-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .my-uploads-filter-grid button[type="submit"] {
+    grid-column: 1 / -1;
+  }
+}
+
+.mu-gallery-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.86rem;
+  color: var(--ink-500);
+  margin-bottom: 14px;
+}
+
+.mu-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 14px;
+}
+
+.mu-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+}
+
+/* Thumbnail — reuses av-card-photo pattern */
+.mu-card .av-card-photo {
+  aspect-ratio: 4 / 3;
+  width: 100%;
+}
+
+.mu-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 10px 12px 12px;
+}
+
+.mu-card-belt {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ink-900);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mu-card-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: var(--ink-700);
+}
+
+.mu-card-time {
+  color: var(--ink-500);
+  font-size: 0.8rem;
+}
+
+/* Type badges */
+.mu-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.mu-badge-work {
+  background: rgba(15, 118, 110, 0.10);
+  color: var(--brand-deep);
+}
+
+.mu-badge-issue {
+  background: rgba(180, 83, 9, 0.10);
+  color: var(--warn);
+}
+
+/* Comment preview */
+.mu-card-comment {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--ink-500);
+  font-style: italic;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* Delete controls */
+.mu-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.mu-window-hint {
+  font-size: 0.72rem;
+  color: var(--bad);
+  font-weight: 600;
+}
+
+.mu-window-closed {
+  font-size: 0.75rem;
+  color: var(--ink-500);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+@media (max-width: 480px) {
+  .mu-card-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+}
