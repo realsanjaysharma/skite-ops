@@ -1,3 +1,7 @@
+> **ARCHIVED — Pre-build planning document.** This spec was written before the product was built. The actual product has been developed, tested, and improved through multiple iterations by several AI agents and the product owner. It reflects original design intent, not the current implementation. For current product state see `docs/PRODUCT_BACKLOG.md`. Do not update this file.
+>
+> ---
+
 # Page Field And Action Spec
 
 ## Authority Note

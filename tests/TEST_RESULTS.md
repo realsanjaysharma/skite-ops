@@ -1,15 +1,21 @@
-# Test Results — Live Tracker
+# Test Results — QA Phase Archive
 
-_Each agent turn updates this file. Read it first to find where to continue._
+> **ARCHIVED — The agent-driven QA phase (T01–T70 + E2E-01–E2E-07) is complete.**
+> This file is a historical record of that phase. Do not add new entries here.
+> Active product work is tracked in `docs/PRODUCT_BACKLOG.md`.
+> Product decisions and observations are in `docs/PRODUCT_LOG.md`.
 
-Last updated by: Codex — 2026-05-19 (reconciled retest results and final counts)
-Current status: ALL BLOCKS DONE; all known failing rows resolved by targeted API/browser retests
+Final status: ALL BLOCKS DONE — 77/77 checks passing after fixes and retests.
+QA completed: 2026-05-13. Fixes and retests completed: 2026-05-15 (Codex) and 2026-05-18 (Claude Sonnet 4.6).
 
-Developer targeted retest: 2026-05-15 by Codex. The original failures are preserved only in the Historical Bug Log; current block/per-test rows reflect the latest retest status.
+---
 
-Browser verification pass: 2026-05-18 by Claude Sonnet 4.6 — confirmed the affected UI behaviours directly in the SPA (not via API only).
+## QA Fix Summary
 
-Follow-up re-run pass: 2026-05-18 by Claude Sonnet 4.6 — re-ran the historical FAIL cases the user flagged as candidates for indirect fix (T01, T14, T22, E2E-02, E2E-07). Results:
+Developer retest: 2026-05-15 by Codex. Browser verification: 2026-05-18 by Claude Sonnet 4.6.
+Follow-up re-run of originally-failing tests (T01, T14, T22, E2E-02, E2E-07): all confirmed PASS 2026-05-18.
+
+Selected retest evidence:
 
 | Historical Test | Original Status | Re-Run Status | Re-Run Evidence |
 |---|---|---|---|
@@ -33,117 +39,8 @@ Follow-up re-run pass: 2026-05-18 by Claude Sonnet 4.6 — re-ran the historical
 | T58 SPA refresh preserves module | FIXED + BROWSER CONFIRMED 2026-05-18 | Browser smoke confirmed refresh preserves `#green_belt.my_uploads` instead of returning to default landing. Re-confirmed on 2026-05-18 with F5 from `#green_belt.supervisor_upload` — hash preserved and Supervisor Upload page re-rendered (not Master Dashboard). |
 | T70 upload/serve role scope | FIXED | Targeted role matrix passed: legitimate role-scoped image access returns 200; unauthorized guesses return 403. |
 
----
-
-## Authority View — Follow-up Findings (logged 2026-05-18 by Claude Sonnet 4.6, reporter: product owner)
-
-Tested live as `ivan@gov.in` (AUTHORITY_REPRESENTATIVE). The Authority View page renders, but several capabilities required by the page spec (`docs/02_interface/04_PAGE_CATALOG_FINAL_V4_LOCKED.md` line 110–115) and the workflow doc (`docs/10_recovered_product/03_WORKFLOWS_AND_LIFECYCLES.md` lines 53–72) are either bugged or missing. Logged for a future dev pass — not retried in this session.
-
-### Bugs (deviation from existing spec)
-
-| # | Area | Defect | Evidence |
-|---|---|---|---|
-| AV-BUG-01 | Filter input | Belt filter is a free-text number input instead of a dropdown of *the AR's assigned belts only* | `public/js/views/modules.js:2417` — `{ name: 'belt_id', label: 'Belt ID', type: 'number' }` |
-| AV-BUG-02 | Filter input | Supervisor filter is a free-text number input instead of a dropdown of supervisors of the AR's assigned belts | `public/js/views/modules.js:2418` — `{ name: 'supervisor_user_id', label: 'Supervisor ID', type: 'number' }` |
-| AV-BUG-03 | WhatsApp share gate | "Share on WhatsApp" button never renders for AR because gate calls `settings/list`, which AR cannot access (no `settings.system` scope). Catch suppresses the 403 and `waEnabled` stays `false` even though DB has `authority_whatsapp_helper_enabled='1'` | `public/js/views/modules.js:2445–2454` |
-
-### Missing features (deviation from page spec / workflow doc)
-
-The page catalog says Authority View's purpose is *"approved proof access, filtered download, WhatsApp helper sharing, and authority summary output"*. The following pieces are not in the UI:
-
-| # | Area | Missing | Spec reference |
-|---|---|---|---|
-| AV-GAP-01 | View modes | No gallery / thumbnail / grid view. Only a flat table with a 60×60 inline preview. No view-mode toggle | Page catalog: "approved proof access" implies a viewing surface, not just a list |
-| AV-GAP-02 | Selection | No row-level checkboxes, no "select all", no bulk action bar | Required for "filtered download" + multi-photo workflows |
-| AV-GAP-03 | Download | No per-row or bulk download button. Click-to-preview modal also has no download action | Page catalog line 114: "filtered **download**" |
-| AV-GAP-04 | Share-helper UX clarity | `authority/share-helper` is a daily-summary text generator (no photos attached — by spec, see `03_WORKFLOWS_AND_LIFECYCLES.md` line 72), but the UI gives no hint of this. AR users reasonably expect to pick photos and share | Doc vs UX expectation mismatch |
-
-### New product spec — captured from product owner 2026-05-18 (FINALIZED)
-
-Product owner finalized the following redesign of the Authority View. **Not implemented; logged for design + dev planning.**
-
-**Filters (replace current 4-field row — only 3 fields remain):**
-
-| Filter | Behaviour |
-|---|---|
-| Belt | Dropdown of **belt names** (not IDs), scoped to AR's assigned belts. Backend already accepts `belt_id`; dropdown just maps name → id. |
-| Date | Single date *or* **date range** (from / to). Backend `authority/view` currently only accepts a single `date`; needs `date_from` + `date_to` params. |
-| Work Type | Keep current dropdown (`ROUTINE_MAINTENANCE`, `REPAIR`, `PLANTING`, `WATERING`, `CLEANING`). |
-
-> **Supervisor filter is removed** — product owner does not need it. The supervisor name still appears on the photo card / row metadata, but is not a filter input.
-
-**Layout — gallery view:**
-
-- Photo cards (thumbnail-first), not a flat table.
-- **"Group by" dropdown** lets the AR pick the grouping dimension at runtime. Options (finalized):
-  - Date
-  - Belt
-  - Work Type
-- Supervisor is **not** a group-by option (product owner confirmed 2026-05-18).
-- Toggle between gallery and table is desirable but not required at first pass.
-
-**Selection + bulk actions (v1 — finalized 2026-05-18):**
-
-- Per-photo **checkboxes** for multi-select.
-- "Select all in group" and "Select all on page" controls.
-- Bulk action bar appears when ≥1 photo selected.
-- **v1 has exactly one bulk action: Download.** WhatsApp share is removed from v1 scope.
-
-Download modes the AR can use in v1:
-
-| Mode | Trigger | What happens |
-|---|---|---|
-| **Single photo** | Per-row download icon (or "Download" in the preview modal) | Browser saves the single original file via the existing `upload/serve` route |
-| **Selected (multi)** | Checkboxes + "Download Selected" in bulk action bar | Browser builds a ZIP of the selected photos via JSZip; one file saves |
-| **Filtered view** | "Download All Filtered" button at top of gallery (independent of selection) | Browser builds a ZIP of every photo currently matching the active filters (date / date-range / belt / work type), capped at the v1 selection limit |
-
-> Selection cap stays at **50 photos** for both "Selected" and "Download All Filtered". If the filtered view exceeds 50, show an inline warning ("Too many photos to bundle — narrow the filters or use date range") and disable the bulk download button until the count drops.
-
-**WhatsApp share — explicitly out of v1:**
-
-- The existing WhatsApp button code path (`modules.js:2445–2454`) is to be **removed**, not patched, for v1. That also retires `AV-BUG-03`: with the feature gone, the broken `settings/list` gate disappears.
-- `authority/share-helper` route stays in the codebase but the UI does not call it in v1. Plan for it is parked for a future v2 scope.
-- Decision rationale: v1 keeps scope tight and avoids the Web Share API / mobile-vs-desktop / HTTPS branching evaluated this session. Once download-only is shipped and stable, share-with-images can be reopened as a separate v2 ticket.
-
-**Backend changes implied for v1 (not done in this session):**
-
-- `authority/view` must accept `date_from` + `date_to` alongside or instead of `date`. No schema change required (the underlying upload rows already have timestamps).
-- New AR-scoped lookup endpoint: `authority/belt-options` — returns id + belt name + common name for **all belts ever assigned to the AR**, including historical assignments where `belt_authority_assignments.end_date` is in the past. (Product owner confirmed 2026-05-18: include historical, do not restrict to "today-only".)
-- **No changes to `authority/share-helper` for v1.** The route stays as-is; the frontend simply stops calling it.
-- **Bulk download: no new backend endpoint required.** Frontend uses client-side **JSZip** to build the ZIP in the browser by fetching each selected/filtered photo via the existing `upload/serve` route (already RBAC-scoped per T70 fix). Rationale captured in "Bulk download mechanism — decision" section below.
-- Single-photo download reuses `upload/serve` with `Content-Disposition: attachment` — confirm the existing route already sets that header for direct downloads; if not, a small `download=1` query param toggle may be needed.
-
-### Open items — RESOLVED 2026-05-18 by product owner
-
-1. ✅ **Historical belt assignments included.** `authority/belt-options` returns every belt the AR has ever been assigned to, not only those active today.
-2. ✅ **Bulk download = client-side JSZip.** See decision rationale below.
-3. ✅ **Supervisor not a group-by option.** Group-by dropdown = `Date | Belt | Work Type` only.
-
-### Bulk download mechanism — decision (2026-05-18)
-
-Selected approach: **Client-side JSZip** (Approach C from the options table evaluated this session).
-
-Reasoning recorded for future reference:
-
-| Concern | Why JSZip wins for this codebase |
-|---|---|
-| Governance: no background jobs / queues / async workers | JSZip runs in the browser; backend stays request/response only |
-| Shared-hosting `max_execution_time` cap (typically 30–60 s) | No long-running PHP request — backend serves photos one at a time via existing `upload/serve` |
-| PHP `zip` extension is currently **off** on this XAMPP install (`zip:OFF` verified 2026-05-18) | JSZip avoids the dependency entirely; no hosting-provider ticket needed |
-| Project does not use Composer / has no `vendor/` directory | JSZip is a single ~95 KB JS file dropped in `public/js/lib/`; no Composer needed |
-| RBAC scope | Each `upload/serve` call is already scope-checked per the T70 fix; the bulk action inherits that protection automatically |
-
-Alternatives rejected (with reason):
-
-- **Native PHP `ZipArchive` server-side ZIP** — rejected: requires enabling PHP `zip` extension on shared hosting; builds full archive on disk; risks `max_execution_time` timeouts for large selections.
-- **Streamed server-side ZIP via `maennchen/zipstream-php`** — rejected: requires introducing Composer or vendoring a third-party library into a project that currently has neither. Reserved as the v2 fallback if JSZip's browser-memory ceiling becomes a real problem.
-- **Sequential per-file downloads from JS** — rejected: modern browsers block multi-file downloads after the first 1–2 and prompt the user; bad UX for any AR selection larger than ~2 photos.
-
-Progressive plan:
-- **v1:** JSZip client-side bulk download. Cap selection at **50 photos** with an inline warning ("Large selections may be slow on mobile"). Sufficient for ~95% of real authority workflows.
-- **v2 (only if v1 limits cause real problems):** introduce vendored ZipStream-PHP and switch to streamed server-side ZIP.
-
-Until implementation begins, no code changes to `public/js/views/modules.js`, `app/services/AuthorityViewService.php`, `app/controllers/AuthorityViewController.php`, or `config/route_registry.php`.
+> All Authority View observations, redesign spec, and product decisions from this phase
+> have been moved to `docs/PRODUCT_BACKLOG.md` and `docs/PRODUCT_LOG.md`.
 
 ---
 

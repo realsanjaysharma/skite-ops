@@ -1,3 +1,7 @@
+> **ARCHIVED — Pre-build planning document.** This spec was written before the product was built. The actual product has been developed, tested, and improved through multiple iterations by several AI agents and the product owner. It reflects original design intent, not the current implementation. For current product state see `docs/PRODUCT_BACKLOG.md`. Do not update this file.
+>
+> ---
+
 # Implementation History Archive
 
 ## Archive Note
@@ -1240,4 +1244,3 @@ For `governance.user_management full view`:
 - `docs/11_build_specs/03_API_AND_ROUTE_CONTRACT.md` — `user/list`, `user/create`, `user/update`, `user/deactivate`, `user/activate`, `user/delete`, `user/restore` payloads
 - `docs/11_build_specs/04_PAGE_FIELD_AND_ACTION_SPEC.md` — §27 User Management (columns, actions)
 - `docs/11_build_specs/09_MODULE_ACCEPTANCE_CHECKLISTS.md` — §1 Platform Foundation and RBAC (user management acceptance gates)
-
