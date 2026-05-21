@@ -9,7 +9,7 @@ This file explains what every doc folder and file is for, who maintains it, and 
 ```
 1. Read docs/AGENT_START.md          — current state, focus, what not to touch
 2. Read docs/PRODUCT_BACKLOG.md      — all planned / done / deferred work + page status
-3. Read .claude/CLAUDE.md            — governance rules (non-negotiable)
+3. Read docs/GOVERNANCE.md           — architecture and governance rules (all agents)
 4. Read docs/AI_TOOL_HANDOFF_GUIDE.md — codebase pitfalls before writing any code
 ```
 
@@ -26,8 +26,9 @@ These files are live. Agents update them every session.
 | `docs/AGENT_START.md` | Current product state, last work, current focus, what NOT to touch, mandatory end-of-session checklist | Every agent, end of every session |
 | `docs/PRODUCT_BACKLOG.md` | All features done / in progress / planned / deferred. Page status table for all 10 roles and ~30 pages | Every agent when work is completed or planned |
 | `docs/PRODUCT_LOG.md` | Append-only log of why decisions were made — never edited, only appended | Every agent, key decisions only |
+| `docs/GOVERNANCE.md` | Architecture and governance rules for **all** agents (Claude, Codex, Gemini, etc.) | Only when governance rules change — keep in sync with `.claude/CLAUDE.md` |
 | `docs/AI_TOOL_HANDOFF_GUIDE.md` | Codebase pitfalls, tricky patterns, and gotchas discovered during development and testing | Any agent that finds a new pitfall |
-| `.claude/CLAUDE.md` | Governance rules: architecture, schema discipline, git rules, naming, error handling | Only updated when governance rules change |
+| `.claude/CLAUDE.md` | Claude Code system instructions — mirrors `docs/GOVERNANCE.md` + adds Claude-specific session reading order | Only when governance rules change — keep in sync with `docs/GOVERNANCE.md` |
 
 ---
 

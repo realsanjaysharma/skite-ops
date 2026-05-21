@@ -127,10 +127,11 @@ Skipping any one of them makes the docs stale for the next agent.**
 
 | Need | File |
 |---|---|
-| Full governance rules | `.claude/CLAUDE.md` |
+| Governance rules (all agents) | `docs/GOVERNANCE.md` |
 | Planned / done / deferred features | `docs/PRODUCT_BACKLOG.md` |
 | Why decisions were made | `docs/PRODUCT_LOG.md` |
 | Codebase pitfalls and gotchas | `docs/AI_TOOL_HANDOFF_GUIDE.md` |
 | Schema source of truth | `docs/06_schema/schema_v1_full.sql` |
 | Historical QA results | `tests/TEST_RESULTS.md` (read-only) |
 | Original pre-build specs (archived) | `docs/11_build_specs/` (do not update) |
+| Claude Code system instructions | `.claude/CLAUDE.md` (Claude only — mirrors GOVERNANCE.md) |

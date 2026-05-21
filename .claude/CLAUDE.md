@@ -16,10 +16,16 @@ Before doing anything else, read:
 
 1. docs/AGENT_START.md        — current state, what's in progress, what NOT to touch
 2. docs/PRODUCT_BACKLOG.md    — planned and completed features
-3. .claude/CLAUDE.md          — this file (governance rules)
+3. docs/GOVERNANCE.md         — architecture and governance rules (all agents)
+4. docs/AI_TOOL_HANDOFF_GUIDE.md — codebase pitfalls before writing any code
 
-If these three files conflict, CLAUDE.md governance rules win.
-AGENT_START.md tells you WHAT to work on. CLAUDE.md tells you HOW.
+If any files conflict, docs/GOVERNANCE.md rules win on architecture and constraints.
+AGENT_START.md tells you WHAT to work on. GOVERNANCE.md tells you HOW.
+
+NOTE: This file (.claude/CLAUDE.md) is read automatically by Claude Code as system
+instructions. The governance rules themselves live in docs/GOVERNANCE.md so all
+agents (Codex, Gemini, etc.) can find them at a neutral path. Both files must stay
+in sync — if you update one, update the other.
 
 ----------------------------------------
 

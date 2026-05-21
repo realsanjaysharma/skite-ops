@@ -357,7 +357,7 @@ Local test credentials commonly used:
 | Current state + what to work on | `docs/AGENT_START.md` |
 | Planned / done / deferred features + page status | `docs/PRODUCT_BACKLOG.md` |
 | Why decisions were made | `docs/PRODUCT_LOG.md` |
-| Governance + architecture rules | `.claude/CLAUDE.md` |
+| Governance + architecture rules (all agents) | `docs/GOVERNANCE.md` |
 | Schema — exact column names, types, ENUMs | `docs/06_schema/schema_v1_full.sql` |
 | Product intent and role definitions | `docs/10_recovered_product/01_ROLE_AND_ACCESS_MODEL.md` |
 | Original build specs (historical, archived) | `docs/11_build_specs/` |
