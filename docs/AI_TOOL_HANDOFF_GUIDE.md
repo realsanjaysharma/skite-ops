@@ -2,19 +2,16 @@
 
 ## Purpose
 
-This is the evergreen handoff guide for AI coding tools working on Skite Ops. It documents stable patterns, commands, and doc authority. It does not track current project status.
-
-Current status and the next task live only in:
-
-- `docs/11_build_specs/10_IMPLEMENTATION_PROGRESS.md`
+Evergreen technical reference for any AI agent working on Skite Ops.
+Contains stable backend/frontend patterns, codebase pitfalls, and validation commands.
+Does **not** track project status — that lives in `docs/AGENT_START.md` and `docs/PRODUCT_BACKLOG.md`.
 
 ## How To Start Any Session
 
-1. Read this file.
-2. Read `docs/11_build_specs/10_IMPLEMENTATION_PROGRESS.md`.
-3. Follow `Current Next Scoped Task`.
-4. Read only the reference docs listed for that task.
-5. Implement only that task, validate, update the progress file, then stop.
+1. Read `docs/AGENT_START.md` — current state, focus, what NOT to touch.
+2. Read `docs/PRODUCT_BACKLOG.md` — planned work and page status.
+3. Read `.claude/CLAUDE.md` — governance rules.
+4. Read this file (Codebase Pitfalls section especially) before writing any code.
 
 Do not re-read the whole docs folder every session.
 
@@ -35,10 +32,12 @@ Do not re-read the whole docs folder every session.
 
 When docs conflict, use this precedence:
 
-1. `docs/10_recovered_product/*` controls product intent and behavior.
-2. `docs/11_build_specs/*` controls implementation contracts.
-3. Legacy docs are historical mirrors only.
-4. Code is checked against the canonical docs, not the old legacy docs.
+1. `docs/06_schema/schema_v1_full.sql` — final authority on database structure
+2. `.claude/CLAUDE.md` — final authority on architecture and governance
+3. `docs/PRODUCT_BACKLOG.md` — final authority on current product feature state
+4. `docs/PRODUCT_LOG.md` — final authority on why decisions were made
+5. `docs/10_recovered_product/*` — original product intent (reference only)
+6. `docs/11_build_specs/*` — ARCHIVED pre-build specs (historical reference only)
 
 ## Backend Patterns
 
@@ -355,47 +354,39 @@ Local test credentials commonly used:
 
 | Need | Read |
 |---|---|
-| Current task and queue | `docs/11_build_specs/10_IMPLEMENTATION_PROGRESS.md` |
-| RBAC roles, permission groups, landing pages | `docs/11_build_specs/01_RBAC_PERMISSION_GROUP_SPEC.md` |
-| Schema/tables/fields | `docs/11_build_specs/02_CANONICAL_SCHEMA_ROADMAP.md` |
-| API/routes/payloads | `docs/11_build_specs/03_API_AND_ROUTE_CONTRACT.md` |
-| Page fields/actions | `docs/11_build_specs/04_PAGE_FIELD_AND_ACTION_SPEC.md` |
-| State transitions | `docs/11_build_specs/05_WORKFLOW_STATE_MACHINE_SPEC.md` |
-| Upload/storage/retention | `docs/11_build_specs/06_UPLOAD_STORAGE_RETENTION_SPEC.md` |
-| Reports/formulas | `docs/11_build_specs/07_REPORTS_ALERTS_AND_FORMULAS.md` |
-| Settings/external actions | `docs/11_build_specs/08_SYSTEM_SETTINGS_AND_EXTERNAL_ACTIONS.md` |
-| Acceptance criteria | `docs/11_build_specs/09_MODULE_ACCEPTANCE_CHECKLISTS.md` |
-| Product intent | `docs/10_recovered_product/00_FINAL_PRODUCT_BEHAVIOR_MODEL.md` |
+| Current state + what to work on | `docs/AGENT_START.md` |
+| Planned / done / deferred features + page status | `docs/PRODUCT_BACKLOG.md` |
+| Why decisions were made | `docs/PRODUCT_LOG.md` |
+| Governance + architecture rules | `.claude/CLAUDE.md` |
+| Schema — exact column names, types, ENUMs | `docs/06_schema/schema_v1_full.sql` |
+| Product intent and role definitions | `docs/10_recovered_product/01_ROLE_AND_ACCESS_MODEL.md` |
+| Original build specs (historical, archived) | `docs/11_build_specs/` |
+| QA test history | `tests/TEST_RESULTS.md` (read-only) |
 
-## Session Start Prompt (implementation mode)
+## Session Start Prompt
 
-```text
-Read docs/AI_TOOL_HANDOFF_GUIDE.md and docs/11_build_specs/10_IMPLEMENTATION_PROGRESS.md.
-Continue only the current next scoped task.
-Use locked docs only.
-Run relevant validation, update progress, then stop.
-```
-
-## Testing Mode
-
-When running tests instead of implementing:
+Copy-paste to start any agent session:
 
 ```text
-Read docs/AI_TOOL_HANDOFF_GUIDE.md (Codebase Pitfalls and Safety Rules section only).
-Read tests/TEST_EXECUTION_PROTOCOL.md.
-Read tests/TEST_RESULTS.md — find the first block with status PENDING.
-Execute that block from tests/TEST_PLAN.md using browser automation and/or API calls.
-Update tests/TEST_RESULTS.md: set block status, record per-test PASS/FAIL/BLOCKED, append to Bug Log for any failures.
-Stop after one block. Do not fix bugs. Do not run the next block.
+Read docs/AGENT_START.md first, then docs/PRODUCT_BACKLOG.md, then .claude/CLAUDE.md.
+Do not touch any code until you have read all three.
+After reading, tell me what the current focus is and what you should NOT touch —
+confirm you understand before we proceed.
 ```
 
 ## Update Rule
 
-Any AI tool that modifies this project must update:
+Any agent that works on this project must update **at the end of every session**:
 
-1. `docs/11_build_specs/10_IMPLEMENTATION_PROGRESS.md` when task status, validation, blockers, or next task changes.
-2. This file when stable reusable knowledge changes — specifically:
-   - Add to **Codebase Pitfalls and Safety Rules** when any of the following is discovered: field name mismatch, wrong enum value, RBAC gap, silent failure, missing validation, XSS risk, approval bypass, or any other repeatable trap or security constraint.
-   - Add to **Frontend Patterns** or **Backend Patterns** when a new reusable approach is established.
-   - Do not add transient task notes, test results, or completion history to this file; those belong in the progress file.
+1. `docs/AGENT_START.md` — last completed, current focus, known open issues
+2. `docs/PRODUCT_BACKLOG.md` — Improvement Sequence table, role header count, page row status
+3. `docs/PRODUCT_LOG.md` — append key decisions made this session
+
+Update **this file** when stable reusable knowledge changes:
+- Add to **Codebase Pitfalls and Safety Rules** when any repeatable trap is discovered:
+  field name mismatch, wrong enum value, RBAC gap, silent failure, missing validation,
+  XSS risk, approval bypass, CSS specificity trap, browser compatibility issue, etc.
+- Add to **Frontend Patterns** or **Backend Patterns** when a new reusable approach is established.
+- Do **not** add task notes, test results, or completion history here — those belong
+  in PRODUCT_BACKLOG.md and PRODUCT_LOG.md.
 

@@ -115,6 +115,12 @@ Skipping any one of them makes the docs stale for the next agent.**
 - [ ] Include: what was observed → what was decided → what was deferred and why
 - [ ] Keep it short — 3–6 bullet points per decision is enough
 
+### `docs/AI_TOOL_HANDOFF_GUIDE.md` (only when relevant)
+- [ ] **Codebase Pitfalls** — add any new trap discovered: wrong column name, silent failure,
+  broken ENUM value, RBAC gap, CSS specificity surprise, browser incompatibility, etc.
+- [ ] **Backend / Frontend Patterns** — add any new reusable pattern established
+- [ ] Do NOT add task notes or progress — those go in PRODUCT_BACKLOG and PRODUCT_LOG
+
 ---
 
 ## Key document pointers
