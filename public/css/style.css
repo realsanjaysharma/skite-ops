@@ -1900,13 +1900,22 @@ textarea {
 
 .my-uploads-filter-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr auto auto;
+  grid-template-columns: minmax(150px, 1.4fr) repeat(4, minmax(120px, 1fr)) auto;
   gap: 10px;
   align-items: end;
 }
 
 .my-uploads-filter-grid .field {
   min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .my-uploads-filter-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .my-uploads-filter-grid button[type="submit"] {
+    grid-column: 1 / -1;
+  }
 }
 
 @media (max-width: 640px) {
@@ -1916,6 +1925,30 @@ textarea {
   .my-uploads-filter-grid button[type="submit"] {
     grid-column: 1 / -1;
   }
+}
+
+/* Group headers in My Uploads */
+.mu-group {
+  margin-bottom: 20px;
+}
+
+.mu-group-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 4px 10px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 12px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--ink-900);
+  position: sticky;
+  top: 0;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 5;
+  border-radius: 6px 6px 0 0;
 }
 
 .mu-gallery-bar {

@@ -250,6 +250,9 @@ class UploadController extends BaseController
         if (!empty($_GET['date_to'])) {
             $filters['date_to'] = $_GET['date_to'];
         }
+        if (!empty($_GET['parent_id']) && is_numeric($_GET['parent_id'])) {
+            $filters['parent_id'] = (int) $_GET['parent_id'];
+        }
 
         try {
             $result = $this->uploadService->listCreatorUploads(

@@ -1485,17 +1485,37 @@ function myUploadsWorkTypeIcon(workType) {
 
 Views.register('green_belt.my_uploads', {
   async render({ params = {} }) {
+    const groupBy = params.group_by || 'date';
+
     const apiParams = {};
-    if (params.date_from) apiParams.date_from = params.date_from;
-    if (params.date_to)   apiParams.date_to   = params.date_to;
+    if (params.date_from)   apiParams.date_from   = params.date_from;
+    if (params.date_to)     apiParams.date_to     = params.date_to;
+    if (params.parent_id)   apiParams.parent_id   = params.parent_id;
     if (params.upload_type) apiParams.upload_type = params.upload_type;
 
-    const data = await Api.get('upload/my-list', apiParams);
-    const rows = normalizeItems(data);
-    const total = data?.pagination?.total ?? rows.length;
+    // Load belt options (assigned targets) and uploads in parallel
+    const [targetsData, data] = await Promise.all([
+      Api.get('upload/targets').catch(() => []),
+      Api.get('upload/my-list', apiParams)
+    ]);
+    const targets = normalizeItems(targetsData);
+    const rows    = normalizeItems(data);
+    const total   = data?.pagination?.total ?? rows.length;
+
+    const beltOptionHtml = [
+      `<option value="">All belts</option>`,
+      ...targets.map((t) => {
+        const sel = String(t.id) === String(params.parent_id || '') ? ' selected' : '';
+        return `<option value="${UI.escape(String(t.id))}"${sel}>${UI.escape(t.label || t.belt_code || `Belt #${t.id}`)}</option>`;
+      })
+    ].join('');
 
     const filterBody = `
       <form class="filter-grid js-filter-form my-uploads-filter-grid">
+        <label class="field">
+          <span>Belt</span>
+          <select name="parent_id">${beltOptionHtml}</select>
+        </label>
         <label class="field">
           <span>From</span>
           <input type="date" name="date_from" value="${UI.escape(params.date_from || '')}">
@@ -1512,6 +1532,13 @@ Views.register('green_belt.my_uploads', {
             <option value="ISSUE" ${params.upload_type === 'ISSUE' ? 'selected' : ''}>Issue report</option>
           </select>
         </label>
+        <label class="field">
+          <span>Group by</span>
+          <select name="group_by">
+            <option value="date" ${groupBy === 'date' ? 'selected' : ''}>Date</option>
+            <option value="belt" ${groupBy === 'belt' ? 'selected' : ''}>Belt</option>
+          </select>
+        </label>
         <button type="submit" class="btn btn-primary"><i class="ph ph-funnel"></i><span>Apply</span></button>
       </form>
     `;
@@ -1525,10 +1552,21 @@ Views.register('green_belt.my_uploads', {
         </div>
       `;
     } else {
-      const cards = rows.map((row) => {
+      // Group rows by date or belt
+      const groupKey = groupBy === 'belt' ? 'parent_name' : 'dateOnly';
+      const groupMap = new Map();
+      rows.forEach((row) => {
+        const ts = row.created_at || '';
+        row._dateOnly = ts.substring(0, 10);
+        const key = groupBy === 'belt' ? (row.parent_name || 'Unknown belt') : row._dateOnly;
+        if (!groupMap.has(key)) groupMap.set(key, []);
+        groupMap.get(key).push(row);
+      });
+
+      const buildCard = (row) => {
         const photoUrl = Api.url('upload/serve', { id: row.id });
         const ts       = row.created_at || '';
-        const dateOnly = ts.substring(0, 10);
+        const dateOnly = row._dateOnly || ts.substring(0, 10);
         const timeOnly = ts.length >= 16 ? ts.substring(11, 16) : '';
         const humanDate = authorityHumanDate(dateOnly);
         const secsLeft  = myUploadsSecondsLeft(ts);
@@ -1572,13 +1610,27 @@ Views.register('green_belt.my_uploads', {
             </div>
           </article>
         `;
+      };
+
+      // Render groups with sticky headers
+      const groupedHtml = Array.from(groupMap.entries()).map(([label, groupRows]) => {
+        const groupLabel = groupBy === 'date' ? authorityHumanDate(label) : label;
+        return `
+          <div class="mu-group">
+            <div class="mu-group-header">
+              <span>${UI.escape(groupLabel)}</span>
+              <span class="av-group-count">${groupRows.length}</span>
+            </div>
+            <div class="mu-card-grid">${groupRows.map(buildCard).join('')}</div>
+          </div>
+        `;
       }).join('');
 
       galleryHtml = `
         <div class="mu-gallery-bar">
           <span>Showing <strong>${rows.length}</strong> of <strong>${total}</strong> uploads</span>
         </div>
-        <div class="mu-card-grid">${cards}</div>
+        ${groupedHtml}
         ${renderPagination(data.pagination, 'green_belt.my_uploads', params)}
       `;
     }
