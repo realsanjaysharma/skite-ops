@@ -1465,6 +1465,20 @@ Views.register('monitoring.upload', {
 
 // Self-delete window in milliseconds — matches config/constants.php UPLOAD_SELF_DELETE_WINDOW_MINUTES
 const MY_UPLOADS_DELETE_WINDOW_MS = 5 * 60 * 1000;
+const MY_UPLOADS_MAX_DAYS = 7; // hard cap — chips never exceed this
+
+const MY_UPLOADS_PRESETS = [
+  { key: 'today',     label: 'Today',       from: () => authorityLocalDate(),    to: () => authorityLocalDate() },
+  { key: 'yesterday', label: 'Yesterday',   from: () => authorityShiftDate(-1),  to: () => authorityShiftDate(-1) },
+  { key: 'last5',     label: 'Last 5 Days', from: () => authorityShiftDate(-4),  to: () => authorityLocalDate() },
+  { key: 'last7',     label: 'Last 7 Days', from: () => authorityShiftDate(-6),  to: () => authorityLocalDate() },
+];
+
+function myUploadsActivePreset(dateFrom, dateTo) {
+  return MY_UPLOADS_PRESETS.find(
+    (p) => p.from() === dateFrom && p.to() === dateTo
+  )?.key || 'today';
+}
 
 function myUploadsSecondsLeft(createdAt) {
   const created = new Date(createdAt.replace(' ', 'T')).getTime();
@@ -1487,20 +1501,19 @@ Views.register('green_belt.my_uploads', {
   async render({ params = {} }) {
     const groupBy = params.group_by || 'date';
 
-    // Default to today + yesterday when no date range is specified,
-    // so the supervisor sees recent work immediately without loading all history.
-    // Explicit empty string (user cleared the filter) means "show all".
-    const hasDateFilter = params.date_from !== undefined || params.date_to !== undefined;
-    const effectiveDateFrom = hasDateFilter ? (params.date_from || '') : authorityShiftDate(-1);
-    const effectiveDateTo   = hasDateFilter ? (params.date_to   || '') : authorityLocalDate();
+    // Default to Today when no preset is in params.
+    // Chips are the only way to change the date — no free-text inputs.
+    const effectiveDateFrom = params.date_from || authorityLocalDate();
+    const effectiveDateTo   = params.date_to   || authorityLocalDate();
+    const activePreset      = myUploadsActivePreset(effectiveDateFrom, effectiveDateTo);
 
-    const apiParams = {};
-    if (effectiveDateFrom) apiParams.date_from   = effectiveDateFrom;
-    if (effectiveDateTo)   apiParams.date_to     = effectiveDateTo;
-    if (params.parent_id)   apiParams.parent_id   = params.parent_id;
-    if (params.upload_type) apiParams.upload_type = params.upload_type;
+    const apiParams = {
+      date_from: effectiveDateFrom,
+      date_to:   effectiveDateTo
+    };
+    if (params.parent_id) apiParams.parent_id = params.parent_id;
 
-    // Load belt options (assigned targets) and uploads in parallel
+    // Load belt options and uploads in parallel
     const [targetsData, data] = await Promise.all([
       Api.get('upload/targets').catch(() => []),
       Api.get('upload/my-list', apiParams)
@@ -1509,53 +1522,59 @@ Views.register('green_belt.my_uploads', {
     const rows    = normalizeItems(data);
     const total   = data?.pagination?.total ?? rows.length;
 
-    const beltOptionHtml = [
-      `<option value="">All belts</option>`,
-      ...targets.map((t) => {
-        const sel = String(t.id) === String(params.parent_id || '') ? ' selected' : '';
-        return `<option value="${UI.escape(String(t.id))}"${sel}>${UI.escape(t.label || t.belt_code || `Belt #${t.id}`)}</option>`;
-      })
-    ].join('');
+    // Date chips — always visible, tap to change period
+    const chipsHtml = `
+      <div class="mu-chips" role="group" aria-label="Date range">
+        ${MY_UPLOADS_PRESETS.map((p) => `
+          <button type="button"
+                  class="mu-chip${activePreset === p.key ? ' active' : ''}"
+                  data-mu-preset="${p.key}"
+                  aria-pressed="${activePreset === p.key}">
+            ${p.label}
+          </button>
+        `).join('')}
+      </div>
+    `;
 
-    const filterBody = `
-      <form class="filter-grid js-filter-form my-uploads-filter-grid">
-        <label class="field">
-          <span>Belt</span>
-          <select name="parent_id">${beltOptionHtml}</select>
-        </label>
-        <label class="field">
-          <span>From</span>
-          <input type="date" name="date_from" value="${UI.escape(effectiveDateFrom)}">
-        </label>
-        <label class="field">
-          <span>To</span>
-          <input type="date" name="date_to" value="${UI.escape(effectiveDateTo)}">
-        </label>
-        <label class="field">
-          <span>Type</span>
-          <select name="upload_type">
-            <option value="" ${!params.upload_type ? 'selected' : ''}>All types</option>
-            <option value="WORK" ${params.upload_type === 'WORK' ? 'selected' : ''}>Work proof</option>
-            <option value="ISSUE" ${params.upload_type === 'ISSUE' ? 'selected' : ''}>Issue report</option>
-          </select>
-        </label>
-        <label class="field">
-          <span>Group by</span>
-          <select name="group_by">
-            <option value="date" ${groupBy === 'date' ? 'selected' : ''}>Date</option>
-            <option value="belt" ${groupBy === 'belt' ? 'selected' : ''}>Belt</option>
-          </select>
-        </label>
-        <button type="submit" class="btn btn-primary"><i class="ph ph-funnel"></i><span>Apply</span></button>
-      </form>
+    // Belt dropdown — only shown when supervisor has more than 1 assigned belt
+    const showBelt = targets.length > 1;
+    const beltHtml = showBelt ? `
+      <label class="mu-control-label">
+        <span>Belt</span>
+        <select class="js-mu-belt-select">
+          <option value="">All belts</option>
+          ${targets.map((t) => {
+            const sel = String(t.id) === String(params.parent_id || '') ? ' selected' : '';
+            return `<option value="${UI.escape(String(t.id))}"${sel}>${UI.escape(t.label || t.belt_code || `Belt #${t.id}`)}</option>`;
+          }).join('')}
+        </select>
+      </label>
+    ` : '';
+
+    // Group by — always shown
+    const groupByHtml = `
+      <label class="mu-control-label">
+        <span>Group by</span>
+        <select class="js-mu-groupby-select">
+          <option value="date" ${groupBy === 'date' ? 'selected' : ''}>Date</option>
+          <option value="belt" ${groupBy === 'belt' ? 'selected' : ''}>Belt</option>
+        </select>
+      </label>
+    `;
+
+    const controlsHtml = `
+      <div class="mu-controls">
+        ${chipsHtml}
+        ${(showBelt || true) ? `<div class="mu-controls-row">${beltHtml}${groupByHtml}</div>` : ''}
+      </div>
     `;
 
     let galleryHtml = '';
     if (!rows.length) {
       galleryHtml = `
         <div class="av-empty">
-          <div class="av-empty-title">No uploads found.</div>
-          <p>Try a different date range or type filter.</p>
+          <div class="av-empty-title">No uploads found for this period.</div>
+          <p>Try Yesterday or Last 5 Days.</p>
         </div>
       `;
     } else {
@@ -1643,24 +1662,43 @@ Views.register('green_belt.my_uploads', {
     }
 
     return UI.page('My Uploads', 'Your submitted field proof', UI.button('Refresh', { icon: 'ph-arrows-clockwise', attr: 'data-refresh' }))
-      + UI.panel('Filters', filterBody, '', { collapsible: true, defaultOpen: false })
+      + controlsHtml
       + UI.panel('Uploads', galleryHtml);
   },
 
   async afterRender({ params = {} }) {
     attachRefresh();
-    wireFilters((payload) => {
-      // Preserve empty date strings so the page knows the user explicitly
-      // cleared them (vs the page defaulting). Non-date empty values are stripped.
-      const cleanPayload = {};
-      Object.keys(payload).forEach((k) => {
-        if (k === 'date_from' || k === 'date_to') {
-          cleanPayload[k] = payload[k]; // keep even if empty
-        } else if (payload[k]) {
-          cleanPayload[k] = payload[k];
-        }
+
+    const currentParams = () => ({
+      date_from:  params.date_from  || authorityLocalDate(),
+      date_to:    params.date_to    || authorityLocalDate(),
+      group_by:   params.group_by   || 'date',
+      parent_id:  params.parent_id  || ''
+    });
+
+    // Date chips — auto-navigate on tap
+    document.querySelectorAll('[data-mu-preset]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const preset = MY_UPLOADS_PRESETS.find((p) => p.key === btn.dataset.muPreset);
+        if (!preset) return;
+        const next = { ...currentParams(), date_from: preset.from(), date_to: preset.to() };
+        if (!next.parent_id) delete next.parent_id;
+        App.navigate('green_belt.my_uploads', next);
       });
-      App.navigate('green_belt.my_uploads', cleanPayload);
+    });
+
+    // Belt dropdown — auto-navigate on change
+    document.querySelector('.js-mu-belt-select')?.addEventListener('change', (e) => {
+      const next = { ...currentParams() };
+      if (e.target.value) next.parent_id = e.target.value; else delete next.parent_id;
+      App.navigate('green_belt.my_uploads', next);
+    });
+
+    // Group by — auto-navigate on change
+    document.querySelector('.js-mu-groupby-select')?.addEventListener('change', (e) => {
+      const next = { ...currentParams(), group_by: e.target.value };
+      if (!next.parent_id) delete next.parent_id;
+      App.navigate('green_belt.my_uploads', next);
     });
 
     // Build items for gallery preview
