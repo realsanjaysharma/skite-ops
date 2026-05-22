@@ -167,8 +167,12 @@ ON DUPLICATE KEY UPDATE
     updated_at = CURRENT_TIMESTAMP;
 
 INSERT INTO role_module_scopes (role_id, module_key)
-SELECT r.id, 'green_belt.outsourced_upload'
+SELECT r.id, modules.module_key
 FROM roles r
+JOIN (
+    SELECT 'green_belt.outsourced_upload' AS module_key
+    UNION ALL SELECT 'green_belt.my_uploads'
+) modules
 WHERE r.role_key = 'OUTSOURCED_MAINTAINER'
 ON DUPLICATE KEY UPDATE
     updated_at = CURRENT_TIMESTAMP;
