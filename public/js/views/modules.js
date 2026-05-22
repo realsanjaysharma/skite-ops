@@ -1487,9 +1487,16 @@ Views.register('green_belt.my_uploads', {
   async render({ params = {} }) {
     const groupBy = params.group_by || 'date';
 
+    // Default to today + yesterday when no date range is specified,
+    // so the supervisor sees recent work immediately without loading all history.
+    // Explicit empty string (user cleared the filter) means "show all".
+    const hasDateFilter = params.date_from !== undefined || params.date_to !== undefined;
+    const effectiveDateFrom = hasDateFilter ? (params.date_from || '') : authorityShiftDate(-1);
+    const effectiveDateTo   = hasDateFilter ? (params.date_to   || '') : authorityLocalDate();
+
     const apiParams = {};
-    if (params.date_from)   apiParams.date_from   = params.date_from;
-    if (params.date_to)     apiParams.date_to     = params.date_to;
+    if (effectiveDateFrom) apiParams.date_from   = effectiveDateFrom;
+    if (effectiveDateTo)   apiParams.date_to     = effectiveDateTo;
     if (params.parent_id)   apiParams.parent_id   = params.parent_id;
     if (params.upload_type) apiParams.upload_type = params.upload_type;
 
@@ -1518,11 +1525,11 @@ Views.register('green_belt.my_uploads', {
         </label>
         <label class="field">
           <span>From</span>
-          <input type="date" name="date_from" value="${UI.escape(params.date_from || '')}">
+          <input type="date" name="date_from" value="${UI.escape(effectiveDateFrom)}">
         </label>
         <label class="field">
           <span>To</span>
-          <input type="date" name="date_to" value="${UI.escape(params.date_to || '')}">
+          <input type="date" name="date_to" value="${UI.escape(effectiveDateTo)}">
         </label>
         <label class="field">
           <span>Type</span>
@@ -1643,8 +1650,17 @@ Views.register('green_belt.my_uploads', {
   async afterRender({ params = {} }) {
     attachRefresh();
     wireFilters((payload) => {
-      Object.keys(payload).forEach((k) => { if (!payload[k]) delete payload[k]; });
-      App.navigate('green_belt.my_uploads', payload);
+      // Preserve empty date strings so the page knows the user explicitly
+      // cleared them (vs the page defaulting). Non-date empty values are stripped.
+      const cleanPayload = {};
+      Object.keys(payload).forEach((k) => {
+        if (k === 'date_from' || k === 'date_to') {
+          cleanPayload[k] = payload[k]; // keep even if empty
+        } else if (payload[k]) {
+          cleanPayload[k] = payload[k];
+        }
+      });
+      App.navigate('green_belt.my_uploads', cleanPayload);
     });
 
     // Build items for gallery preview
