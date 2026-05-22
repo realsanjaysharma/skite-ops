@@ -151,9 +151,12 @@ Applies to both GREEN_BELT_SUPERVISOR and OUTSOURCED_MAINTAINER (shared page).
 - Each card: thumbnail + belt name + date/time + upload type badge (Work/Issue with icon) + comment preview (2-line clamp) + delete control
 - Photo preview via `openPhotoGallery` — navigates across all visible uploads (1 of 27 etc.), keyboard + swipe
 - Self-delete: 5-minute window matches `UPLOAD_SELF_DELETE_WINDOW_MINUTES = 5` in `config/constants.php`. Within window → red Delete button + live second countdown. After window → "Window closed" badge. Confirmation modal before delete.
-- Collapsible filter panel (defaultOpen: false): From / To date + upload type (All / Work proof / Issue report)
-- "Showing X of N uploads" count bar
-- No backend changes — reuses `upload/my-list` and `upload/delete`
+- Filters: 4 large tappable date chips (Today / Yesterday / Last 5 Days / Last 7 Days), max 7-day cap enforced by chips. Active chip is solid green. No date pickers, no type filter, no Apply button — chips auto-navigate on tap.
+- Belt dropdown: shown only if user has 2+ assigned belts; hidden for single-belt users.
+- Group by (Date / Belt): simple select, auto-applies on change.
+- "Showing X of N uploads" count bar. Grouped gallery with sticky group headers.
+- RBAC fix: `OUTSOURCED_MAINTAINER` was missing `green_belt.my_uploads` scope in seed migration. Fixed in `001_seed_foundation.sql` + added `migrations/004_fix_outsourced_my_uploads_scope.sql`.
+- Backend: `UploadController::myList` now accepts `parent_id` filter for belt-level filtering.
 
 ---
 

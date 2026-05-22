@@ -126,3 +126,22 @@ is the truth. Pre-build specs remain as design-intent references only.
 **Authority visibility not shown on My Uploads:** The `upload/my-list` API strips `authority_visibility` per Page Spec §9 (supervisor should not see approval status). This is intentional — supervisor's job is to submit, not to track review outcomes. Design kept as-is.
 
 **Documentation system established:** Created `AGENT_START.md`, `PRODUCT_BACKLOG.md`, `PRODUCT_LOG.md`, `GOVERNANCE.md`. Archived `docs/11_build_specs/` with notice. Rewrote `docs/README.md`. `AI_TOOL_HANDOFF_GUIDE.md` updated to point to new files. `CLAUDE.md` updated to reference `GOVERNANCE.md` as neutral path for all agents. Added Improvement Sequence table to backlog with hierarchy order (AR → GBS → Outsourced → Monitoring → Fabrication → Sales/CS/MP → Management → HS → OPS). Mandatory end-of-session update checklist added to AGENT_START.md.
+
+---
+
+## 2026-05-22 — My Uploads filter simplification for field users
+
+**Why chips instead of date pickers:**
+Supervisors and outsourced maintainers are low-literacy field users submitting photos between tasks on mobile. Free-text date inputs, upload type selectors, and Apply buttons create unnecessary friction. A row of 4 large tappable chips (Today / Yesterday / Last 5 Days / Last 7 Days) covers 95%+ of real use cases with zero cognitive load.
+
+**Why max 7 days:**
+Supervisors do not need to audit old history — that is an OPS/HS task. 7 days is enough to check "did my upload from last week go through?" without opening up the full archive.
+
+**Belt dropdown visibility rule:**
+Hide the belt dropdown when the supervisor is assigned to only one belt — they have no choice to make. Show it only for 2+ belts. Reduces clutter for the common single-belt case.
+
+**OUTSOURCED_MAINTAINER RBAC bug:**
+Seed migration `001_seed_foundation.sql` gave the outsourced role only `green_belt.outsourced_upload`. `green_belt.my_uploads` was missing, so outsourced users could submit uploads but had no way to review them. Fixed in the seed and patched via `migrations/004`. `navigation.js` already had the outsourced role in the `my_uploads` roles array — the bug was purely in the DB scope.
+
+**Default chip: Today (not Today+Yesterday):**
+First instinct was to default to Yesterday+Today so recent uploads are visible. Changed to Today-only after discussion — supervisor's primary need is to check what they submitted today. Yesterday is one tap away. Keeps the default view focused.

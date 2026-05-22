@@ -5,8 +5,8 @@
 
 ---
 
-Last updated by: Claude Sonnet 4.6 — 2026-05-21
-Last commit: `ea9d580 feat(my-uploads): replace basic table with mobile gallery`
+Last updated by: Claude Sonnet 4.6 — 2026-05-22
+Last commit: `156231e feat(my-uploads): replace filters with date chips — simplified for field users`
 
 ---
 
@@ -42,17 +42,18 @@ Agent testing (T01–T70 QA pass) is **complete**. That phase is archived in
 | `f392038` | Authority View UX polish: collapsible filters, compact stat cards, card layout, Refresh moved, sticky group headers, keyboard nav, swipe gestures, per-belt photo count, auto-swap dates |
 | `1ab21c1` | Shared components: `UI.panel(collapsible)`, `UI.statGrid()`, `openPhotoGallery()`, `.photo-thumb` CSS — wired to Upload Review, Client Media Library, Task Progress |
 | `d35967c` | Supervisor + Outsourced Upload: work type chips, mobile camera picker, thumbnail preview, XHR progress bar, success card with My Uploads link |
-| `ea9d580` | My Uploads: gallery cards, photo preview (openPhotoGallery 1-of-27), collapsible filters, 5-min self-delete with live countdown, "Window closed" badge |
+| `ea9d580` | My Uploads: gallery cards, photo preview (openPhotoGallery 1-of-27), 5-min self-delete with live countdown, "Window closed" badge |
+| `35226b3` | My Uploads: belt filter + date grouping (Group by Date/Belt) |
+| `b58f770` | RBAC fix: OUTSOURCED_MAINTAINER missing `green_belt.my_uploads` scope — seed migration bug, patched in 001 + added migration 004 |
+| `156231e` | My Uploads: 4 date chips (Today/Yesterday/Last 5/Last 7), belt hidden if 1 belt, group-by auto-applies, no date pickers/type/Apply |
 
 ---
 
 ## Current focus
 
-**In-field user pages — completing GBS + Outsourced, then moving to Monitoring Team.**
+**Next role: MONITORING_TEAM** (`monitoring.upload` + `monitoring.history`)
 
-GREEN_BELT_SUPERVISOR: all pages done ✅ (`supervisor_upload` + `my_uploads`)
-OUTSOURCED_MAINTAINER: all pages done ✅ (shares both pages with GBS)
-Next role: **MONITORING_TEAM** (`monitoring.upload` + `monitoring.history`)
+GREEN_BELT_SUPERVISOR ✅ complete. OUTSOURCED_MAINTAINER ✅ complete.
 
 After that: Head Supervisor pages (`green_belt.watering_oversight` and related).
 
@@ -64,7 +65,8 @@ After that: Head Supervisor pages (`green_belt.watering_oversight` and related).
 - **`uploadView` shared function** — just redesigned. Do not change without instruction.
 - **`openPhotoGallery()`** — shared function, used by 5 pages. Changes affect all.
 - **`UI.panel()` in `ui.js`** — extended with `collapsible` option. Test any changes across pages.
-- **`green_belt.my_uploads`** — just completed. Do not refactor.
+- **`green_belt.my_uploads`** — chips, gallery, delete all stable. Do not refactor.
+- **`MY_UPLOADS_PRESETS` constant** — defines the 4 chip date ranges. If adding a new chip, update both this and `myUploadsActivePreset()`.
 - **`tests/TEST_RESULTS.md`** — QA phase is archived. Do not add new test results there.
 
 ---
