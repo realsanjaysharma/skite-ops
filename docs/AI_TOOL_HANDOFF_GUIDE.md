@@ -318,6 +318,12 @@ This section is the single place for all recurring traps, enum facts, field name
 - **Task request status should become `CONVERTED` when a task is created from it.** A request is `APPROVED` after `request/approve`, then `task/create` with `request_id` moves it to `CONVERTED`. (Verified after T28.)
 - **TASK completion proof uses `upload_type=WORK` plus `photo_label=AFTER_WORK`.** Do not send `upload_type=AFTER_WORK`; the upload type remains canonical `WORK`, and `photo_label` carries BEFORE/AFTER labeling. (Verified after T29.)
 - **`task_requests` context field is required:** `request/create` requires at least one of `campaign_id`, `site_id`, or `belt_id`. Omitting all three returns 400 "At least one operational context field must be provided." (Found in T27.)
+- **`UploadService::createUploadsForSurface()` manages its own PDO transaction.** It calls `$this->uploadRepository->beginTransaction()` internally. Do NOT wrap calls to this method in another `beginTransaction()` — MySQL/PDO throws an exception on nested `beginTransaction()` calls since all repositories share the same PDO singleton. If your service needs to do work before/after uploads, let that work auto-commit separately and let UploadService handle its own transaction. (Discovered during Media Discovery design, 2026-05-24.)
+- **`sites` table has no `is_deleted` column.** Sites use `is_active = 0/1` for visibility, not soft delete. Discovery placeholder sites use `site_code LIKE 'DISC-%'` + `is_active = 0` to distinguish from genuinely deactivated sites. Merged sites use `MERGED-*` prefix. Do not add `is_deleted` filters to site queries. (Confirmed in schema review 2026-05-24.)
+- **`free_media_records` table has no `is_deleted` column.** Records use `status` ENUM transitions (DISCOVERED → CONFIRMED_ACTIVE → EXPIRED / CONSUMED) for lifecycle. Dismissing a discovery sets status to EXPIRED, not a soft-delete flag. (Confirmed in schema review 2026-05-24.)
+- **`FREE_MEDIA_DEFAULT_SITE_ID = 38` is legacy.** Currently used by monitoring.upload discovery mode to auto-assign all discoveries to one shared site. Being replaced by per-discovery site creation in the Media Discovery feature. Will be removed when discovery page is implemented. Do not add new dependencies on this constant.
+- **EXIF GPS extraction in PHP:** Use `exif_read_data($filePath, 'GPS')`. GPS values come as arrays of fractions (e.g., `['40/1', '26/1', '46/1']` for degrees/minutes/seconds). Must convert DMS fractions to decimal degrees. Check `GPSLatitudeRef` (N/S) and `GPSLongitudeRef` (E/W) to determine sign. Not all photos have EXIF GPS — depends on device settings.
+- **Browser geolocation (`navigator.geolocation.getCurrentPosition()`):** Requires user permission prompt (persists per domain). Use timeout (5 seconds recommended). If denied or timed out, proceed without browser GPS. Request on submit click, not on page load (avoids premature permission prompt). Returns `coords.latitude` and `coords.longitude`.
 
 ## Validation Commands
 
@@ -360,6 +366,8 @@ Local test credentials commonly used:
 | Governance + architecture rules (all agents) | `docs/GOVERNANCE.md` |
 | Schema — exact column names, types, ENUMs | `docs/06_schema/schema_v1_full.sql` |
 | Product intent and role definitions | `docs/10_recovered_product/01_ROLE_AND_ACCESS_MODEL.md` |
+| Media Discovery design spec | `docs/superpowers/specs/2026-05-24-media-discovery-design.md` |
+| Media Discovery implementation plan | `docs/superpowers/plans/2026-05-24-media-discovery.md` |
 | Original build specs (historical, archived) | `docs/11_build_specs/` |
 | QA test history | `tests/TEST_RESULTS.md` (read-only) |
 

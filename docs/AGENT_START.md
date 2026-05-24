@@ -5,8 +5,8 @@
 
 ---
 
-Last updated by: Claude Sonnet 4.6 — 2026-05-22
-Last commit: `156231e feat(my-uploads): replace filters with date chips — simplified for field users`
+Last updated by: Claude Opus 4.6 — 2026-05-24
+Last commit: `0aeae18 docs: end-of-session update — My Uploads complete, next is Monitoring Team`
 
 ---
 
@@ -46,16 +46,25 @@ Agent testing (T01–T70 QA pass) is **complete**. That phase is archived in
 | `35226b3` | My Uploads: belt filter + date grouping (Group by Date/Belt) |
 | `b58f770` | RBAC fix: OUTSOURCED_MAINTAINER missing `green_belt.my_uploads` scope — seed migration bug, patched in 001 + added migration 004 |
 | `156231e` | My Uploads: 4 date chips (Today/Yesterday/Last 5/Last 7), belt hidden if 1 belt, group-by auto-applies, no date pickers/type/Apply |
+| *(uncommitted)* | Monitoring Upload: mobile camera picker, site search dropdown, discovery toggle (Regular Visit / Free Media Discovery), photo preview, recent uploads strip, XHR progress |
+| *(uncommitted)* | Monitoring History: gallery cards, date chips, category chips, discovery chips, photo preview modal, self-delete on own uploads |
+| *(uncommitted)* | Bug fixes: free media auto-assign to default site, upload scope for monitoring, photo URL fix |
+| *(uncommitted)* | Media Discovery design spec: `docs/superpowers/specs/2026-05-24-media-discovery-design.md` |
+| *(uncommitted)* | Media Discovery implementation plan: `docs/superpowers/plans/2026-05-24-media-discovery.md` |
 
 ---
 
 ## Current focus
 
-**Next role: MONITORING_TEAM** (`monitoring.upload` + `monitoring.history`)
+**MONITORING_TEAM — Phase 1 done, Phase 2 next**
 
-GREEN_BELT_SUPERVISOR ✅ complete. OUTSOURCED_MAINTAINER ✅ complete.
+- `monitoring.upload` ✅ UX improved (uncommitted — camera picker, site search, discovery toggle, photo preview, progress bar, recent uploads strip)
+- `monitoring.history` ✅ UX improved (uncommitted — gallery cards, date/category/discovery chips, preview modal, self-delete)
+- `monitoring.discovery` 📋 **Designed and planned** — separate dedicated page for field discovery of new advertising media. Spec + 11-task implementation plan written. **Execute next session using `superpowers:executing-plans` skill.**
+- After discovery: monitoring.upload UX improvements (site search changes, remove site IDs, show site names with client names) — requires separate brainstorming/plan.
+- After monitoring: Head Supervisor pages (`green_belt.watering_oversight` and related).
 
-After that: Head Supervisor pages (`green_belt.watering_oversight` and related).
+GREEN_BELT_SUPERVISOR ✅ complete. OUTSOURCED_MAINTAINER ✅ complete. AUTHORITY_REPRESENTATIVE ✅ complete.
 
 ---
 
@@ -63,10 +72,13 @@ After that: Head Supervisor pages (`green_belt.watering_oversight` and related).
 
 - **Authority View** — stable after multiple polish passes. Do not refactor.
 - **`uploadView` shared function** — just redesigned. Do not change without instruction.
-- **`openPhotoGallery()`** — shared function, used by 5 pages. Changes affect all.
+- **`openPhotoGallery()`** — shared function, used by 5+ pages. Changes affect all.
 - **`UI.panel()` in `ui.js`** — extended with `collapsible` option. Test any changes across pages.
 - **`green_belt.my_uploads`** — chips, gallery, delete all stable. Do not refactor.
 - **`MY_UPLOADS_PRESETS` constant** — defines the 4 chip date ranges. If adding a new chip, update both this and `myUploadsActivePreset()`.
+- **`monitoring.upload`** — UX improvements done (uncommitted). Discovery toggle will be removed when `monitoring.discovery` is built. Do not touch until discovery plan is executed.
+- **`monitoring.history`** — UX improvements done (uncommitted). Do not refactor.
+- **`UploadService::createUploadsForSurface()`** — manages its own PDO transaction internally. Do NOT wrap calls to this method in another transaction or PDO will throw a nested transaction error. See Media Discovery design spec §6.1.
 - **`tests/TEST_RESULTS.md`** — QA phase is archived. Do not add new test results there.
 
 ---
@@ -75,8 +87,11 @@ After that: Head Supervisor pages (`green_belt.watering_oversight` and related).
 
 | Issue | Page | Severity | Notes |
 |---|---|---|---|
-| `green_belt.my_uploads` is a basic table | Supervisor | Medium | Next improvement target — needs gallery view like Authority View |
 | `[hidden]` CSS fix applied globally | All | Low | Added `[hidden] { display:none !important }` to fix upload form — verify no regressions on other pages |
+| Monitoring UX work is uncommitted | monitoring.upload, monitoring.history | Medium | All changes working but need commit. Also includes 3 bug fixes (free media auto-assign, upload scope, photo URL). |
+| Discovery toggle must be removed from monitoring.upload | monitoring.upload | Low | When `monitoring.discovery` page is built, the discovery toggle + auto-site logic in monitoring.upload must be removed (see design spec §13) |
+| `FREE_MEDIA_DEFAULT_SITE_ID = 38` still in constants.php | config | Low | Will be removed when discovery feature is implemented (each discovery gets its own site) |
+| Monitoring Upload UX improvements planned | monitoring.upload | Low | Site search changes, remove site IDs, show site names with client names — requires separate brainstorming |
 
 ---
 

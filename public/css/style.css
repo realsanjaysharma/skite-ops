@@ -2132,3 +2132,72 @@ textarea {
     gap: 10px;
   }
 }
+
+/* ==========================================================================
+   Monitoring Upload — site search autocomplete
+   ========================================================================== */
+
+.mon-site-search-wrap.hidden {
+  display: none;
+}
+
+.mon-search-results {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: var(--surface, #fff);
+  border: 1px solid var(--line-strong, #b8c4d2);
+  border-radius: 0 0 var(--radius, 8px) var(--radius, 8px);
+  max-height: 220px;
+  overflow-y: auto;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.12);
+}
+
+.mon-search-item {
+  padding: 10px 12px;
+  cursor: pointer;
+  font-size: 0.88rem;
+  border-bottom: 1px solid var(--line, #e2e8f0);
+}
+
+.mon-search-item:last-child {
+  border-bottom: 0;
+}
+
+.mon-search-item:hover {
+  background: rgba(15, 118, 110, 0.06);
+}
+
+.mon-search-empty {
+  padding: 12px;
+  text-align: center;
+  color: var(--ink-500, #64748b);
+  font-size: 0.85rem;
+}
+
+.mon-search-selected {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: rgba(15, 118, 110, 0.06);
+  border: 1px solid var(--brand, #0f766e);
+  border-radius: var(--radius, 8px);
+  font-size: 0.9rem;
+}
+
+.mon-site-hint {
+  margin: 6px 0 0;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: var(--brand, #0f766e);
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+  font: inherit;
+}

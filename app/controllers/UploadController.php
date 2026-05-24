@@ -210,6 +210,34 @@ class UploadController extends BaseController
                 return;
             }
 
+            // MONITORING_TEAM: return today's due sites from monitoring plan
+            if ($roleKey === 'MONITORING_TEAM') {
+                require_once __DIR__ . '/../repositories/MonitoringPlanRepository.php';
+                $planRepo = new MonitoringPlanRepository();
+                $today = date('Y-m-d');
+                $month = date('Y-m');
+
+                // Get all sites with today's due date
+                $allSites = $planRepo->getPlanList([], $month);
+                $items = [];
+                foreach ($allSites as $site) {
+                    $dueDates = !empty($site['due_dates_list']) ? explode(',', $site['due_dates_list']) : [];
+                    if (in_array($today, $dueDates, true)) {
+                        $items[] = [
+                            'id'    => (int) $site['site_id'],
+                            'label' => trim($site['site_code'] . ' - ' . $site['location_text']),
+                            'category' => $site['site_category'],
+                        ];
+                    }
+                }
+
+                Response::success([
+                    'items' => $items,
+                    'pagination' => ['page' => 1, 'limit' => count($items), 'total' => count($items)],
+                ]);
+                return;
+            }
+
             Response::success([
                 'items' => [],
                 'pagination' => ['page' => 1, 'limit' => 0, 'total' => 0],

@@ -28,9 +28,11 @@ class MonitoringHistoryService {
         foreach ($items as &$item) {
             $item['upload_id'] = (int) $item['upload_id'];
             $item['site_id'] = (int) $item['site_id'];
+            $item['created_by_user_id'] = (int) $item['created_by_user_id'];
             $item['is_discovery_mode'] = (int) $item['is_discovery_mode'];
             $item['has_comment'] = !empty($item['comment_text']);
             $item['preview_photo'] = $item['file_path'];
+            $item['work_type'] = $item['work_type'] ?? null;
             unset($item['file_path']);
         }
 

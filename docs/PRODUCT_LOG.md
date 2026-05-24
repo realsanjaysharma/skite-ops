@@ -145,3 +145,47 @@ Seed migration `001_seed_foundation.sql` gave the outsourced role only `green_be
 
 **Default chip: Today (not Today+Yesterday):**
 First instinct was to default to Yesterday+Today so recent uploads are visible. Changed to Today-only after discussion — supervisor's primary need is to check what they submitted today. Yesterday is one tap away. Keeps the default view focused.
+
+---
+
+## 2026-05-24 — Monitoring Upload + History UX improvements
+
+**Monitoring Upload page redesigned** with mobile camera picker, site search dropdown, discovery toggle (Regular Visit / Free Media Discovery), photo preview grid, XHR progress bar, and recent uploads horizontal strip. Discovery mode auto-assigns uploads to `FREE_MEDIA_DEFAULT_SITE_ID = 38`.
+
+**Monitoring History page redesigned** with gallery cards, date chips (Today/Yesterday/Last 5/Last 7), site category filter chips, discovery filter chips, photo preview modal via `openPhotoGallery`, and self-delete with live countdown on own uploads.
+
+**Three bugs fixed:** (1) Free media auto-assign wasn't linking to default site correctly, (2) upload scope check was blocking monitoring surface, (3) photo URL construction was broken for monitoring uploads.
+
+---
+
+## 2026-05-24 — Media Discovery: separate page designed
+
+**Problem identified:** All free media discoveries sharing one default site ID (38) would overwrite each other's `free_media_records` — only the last discovery's metadata would survive. Each discovery needs its own site.
+
+**Approach B chosen (over A):** Dedicated `MediaDiscoveryService` + reuse `UploadService` for file storage. Approach A was modifying UploadService itself — rejected because discovery has different intent (reporting opportunities vs routine proof), different inputs (no site selection needed), and different downstream handling (site creation + free media record).
+
+**Separate page from monitoring.upload:** Product owner confirmed discovery should be its own page (`monitoring.discovery`), not a toggle on the upload page. The toggle will be removed from monitoring.upload when discovery page is built.
+
+**Per-discovery placeholder sites:** Each discovery creates a site with `site_code = 'DISC-YYYYMMDD-NNN'`, `is_active = 0`. This makes discovery sites invisible to all regular dropdowns (which filter `WHERE is_active = 1`) while keeping them in the sites table for proper FK relationships.
+
+**Distinguishing inactive site types:** Four patterns:
+- Normal active: regular codes, `is_active = 1`
+- Deactivated: regular codes, `is_active = 0`
+- Discovery placeholder: `DISC-*`, `is_active = 0`
+- Merged (absorbed): `MERGED-*`, `is_active = 0`
+
+**GPS proximity dedup (50m, Haversine):** When a new discovery has GPS, check for existing `DISC-*` sites within 50m that also have a pending `free_media_records` with `status = 'DISCOVERED'`. If match, add photos to existing discovery instead of creating new site. Important: only matches pending discoveries — if site was already confirmed/expired/consumed, a new discovery is created (situation may have changed).
+
+**Dual GPS strategy:** Browser `navigator.geolocation` (requested on submit click, not page load) takes priority over photo EXIF GPS. Browser GPS = person is physically at the spot. EXIF GPS = backup for gallery uploads. Both are stored: site record gets best available, upload record keeps EXIF values.
+
+**discovered_date preservation on dedup:** When adding photos to an existing discovery via dedup match, the original `discovered_date` is preserved (not overwritten) — the first sighting date is what matters for stale alert calculations.
+
+**Transaction architecture:** MediaDiscoveryService does NOT start its own transaction because `UploadService::createUploadsForSurface()` already calls `$this->uploadRepository->beginTransaction()` internally. MySQL/PDO throws an exception on nested `beginTransaction()`. Site creation auto-commits, then UploadService handles its own transaction for uploads + free_media_record.
+
+**Media Planner notifications:** Computed at runtime (no background jobs per governance). Dashboard counter of pending discoveries, stale alert for discoveries older than `DISCOVERY_PENDING_ALERT_DAYS = 7`, age indicators on each item.
+
+**Merge/dismiss flows:** Merge moves all uploads to keep-site, expires discard's free_media_record, renames discard site_code to `MERGED-*`. Dismiss sets `is_deleted = 1` on uploads (30-day purge via existing mechanism) and expires the free_media_record. Site stays `is_active = 0` (already invisible).
+
+**Deferred to Phase 2:** Media Planner actions (confirm/merge/dismiss in Free Media Inventory module) — requires separate plan.
+
+**Deferred separately:** Monitoring Upload UX improvements (site search changes, remove site IDs, show site names with client names) — requires separate brainstorming.

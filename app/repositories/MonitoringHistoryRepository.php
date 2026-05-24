@@ -10,8 +10,9 @@ class MonitoringHistoryRepository extends BaseRepository {
 
         $offset = ($page - 1) * $limit;
         
-        $query = "SELECT u.id as upload_id, u.file_path, u.created_at as timestamp, 
-                         u.is_discovery_mode, u.comment_text,
+        $query = "SELECT u.id as upload_id, u.file_path, u.created_at as timestamp,
+                         u.is_discovery_mode, u.comment_text, u.work_type,
+                         u.created_by_user_id,
                          s.id as site_id, s.site_code, s.location_text, s.site_category, s.route_or_group,
                          creator.full_name as uploader_name
                   FROM uploads u

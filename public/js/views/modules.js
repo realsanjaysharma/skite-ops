@@ -1399,72 +1399,426 @@ Views.register('green_belt.supervisor_upload', uploadView('SUPERVISOR', 'GREEN_B
 Views.register('green_belt.outsourced_upload', uploadView('OUTSOURCED', 'GREEN_BELT', 'Outsourced Upload'));
 Views.register('monitoring.upload', {
   async render() {
-    return UI.page('Monitoring Upload', 'Submit monitoring proof with discovery options')
-      + UI.panel('Upload Proof', `
-        <form class="stack-form js-monitoring-upload-form">
+    // Load today's due sites from monitoring plan
+    let planSites = [];
+    try {
+      const targets = normalizeItems(await Api.get('upload/targets'));
+      planSites = targets;
+    } catch (_) {}
+
+    const hasPlanSites = planSites.length > 0;
+
+    // Site selector: dropdown for plan sites + search fallback for ad-hoc
+    const planOptions = planSites.map(
+      (s) => `<option value="${s.id}">${UI.escape(s.label)}</option>`
+    ).join('');
+
+    const siteSection = `
+      <div class="upload-section js-mon-site-section">
+        <div class="upload-section-label">Site</div>
+        ${hasPlanSites ? `
+          <select name="parent_id" class="mon-site-select" required
+                  style="width:100%;min-height:44px;padding:8px 12px;border:1px solid var(--line-strong,#b8c4d2);border-radius:var(--radius,8px);background:var(--surface,#fff);color:var(--ink-950);font:inherit;">
+            <option value="">Select a site from today's plan</option>
+            ${planOptions}
+          </select>
+          <p class="mon-site-hint" style="font-size:0.8rem;color:var(--ink-500);margin:6px 0 0;">
+            Not in the list? <button type="button" class="btn-link js-show-site-search" style="font-size:0.8rem;">Search by site code</button>
+          </p>
+        ` : `
+          <p style="font-size:0.85rem;color:var(--ink-500);margin:0 0 8px;">No sites due today. Search by site code:</p>
+        `}
+        <div class="mon-site-search-wrap ${hasPlanSites ? 'hidden' : ''}" style="position:relative;">
+          <input type="text" class="js-site-search-input" placeholder="Type site code (e.g. GBN-01)"
+                 autocomplete="off"
+                 style="width:100%;min-height:44px;padding:8px 12px;border:1px solid var(--line-strong,#b8c4d2);border-radius:var(--radius,8px);background:var(--surface,#fff);color:var(--ink-950);font:inherit;">
+          <div class="js-site-search-results mon-search-results" hidden></div>
+          <input type="hidden" name="parent_id_search" class="js-site-search-id" value="">
+          <div class="js-site-search-selected mon-search-selected" hidden></div>
+        </div>
+      </div>
+      <div class="upload-section js-mon-fmd-auto-site" hidden>
+        <div class="upload-section-label">Site</div>
+        <p style="font-size:0.85rem;color:var(--brand,#0f766e);margin:0;font-weight:600;">
+          <i class="ph ph-check-circle"></i> Auto-assigned — site not required for free media discovery
+        </p>
+      </div>`;
+
+    return UI.page('Monitoring Upload', 'Submit site monitoring proof')
+      + UI.panel('Upload proof', `
+        <form class="upload-mobile-form js-monitoring-upload-form" autocomplete="off" novalidate>
           <input type="hidden" name="parent_type" value="SITE">
           <input type="hidden" name="surface" value="MONITORING">
           <input type="hidden" name="upload_type" value="WORK">
-          <input type="hidden" name="gps_latitude" value="">
-          <input type="hidden" name="gps_longitude" value="">
-          
-          <div class="form-grid">
-            ${UI.field({ name: 'parent_id', label: 'Site ID', type: 'number', required: true })}
-            <div class="field full">
-              <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-                <input type="checkbox" name="discovery_mode" value="1">
-                <span style="font-weight: bold;">Mark as Free Media Discovery</span>
-              </label>
-              <p style="font-size: 0.8rem; color: var(--ink-500); margin-top: 4px; margin-left: 24px;">
-                Creates a free media record for this site.
-              </p>
+          <input type="hidden" name="gps_latitude" id="mon_gps_lat" value="">
+          <input type="hidden" name="gps_longitude" id="mon_gps_lng" value="">
+
+          ${siteSection}
+
+          <div class="upload-section">
+            <div class="upload-section-label">Visit type</div>
+            <div class="upload-type-chips">
+              <button type="button" class="upload-type-chip active js-mon-visit-chip" data-discovery="0">
+                <i class="ph ph-map-pin"></i><span>Standard Visit</span>
+              </button>
+              <button type="button" class="upload-type-chip js-mon-visit-chip" data-discovery="1">
+                <i class="ph ph-binoculars"></i><span>Free Media Discovery</span>
+              </button>
             </div>
-            ${UI.field({ name: 'comment_text', label: 'Comment', type: 'textarea', full: true })}
-            <label class="field full">
-              <span>Photos</span>
-              <input type="file" name="files[]" multiple accept="image/*" required>
+            <input type="hidden" name="discovery_mode" value="0">
+            <p class="js-mon-discovery-note" hidden style="font-size:0.8rem;color:var(--brand,#0f766e);margin:8px 0 0;font-weight:600;">
+              <i class="ph ph-info"></i> A free media record will be created for this site.
+            </p>
+          </div>
+
+          <div class="upload-section">
+            ${UI.field({ name: 'comment_text', label: 'Comment (optional)', type: 'textarea', full: true })}
+          </div>
+
+          <div class="upload-section">
+            <div class="upload-section-label">Photos</div>
+            <label class="upload-file-btn js-upload-file-btn">
+              <i class="ph ph-camera-plus"></i>
+              <span class="js-upload-file-label">Take a photo or choose from gallery</span>
+              <input type="file" name="files[]" multiple accept="image/*"
+                     class="upload-file-input js-file-input" aria-label="Select photos">
             </label>
           </div>
-          <button type="submit" class="btn btn-primary"><i class="ph ph-upload-simple"></i><span>Upload Monitoring Proof</span></button>
+
+          <div class="upload-preview js-upload-preview" hidden>
+            <div class="upload-preview-header">
+              <span class="js-preview-count"></span>
+              <button type="button" class="btn btn-ghost btn-sm js-clear-files">Clear all</button>
+            </div>
+            <div class="upload-preview-grid js-preview-grid"></div>
+          </div>
+
+          <div class="upload-progress js-upload-progress" hidden>
+            <div class="upload-progress-track"><div class="upload-progress-fill js-progress-fill"></div></div>
+            <p class="js-progress-text upload-progress-text">Uploading…</p>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-block upload-submit-btn js-upload-submit" disabled>
+            <i class="ph ph-upload-simple"></i>
+            <span class="js-upload-submit-label">Select photos to upload</span>
+          </button>
         </form>
-      `);
+
+        <div class="upload-success js-upload-success" hidden>
+          <i class="ph ph-check-circle upload-success-icon"></i>
+          <h3 class="js-success-headline">Photos uploaded</h3>
+          <p class="upload-success-sub">Submitted for review.</p>
+          <div class="upload-success-actions">
+            <button type="button" class="btn btn-ghost js-upload-more">Upload more</button>
+            <button type="button" class="btn btn-primary js-nav-history" data-nav="monitoring.history">
+              <i class="ph ph-clock-counter-clockwise"></i><span>View History</span>
+            </button>
+          </div>
+        </div>
+      `)
+      + `<div class="js-mon-recent-strip"></div>`;
   },
+
   async afterRender() {
+    // Load and render recent uploads strip
+    const recentStrip = document.querySelector('.js-mon-recent-strip');
+    const loadRecent = async () => {
+      if (!recentStrip) return;
+      try {
+        const data = await Api.get('monitoring/upload', { limit: 4 });
+        const recents = normalizeItems(data);
+        if (!recents.length) {
+          recentStrip.innerHTML = '';
+          return;
+        }
+        recentStrip.innerHTML = UI.panel('Recent Uploads', `
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:8px;">
+            ${recents.map((r) => {
+              const url = r.id ? Api.url('upload/serve', { id: r.id }) : '';
+              return `<img src="${url}" class="upload-thumb js-recent-thumb" data-id="${r.id}"
+                           alt="Recent" loading="lazy" style="aspect-ratio:1;border-radius:8px;object-fit:cover;width:100%;cursor:pointer;"
+                           onerror="this.style.display='none'">`;
+            }).join('')}
+          </div>
+          <div style="margin-top:10px;text-align:center;">
+            <button type="button" class="btn btn-ghost btn-sm" data-nav="monitoring.history">
+              <i class="ph ph-clock-counter-clockwise"></i><span>View All History</span>
+            </button>
+          </div>
+        `);
+        // Wire photo preview on recent thumbnails
+        const thumbs = recentStrip.querySelectorAll('.js-recent-thumb');
+        if (thumbs.length) {
+          const items = Array.from(thumbs).map((img) => ({
+            url: img.src,
+            download: img.src + '&download=1',
+          }));
+          thumbs.forEach((img, i) => {
+            img.addEventListener('click', () => openPhotoGallery(items, i));
+          });
+        }
+        // Wire nav button
+        recentStrip.querySelector('[data-nav]')?.addEventListener('click', (e) => {
+          App.navigate(e.currentTarget.dataset.nav);
+        });
+      } catch (_) {
+        recentStrip.innerHTML = '';
+      }
+    };
+    loadRecent();
+
     // Silent GPS capture
-    if ('geolocation' in navigator) {
+    if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          document.querySelector('[name="gps_latitude"]').value = pos.coords.latitude;
-          document.querySelector('[name="gps_longitude"]').value = pos.coords.longitude;
+          const lat = document.getElementById('mon_gps_lat');
+          const lng = document.getElementById('mon_gps_lng');
+          if (lat) lat.value = pos.coords.latitude;
+          if (lng) lng.value = pos.coords.longitude;
         },
-        (err) => console.log('GPS capture skipped or failed:', err.message),
-        { timeout: 5000 }
+        () => {}
       );
     }
 
-    document.querySelector('.js-monitoring-upload-form')?.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      const form = event.currentTarget;
-      const formData = new FormData(form);
-      
-      // Ensure discovery_mode is 0 if not checked
-      if (!form.elements.discovery_mode.checked) {
-        formData.set('discovery_mode', '0');
-      }
+    let selectedFiles = [];
+    const form       = document.querySelector('.js-monitoring-upload-form');
+    const fileInput  = form?.querySelector('.js-file-input');
+    const previewBox = form?.querySelector('.js-upload-preview');
+    const previewGrid= form?.querySelector('.js-preview-grid');
+    const previewCount = form?.querySelector('.js-preview-count');
+    const progressBox  = form?.querySelector('.js-upload-progress');
+    const progressFill = form?.querySelector('.js-progress-fill');
+    const progressText = form?.querySelector('.js-progress-text');
+    const submitBtn    = form?.querySelector('.js-upload-submit');
+    const submitLabel  = form?.querySelector('.js-upload-submit-label');
+    const successBox   = document.querySelector('.js-upload-success');
+    const siteSelect   = form?.querySelector('.mon-site-select');
+    const searchWrap   = form?.querySelector('.mon-site-search-wrap');
+    const searchInput  = form?.querySelector('.js-site-search-input');
+    const searchResults = form?.querySelector('.js-site-search-results');
+    const searchIdInput = form?.querySelector('.js-site-search-id');
+    const searchSelected = form?.querySelector('.js-site-search-selected');
 
-      try {
-        await Api.upload('upload/create', formData);
-        UI.toast('Monitoring proof uploaded', 'good');
-        form.reset();
-      } catch (error) {
-        UI.toast(error.message, 'bad');
+    // --- Site search (ad-hoc) ---
+    let searchDebounce = null;
+    const showSearchWrap = () => {
+      if (searchWrap) searchWrap.classList.remove('hidden');
+      if (siteSelect) siteSelect.value = '';
+    };
+
+    form?.querySelector('.js-show-site-search')?.addEventListener('click', showSearchWrap);
+
+    searchInput?.addEventListener('input', () => {
+      clearTimeout(searchDebounce);
+      const q = searchInput.value.trim();
+      if (q.length < 1) {
+        if (searchResults) searchResults.hidden = true;
+        return;
+      }
+      searchDebounce = setTimeout(async () => {
+        try {
+          const data = await Api.get('monitoring/site-search', { q });
+          const items = data?.items || [];
+          if (!items.length) {
+            searchResults.innerHTML = '<div class="mon-search-empty">No sites found</div>';
+          } else {
+            searchResults.innerHTML = items.map(
+              (s) => `<div class="mon-search-item" data-id="${s.id}" data-label="${UI.escape(s.label)}">${UI.escape(s.label)} <span style="color:var(--ink-500);font-size:0.8rem;">${UI.escape(s.category)}</span></div>`
+            ).join('');
+          }
+          searchResults.hidden = false;
+        } catch (_) {
+          searchResults.innerHTML = '<div class="mon-search-empty">Search failed</div>';
+          searchResults.hidden = false;
+        }
+      }, 300);
+    });
+
+    searchResults?.addEventListener('click', (e) => {
+      const item = e.target.closest('.mon-search-item');
+      if (!item) return;
+      const id = item.dataset.id;
+      const label = item.dataset.label;
+      if (searchIdInput) searchIdInput.value = id;
+      if (siteSelect) siteSelect.value = '';
+      searchResults.hidden = true;
+      searchInput.value = '';
+      if (searchSelected) {
+        searchSelected.innerHTML = `
+          <span style="font-weight:600;">${UI.escape(label)}</span>
+          <button type="button" class="btn btn-ghost btn-sm js-clear-site-search" style="padding:2px 6px;font-size:0.78rem;">Change</button>
+        `;
+        searchSelected.hidden = false;
+        searchInput.style.display = 'none';
       }
     });
+
+    searchSelected?.addEventListener('click', (e) => {
+      if (!e.target.closest('.js-clear-site-search')) return;
+      if (searchIdInput) searchIdInput.value = '';
+      searchSelected.hidden = true;
+      searchInput.style.display = '';
+      searchInput.value = '';
+      searchInput.focus();
+    });
+
+    // Close search results on outside click
+    document.addEventListener('click', (e) => {
+      if (searchResults && !searchResults.hidden && !e.target.closest('.mon-site-search-wrap')) {
+        searchResults.hidden = true;
+      }
+    });
+
+    // Resolve final parent_id: discovery auto-assigns, else prefer dropdown, fallback to search
+    const getParentId = () => {
+      if (discoveryInput && discoveryInput.value === '1') return String(FREE_MEDIA_DEFAULT_SITE_ID);
+      if (siteSelect && siteSelect.value) return siteSelect.value;
+      if (searchIdInput && searchIdInput.value) return searchIdInput.value;
+      return '';
+    };
+
+    // --- Discovery mode toggle ---
+    const discoveryInput = form?.querySelector('[name="discovery_mode"]');
+    const discoveryNote = form?.querySelector('.js-mon-discovery-note');
+    const siteSection_ = form?.querySelector('.js-mon-site-section');
+    const fmdAutoSite = document.querySelector('.js-mon-fmd-auto-site');
+    form?.querySelectorAll('.js-mon-visit-chip').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        form.querySelectorAll('.js-mon-visit-chip').forEach((c) => c.classList.remove('active'));
+        chip.classList.add('active');
+        const isDiscovery = chip.dataset.discovery === '1';
+        if (discoveryInput) discoveryInput.value = chip.dataset.discovery;
+        if (discoveryNote) discoveryNote.hidden = !isDiscovery;
+        // Toggle site section visibility
+        if (siteSection_) siteSection_.hidden = isDiscovery;
+        if (fmdAutoSite) fmdAutoSite.hidden = !isDiscovery;
+      });
+    });
+
+    // --- File selection & preview ---
+    const refreshSubmitState = () => {
+      if (!submitBtn) return;
+      const hasFiles = selectedFiles.length > 0;
+      submitBtn.disabled = !hasFiles;
+      if (submitLabel) {
+        submitLabel.textContent = hasFiles
+          ? `Upload ${selectedFiles.length} photo${selectedFiles.length > 1 ? 's' : ''}`
+          : 'Select photos to upload';
+      }
+    };
+
+    const renderPreviews = () => {
+      if (!previewGrid) return;
+      previewGrid.innerHTML = selectedFiles.map((file, i) => {
+        const url = URL.createObjectURL(file);
+        return `
+          <div class="upload-thumb-wrap">
+            <img src="${url}" class="upload-thumb" alt="Preview ${i + 1}">
+            <button type="button" class="upload-thumb-remove js-remove-file" data-index="${i}" aria-label="Remove photo ${i + 1}">
+              <i class="ph ph-x"></i>
+            </button>
+          </div>
+        `;
+      }).join('');
+      if (previewCount) {
+        previewCount.textContent = `${selectedFiles.length} photo${selectedFiles.length > 1 ? 's' : ''} selected`;
+      }
+      if (previewBox) previewBox.hidden = selectedFiles.length === 0;
+      refreshSubmitState();
+    };
+
+    fileInput?.addEventListener('change', () => {
+      Array.from(fileInput.files).forEach((f) => selectedFiles.push(f));
+      fileInput.value = '';
+      renderPreviews();
+    });
+
+    previewGrid?.addEventListener('click', (e) => {
+      const btn = e.target.closest('.js-remove-file');
+      if (!btn) return;
+      const idx = parseInt(btn.dataset.index, 10);
+      selectedFiles.splice(idx, 1);
+      renderPreviews();
+    });
+
+    form?.querySelector('.js-clear-files')?.addEventListener('click', () => {
+      selectedFiles = [];
+      renderPreviews();
+    });
+
+    // --- Success card nav ---
+    successBox?.querySelector('[data-nav]')?.addEventListener('click', (e) => {
+      App.navigate(e.currentTarget.dataset.nav);
+    });
+
+    form?.querySelector('.js-upload-more')?.addEventListener('click', () => {
+      successBox.hidden = true;
+      form.hidden = false;
+      form.reset();
+      selectedFiles = [];
+      renderPreviews();
+      // Reset discovery
+      form.querySelectorAll('.js-mon-visit-chip').forEach((c, i) => c.classList.toggle('active', i === 0));
+      if (discoveryInput) discoveryInput.value = '0';
+      if (discoveryNote) discoveryNote.hidden = true;
+      if (siteSection_) siteSection_.hidden = false;
+      if (fmdAutoSite) fmdAutoSite.hidden = true;
+      // Reset site search
+      if (searchIdInput) searchIdInput.value = '';
+      if (searchSelected) searchSelected.hidden = true;
+      if (searchInput) { searchInput.style.display = ''; searchInput.value = ''; }
+      refreshSubmitState();
+    });
+
+    // --- Form submit ---
+    form?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+
+      const parentId = getParentId();
+      if (!parentId) { UI.toast('Please select a site', 'bad'); return; }
+      if (!selectedFiles.length) { UI.toast('Please select at least one photo', 'bad'); return; }
+
+      const formData = new FormData(form);
+      formData.set('parent_id', parentId);
+      formData.delete('parent_id_search');
+      formData.delete('files[]');
+      selectedFiles.forEach((file, i) => formData.append(`files[${i}]`, file));
+
+      if (submitBtn) submitBtn.disabled = true;
+      if (progressBox) progressBox.hidden = false;
+      if (progressFill) progressFill.style.width = '0%';
+      if (progressText) progressText.textContent = `Uploading ${selectedFiles.length} photo${selectedFiles.length > 1 ? 's' : ''}…`;
+
+      try {
+        await uploadWithProgress(formData, (pct) => {
+          if (progressFill) progressFill.style.width = `${pct}%`;
+          if (progressText) progressText.textContent = `Uploading… ${pct}%`;
+        });
+
+        const count = selectedFiles.length;
+        form.hidden = true;
+        if (successBox) {
+          successBox.hidden = false;
+          const headline = successBox.querySelector('.js-success-headline');
+          if (headline) headline.textContent = `${count} photo${count > 1 ? 's' : ''} uploaded successfully`;
+        }
+        // Refresh the recent uploads strip
+        loadRecent();
+      } catch (err) {
+        UI.toast(err.message, 'bad');
+        if (progressBox) progressBox.hidden = true;
+        if (submitBtn) { submitBtn.disabled = false; refreshSubmitState(); }
+      }
+    });
+
+    refreshSubmitState();
   }
 });
 
 // Self-delete window in milliseconds — matches config/constants.php UPLOAD_SELF_DELETE_WINDOW_MINUTES
 const MY_UPLOADS_DELETE_WINDOW_MS = 5 * 60 * 1000;
+// Default site for Free Media Discovery uploads — matches config/constants.php FREE_MEDIA_DEFAULT_SITE_ID
+const FREE_MEDIA_DEFAULT_SITE_ID = 38;
 const MY_UPLOADS_MAX_DAYS = 7; // hard cap — chips never exceed this
 
 const MY_UPLOADS_PRESETS = [
@@ -2065,35 +2419,280 @@ Views.register('monitoring.plan', {
   }
 });
 
+// Monitoring History date presets — same pattern as My Uploads
+const MON_HISTORY_PRESETS = [
+  { key: 'today',     label: 'Today',       from: () => authorityLocalDate(),    to: () => authorityLocalDate() },
+  { key: 'yesterday', label: 'Yesterday',   from: () => authorityShiftDate(-1),  to: () => authorityShiftDate(-1) },
+  { key: 'last5',     label: 'Last 5 Days', from: () => authorityShiftDate(-4),  to: () => authorityLocalDate() },
+  { key: 'last7',     label: 'Last 7 Days', from: () => authorityShiftDate(-6),  to: () => authorityLocalDate() },
+];
+
+function monHistoryActivePreset(dateFrom, dateTo) {
+  return MON_HISTORY_PRESETS.find(
+    (p) => p.from() === dateFrom && p.to() === dateTo
+  )?.key || 'today';
+}
+
 Views.register('monitoring.history', {
   async render({ params = {} }) {
-    const data = await Api.get('monitoring/history', params);
-    const rows = normalizeItems(data);
-    const columns = [
-      { key: 'created_at', label: 'Date/Time' },
-      { key: 'site_code', label: 'Site Code' },
-      { key: 'location_text', label: 'Location' },
-      { key: 'is_discovery_mode', label: 'Mode', render: (row) => row.is_discovery_mode ? 'DISCOVERY' : 'PLANNED' },
-      { key: 'comment_text', label: 'Comment' },
-      { key: 'upload_count', label: 'Photos', render: (row) => row.upload_count || 1 }
-    ];
+    // Default to Today when no date in params
+    const effectiveDateFrom = params.date_from || authorityLocalDate();
+    const effectiveDateTo   = params.date_to   || authorityLocalDate();
+    const activePreset      = monHistoryActivePreset(effectiveDateFrom, effectiveDateTo);
 
-    return UI.page('Monitoring History', 'Review submitted monitoring proof')
-      + UI.panel('Filters', UI.filters([
-        { name: 'date_from', label: 'From', type: 'date', value: params.date_from },
-        { name: 'date_to', label: 'To', type: 'date', value: params.date_to },
-        { name: 'site_category', label: 'Category', type: 'select', value: params.site_category || '', options: ['', 'GREEN_BELT', 'CITY', 'HIGHWAY'] },
-        { name: 'discovery_mode', label: 'Discovery Mode', type: 'select', value: params.discovery_mode || '', options: [{ value: '', label: 'All' }, { value: '1', label: 'Discovery Only' }, { value: '0', label: 'Normal Only' }] }
-      ], 'Search'))
-      + UI.panel('History Records', UI.table(columns, rows, {
-        empty: 'No monitoring history found',
-        rowAttr: (row) => `data-history-id="${row.upload_id}"`
-      }) + renderPagination(data.pagination, 'monitoring.history', params));
+    const apiParams = {
+      date_from: effectiveDateFrom,
+      date_to:   effectiveDateTo
+    };
+    if (params.site_category) apiParams.site_category = params.site_category;
+    if (params.discovery_mode !== undefined && params.discovery_mode !== '') apiParams.discovery_mode = params.discovery_mode;
+    if (params.page) apiParams.page = params.page;
+    if (params.limit) apiParams.limit = params.limit;
+
+    const data = await Api.get('monitoring/history', apiParams);
+    const items = normalizeItems(data);
+    const total = data?.pagination?.total ?? items.length;
+
+    // Active category filter
+    const activeCat = params.site_category || '';
+    // Active discovery filter
+    const activeDisc = (params.discovery_mode !== undefined && params.discovery_mode !== '') ? params.discovery_mode : '';
+
+    // Date chips
+    const dateChips = MON_HISTORY_PRESETS.map(
+      (p) => `<button type="button" class="mu-chip js-mh-date-chip ${p.key === activePreset ? 'active' : ''}" data-key="${p.key}">${p.label}</button>`
+    ).join('');
+
+    // Category chips
+    const catOptions = [
+      { value: '', label: 'All Sites' },
+      { value: 'GREEN_BELT', label: 'Green Belt' },
+      { value: 'CITY', label: 'City' },
+      { value: 'HIGHWAY', label: 'Highway' },
+    ];
+    const catChips = catOptions.map(
+      (c) => `<button type="button" class="mu-chip js-mh-cat-chip ${c.value === activeCat ? 'active' : ''}" data-value="${c.value}">${c.label}</button>`
+    ).join('');
+
+    // Discovery chips
+    const discOptions = [
+      { value: '', label: 'All' },
+      { value: '0', label: 'Standard' },
+      { value: '1', label: 'Discovery' },
+    ];
+    const discChips = discOptions.map(
+      (d) => `<button type="button" class="mu-chip js-mh-disc-chip ${d.value === activeDisc ? 'active' : ''}" data-value="${d.value}">${d.label}</button>`
+    ).join('');
+
+    // Current user ID for self-delete logic
+    const currentUserId = Auth.getUser()?.user_id || Auth.getUser()?.id || 0;
+
+    // Build gallery cards
+    let galleryHtml = '';
+    if (!items.length) {
+      galleryHtml = '<p style="text-align:center;color:var(--ink-500);padding:24px 0;">No monitoring photos found for this period.</p>';
+    } else {
+      galleryHtml = `
+        <div class="mu-gallery-bar">
+          <span>Showing ${items.length} of ${total} photos</span>
+        </div>
+        <div class="mu-card-grid">
+          ${items.map((item, idx) => {
+            const photoUrl = item.upload_id
+              ? Api.url('upload/serve', { id: item.upload_id })
+              : '';
+            const ts = item.timestamp || '';
+            const datePart = ts.substring(0, 10);
+            const timePart = ts.substring(11, 16);
+            const isDiscovery = parseInt(item.is_discovery_mode, 10) === 1;
+            const badgeClass = isDiscovery ? 'mu-badge mu-badge-issue' : 'mu-badge mu-badge-work';
+            const badgeIcon = isDiscovery ? 'ph-binoculars' : 'ph-map-pin';
+            const badgeLabel = isDiscovery ? 'Discovery' : 'Standard';
+            const comment = item.comment_text
+              ? `<p class="mu-card-comment">${UI.escape(item.comment_text)}</p>`
+              : '';
+
+            // Self-delete: only for current user's own uploads within the 5-min window
+            const isOwnUpload = item.created_by_user_id === currentUserId;
+            let deleteCtrl = '';
+            if (isOwnUpload) {
+              const secsLeft = myUploadsSecondsLeft(ts);
+              if (secsLeft > 0) {
+                deleteCtrl = `
+                  <div class="mu-card-actions">
+                    <button type="button" class="btn btn-danger btn-sm js-mh-delete" data-upload-id="${item.upload_id}" data-secs-left="${secsLeft}">
+                      <i class="ph ph-trash"></i><span>Delete</span>
+                    </button>
+                    <span class="mu-window-hint js-mh-window-hint" data-upload-id="${item.upload_id}">${secsLeft}s left</span>
+                  </div>`;
+              } else {
+                deleteCtrl = `
+                  <div class="mu-card-actions">
+                    <span class="mu-window-closed"><i class="ph ph-lock-simple"></i> Window closed</span>
+                  </div>`;
+              }
+            }
+
+            return `
+              <div class="mu-card" data-index="${idx}" data-upload-id="${item.upload_id}" data-created-at="${UI.escape(ts)}">
+                <img src="${photoUrl}" class="av-card-photo js-mh-photo" data-index="${idx}"
+                     alt="Monitoring photo" loading="lazy"
+                     onerror="this.style.display='none'">
+                <div class="mu-card-body">
+                  <div class="mu-card-belt">${UI.escape(item.site_code || '')}</div>
+                  <div class="mu-card-row">
+                    <span>${UI.escape(item.location_text || '')}</span>
+                  </div>
+                  <div class="mu-card-row">
+                    <span>${datePart}</span>
+                    <span class="mu-card-time">${timePart}</span>
+                  </div>
+                  <div class="mu-card-row">
+                    <span class="${badgeClass}"><i class="ph ${badgeIcon}"></i>${badgeLabel}</span>
+                    <span style="font-size:0.78rem;color:var(--ink-500);">${UI.escape(item.uploader_name || '')}</span>
+                  </div>
+                  ${comment}
+                  ${deleteCtrl}
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    const actions = UI.button('Refresh', { icon: 'ph-arrows-clockwise', attr: 'data-refresh' });
+
+    return UI.page('Monitoring History', 'Browse submitted monitoring proof', actions)
+      + `<div class="mu-controls">
+           <div class="mu-chips">${dateChips}</div>
+           <div class="mu-chips">${catChips}</div>
+           <div class="mu-chips">${discChips}</div>
+         </div>`
+      + UI.panel('Photos', galleryHtml + renderPagination(data.pagination || { page: 1, limit: 50, total }, 'monitoring.history', params));
   },
-  async afterRender() {
+
+  async afterRender({ params = {} }) {
     attachRefresh();
     attachPagination();
-    wireFilters((payload) => App.navigate('monitoring.history', payload));
+
+    const effectiveDateFrom = params.date_from || authorityLocalDate();
+    const effectiveDateTo   = params.date_to   || authorityLocalDate();
+
+    // Date chip navigation
+    document.querySelectorAll('.js-mh-date-chip').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        const preset = MON_HISTORY_PRESETS.find((p) => p.key === chip.dataset.key);
+        if (!preset) return;
+        App.navigate('monitoring.history', {
+          ...params,
+          date_from: preset.from(),
+          date_to: preset.to(),
+          page: undefined,
+        });
+      });
+    });
+
+    // Category chip navigation
+    document.querySelectorAll('.js-mh-cat-chip').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        const newParams = { ...params, date_from: effectiveDateFrom, date_to: effectiveDateTo, page: undefined };
+        if (chip.dataset.value) {
+          newParams.site_category = chip.dataset.value;
+        } else {
+          delete newParams.site_category;
+        }
+        App.navigate('monitoring.history', newParams);
+      });
+    });
+
+    // Discovery chip navigation
+    document.querySelectorAll('.js-mh-disc-chip').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        const newParams = { ...params, date_from: effectiveDateFrom, date_to: effectiveDateTo, page: undefined };
+        if (chip.dataset.value !== '') {
+          newParams.discovery_mode = chip.dataset.value;
+        } else {
+          delete newParams.discovery_mode;
+        }
+        App.navigate('monitoring.history', newParams);
+      });
+    });
+
+    // Photo gallery on click
+    const cards = document.querySelectorAll('.js-mh-photo');
+    if (cards.length) {
+      const galleryItems = Array.from(cards).map((img) => ({
+        url: img.src,
+        download: img.src + '&download=1',
+      }));
+      cards.forEach((img) => {
+        img.style.cursor = 'pointer';
+        img.addEventListener('click', () => {
+          const idx = parseInt(img.dataset.index, 10);
+          openPhotoGallery(galleryItems, idx);
+        });
+      });
+    }
+
+    // Live countdown for delete window
+    const hints = document.querySelectorAll('.js-mh-window-hint');
+    if (hints.length) {
+      const ticker = setInterval(() => {
+        let anyLeft = false;
+        document.querySelectorAll('.mu-card[data-created-at]').forEach((card) => {
+          const secs = myUploadsSecondsLeft(card.dataset.createdAt);
+          const hint = card.querySelector('.js-mh-window-hint');
+          const btn  = card.querySelector('.js-mh-delete');
+          if (hint) {
+            if (secs > 0) {
+              hint.textContent = `${secs}s left`;
+              anyLeft = true;
+            } else {
+              const actionsEl = card.querySelector('.mu-card-actions');
+              if (actionsEl) {
+                actionsEl.innerHTML = '<span class="mu-window-closed"><i class="ph ph-lock-simple"></i> Window closed</span>';
+              }
+            }
+          }
+          if (btn && secs <= 0) btn.disabled = true;
+        });
+        if (!anyLeft) clearInterval(ticker);
+      }, 1000);
+    }
+
+    // Self-delete
+    document.querySelectorAll('.js-mh-delete').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = parseInt(btn.dataset.uploadId, 10);
+        const card = btn.closest('.mu-card');
+        const secsLeft = myUploadsSecondsLeft(card?.dataset.createdAt || '');
+        if (secsLeft <= 0) { UI.toast('Delete window has closed.', 'bad'); return; }
+        UI.showModal('Delete Upload', `
+          <p style="color:var(--ink-700);margin-bottom:20px;">
+            Delete this upload? This cannot be undone and is only possible within the 5-minute window.
+          </p>
+          <div class="modal-actions">
+            <button class="btn btn-ghost" data-modal-close>Cancel</button>
+            <button class="btn btn-danger js-mh-confirm-delete" data-upload-id="${id}">
+              <i class="ph ph-trash"></i><span>Delete</span>
+            </button>
+          </div>
+        `);
+        document.querySelector('.js-mh-confirm-delete')?.addEventListener('click', async () => {
+          try {
+            await Api.post('upload/delete', { upload_id: id });
+            UI.closeModal();
+            UI.toast('Upload deleted.', 'good');
+            App.refresh();
+          } catch (err) {
+            UI.closeModal();
+            UI.toast(err.message, 'bad');
+          }
+        });
+      });
+    });
   }
 });
 

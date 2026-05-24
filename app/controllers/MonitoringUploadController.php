@@ -2,13 +2,14 @@
 
 require_once __DIR__ . '/../helpers/Response.php';
 require_once __DIR__ . '/../services/UploadService.php';
+require_once __DIR__ . '/../repositories/SiteRepository.php';
 
 /**
  * MonitoringUploadController
  *
  * Purpose:
- * Handles the MONITORING_TEAM landing page route (monitoring/upload).
- * Returns their recent monitoring uploads scoped to their creator_user_id.
+ * Handles the MONITORING_TEAM landing page route (monitoring/upload)
+ * and ad-hoc site search for monitoring upload form.
  */
 class MonitoringUploadController extends BaseController
 {
@@ -50,6 +51,48 @@ class MonitoringUploadController extends BaseController
             $result = $this->uploadService->listCreatorUploads($actorUserId, $filters, $page, $limit);
 
             Response::success($result);
+        } catch (Throwable $e) {
+            Response::error($e->getMessage(), 400);
+        }
+    }
+
+    /**
+     * GET monitoring/site-search?q=...
+     * Searches active sites by site_code prefix for ad-hoc monitoring uploads.
+     * Returns up to 20 matches.
+     */
+    public function siteSearch(): void
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+            Response::error('Method not allowed', 405);
+            return;
+        }
+
+        $roleKey = $_SESSION['role_key'] ?? '';
+        if ($roleKey !== 'MONITORING_TEAM' && $roleKey !== 'OPS_MANAGER') {
+            Response::error('Access denied', 403);
+            return;
+        }
+
+        $query = trim($_GET['q'] ?? '');
+        if (strlen($query) < 1) {
+            Response::success(['items' => []]);
+            return;
+        }
+
+        try {
+            $siteRepo = new SiteRepository();
+            $rows = $siteRepo->searchBySiteCode($query);
+
+            $items = array_map(static function (array $row): array {
+                return [
+                    'id'       => (int) $row['id'],
+                    'label'    => trim($row['site_code'] . ' - ' . $row['location_text']),
+                    'category' => $row['site_category'],
+                ];
+            }, $rows);
+
+            Response::success(['items' => $items]);
         } catch (Throwable $e) {
             Response::error($e->getMessage(), 400);
         }

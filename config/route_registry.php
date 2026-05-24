@@ -669,6 +669,12 @@ return [
         'module_key' => 'monitoring.upload',
         'capability' => 'read',
     ],
+    'monitoring/site-search' => [
+        'controller' => 'MonitoringUploadController',
+        'method'     => 'siteSearch',
+        'module_key' => 'monitoring.upload',
+        'capability' => 'read',
+    ],
 
     // ==========================================
     // MONITORING HISTORY

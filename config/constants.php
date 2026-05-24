@@ -101,6 +101,10 @@ define('CYCLE_DELAY_ALERT_DAYS', 4);
 // Governance Reference: DATA_AND_FLOW section (future)
 define('FREE_MEDIA_EXPIRY_ALERT_DAYS', 7);
 
+// Site ID used as the auto-assigned parent for Free Media Discovery uploads.
+// This site (site_code = 'FREE-MEDIA-DEFAULT') exists in the sites table.
+define('FREE_MEDIA_DEFAULT_SITE_ID', 38);
+
 
 // ==========================================
 // MONTH LOCK

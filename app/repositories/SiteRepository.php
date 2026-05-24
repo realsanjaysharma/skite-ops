@@ -80,6 +80,21 @@ class SiteRepository extends BaseRepository {
         return (int) ($row['total'] ?? 0);
     }
 
+    /**
+     * Search active sites by site_code prefix. Returns up to $limit matches.
+     * Used by monitoring upload ad-hoc site selector.
+     */
+    public function searchBySiteCode(string $prefix, int $limit = 20): array
+    {
+        $sql = "SELECT id, site_code, location_text, site_category
+                FROM sites
+                WHERE is_active = 1
+                  AND site_code LIKE ?
+                ORDER BY site_code ASC
+                LIMIT {$limit}";
+        return $this->fetchAll($sql, [$prefix . '%']);
+    }
+
     public function create(array $data): int {
         $query = "INSERT INTO sites (
             site_code, location_text, site_category, green_belt_id, route_or_group,

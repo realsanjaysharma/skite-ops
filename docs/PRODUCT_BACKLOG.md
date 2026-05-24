@@ -160,13 +160,45 @@ Applies to both GREEN_BELT_SUPERVISOR and OUTSOURCED_MAINTAINER (shared page).
 
 ---
 
-## 📋 Planned — My Uploads Gallery
+## ✅ My Uploads Gallery (commit `ea9d580`, 2026-05-21) — DONE
 
-Improve `green_belt.my_uploads` to use gallery cards like Authority View.
-Supervisor should be able to see their own uploads as thumbnails with metadata,
-use `openPhotoGallery` for preview, and have basic filters (date, belt, type).
+Previously 📋 Planned. Completed — see entry above.
 
-No bulk download needed here — supervisor's own uploads, not authority proof.
+---
+
+## 📋 Planned — Media Discovery Page (`monitoring.discovery`)
+
+**New page for MONITORING_TEAM** to report newly discovered advertising media (poles, boards, hoardings) spotted in the field.
+
+**Design approved:** `docs/superpowers/specs/2026-05-24-media-discovery-design.md`
+**Implementation plan:** `docs/superpowers/plans/2026-05-24-media-discovery.md` (11 tasks)
+
+**Key decisions:**
+- Separate page from `monitoring.upload` (different intent: reporting opportunities vs routine proof)
+- Each discovery auto-creates a placeholder site with `site_code = 'DISC-YYYYMMDD-NNN'`, `is_active = 0`
+- Dual GPS: browser `navigator.geolocation` (priority) + photo EXIF `exif_read_data()` (fallback)
+- GPS proximity dedup (Haversine, 50m radius) — avoids duplicate discoveries for same physical location
+- `free_media_records.status = 'DISCOVERED'` → Media Planner can confirm, merge, or dismiss
+- Confirmed discoveries: site gets real code, `is_active = 1`, enters campaign pipeline
+- Dismissed: soft-delete uploads, 30-day purge cycle (existing mechanism)
+- Merged duplicates: uploads moved to keep-site, discard-site renamed `MERGED-*`
+- `FREE_MEDIA_DEFAULT_SITE_ID` removed (each discovery gets own site)
+- MediaDiscoveryService does NOT start its own transaction — UploadService manages its own internally
+
+**Phase 2 (separate plan):** Media Planner actions (confirm/merge/dismiss in Free Media Inventory)
+
+**Implementation:** Execute plan with `superpowers:executing-plans` skill in a fresh session.
+
+---
+
+## 📋 Planned — Monitoring Upload UX Improvements
+
+Improvements to `monitoring.upload` identified during discovery feature design:
+- Change site search mechanism (current dropdown → better search UX)
+- Remove site IDs from list display, show site names with client names instead
+- Other UX refinements TBD
+
+Requires separate brainstorming + plan. Do after Media Discovery implementation.
 
 ---
 
@@ -284,7 +316,7 @@ are worked together so shared improvements land once for all.
 | 1 | AUTHORITY_REPRESENTATIVE | 1 | 1 | ✅ Complete |
 | 2 | GREEN_BELT_SUPERVISOR | 2 | 2 | ✅ Complete |
 | 3 | OUTSOURCED_MAINTAINER | 2 | 2 | ✅ Complete (shares both pages with GBS) |
-| 4 | MONITORING_TEAM | 2 | 0 | ⬜ Not started |
+| 4 | MONITORING_TEAM | 2 (+1 new) | 2 | 🔄 In progress — upload+history done (uncommitted), discovery page designed+planned |
 | 5 | FABRICATION_LEAD | 2 | 0 | ⬜ Not started |
 | 6 | SALES_TEAM / CLIENT_SERVICING / MEDIA_PLANNING | 2–3 | 1 partial | 🔧 Partial (shared gallery only) |
 | 7 | MANAGEMENT | 1–2 | 0 | ⬜ Not started |
@@ -322,12 +354,13 @@ Shares both pages with GREEN_BELT_SUPERVISOR — completing GBS completed this r
 
 ---
 
-### 4 · MONITORING_TEAM — ⬜ Not started (0 of 2 pages done)
+### 4 · MONITORING_TEAM — 🔄 In progress (2 of 3 pages done)
 
 | Page | Module key | Status | Notes |
 |---|---|---|---|
-| Monitoring Upload | `monitoring.upload` | ⬜ Not yet reviewed | Consider applying `uploadView` pattern if applicable |
-| Monitoring History | `monitoring.history` | ⬜ Not yet reviewed | Photo history — consider gallery view |
+| Monitoring Upload | `monitoring.upload` | ✅ Fully improved | Site search dropdown, discovery toggle (Regular Visit / Free Media Discovery), mobile camera picker, photo preview grid, XHR progress bar, recent uploads strip, auto-assign to default site for discovery mode. Uncommitted. Discovery toggle will be removed when `monitoring.discovery` is built. |
+| Monitoring History | `monitoring.history` | ✅ Fully improved | Gallery cards, date chips (Today/Yesterday/Last 5/Last 7), site category chips, discovery filter chips, photo preview modal via `openPhotoGallery`, self-delete on own uploads with countdown. Uncommitted. |
+| Media Discovery | `monitoring.discovery` | 📋 Designed + planned | **NEW PAGE.** Separate page for field discovery of new advertising media. Auto-creates placeholder sites (`DISC-*`, `is_active=0`), extracts GPS from photos + browser geolocation, GPS proximity dedup (50m), feeds to Media Planning for review. Design spec: `docs/superpowers/specs/2026-05-24-media-discovery-design.md`. Implementation plan: `docs/superpowers/plans/2026-05-24-media-discovery.md` (11 tasks). |
 
 ---
 
