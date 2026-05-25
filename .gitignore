@@ -24,3 +24,7 @@ scripts/
 chat_gpt_chats/
 scratch/
 .claude/settings.local.json
+.node_portable/
+.agent/
+.superpowers/
+test_sites.php
