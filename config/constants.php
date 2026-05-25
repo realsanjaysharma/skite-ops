@@ -111,6 +111,20 @@ define('DISCOVERY_GPS_DEDUP_RADIUS_METERS', 50);
 
 
 // ==========================================
+// MONITORING UPLOAD
+// ==========================================
+
+// Radius in meters for nearby unmonitored site nudge on monitoring upload page.
+define('NEARBY_NUDGE_RADIUS_METERS', 300);
+
+// Days since last monitoring before a site is considered stale for nudge.
+define('NEARBY_NUDGE_STALE_DAYS', 15);
+
+// Site condition ENUM values (mirror uploads.site_condition).
+define('SITE_CONDITIONS', ['GOOD', 'DAMAGED', 'FADED', 'CREATIVE_MISSING', 'LIGHTS_OFF']);
+
+
+// ==========================================
 // MONTH LOCK
 // ==========================================
 
