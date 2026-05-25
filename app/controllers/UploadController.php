@@ -210,30 +210,21 @@ class UploadController extends BaseController
                 return;
             }
 
-            // MONITORING_TEAM: return today's due sites from monitoring plan
+            // MONITORING_TEAM: return enriched planned sites + shift status
             if ($roleKey === 'MONITORING_TEAM') {
-                require_once __DIR__ . '/../repositories/MonitoringPlanRepository.php';
-                $planRepo = new MonitoringPlanRepository();
-                $today = date('Y-m-d');
-                $month = date('Y-m');
+                require_once __DIR__ . '/../services/MonitoringUploadService.php';
+                $monService = new MonitoringUploadService();
+                $result = $monService->getPlannedSites($actor['user_id']);
 
-                // Get all sites with today's due date
-                $allSites = $planRepo->getPlanList([], $month);
-                $items = [];
-                foreach ($allSites as $site) {
-                    $dueDates = !empty($site['due_dates_list']) ? explode(',', $site['due_dates_list']) : [];
-                    if (in_array($today, $dueDates, true)) {
-                        $items[] = [
-                            'id'    => (int) $site['site_id'],
-                            'label' => trim($site['site_code'] . ' - ' . $site['location_text']),
-                            'category' => $site['site_category'],
-                        ];
-                    }
-                }
+                // Also include shift status
+                $shift = $monService->getTodayShift($actor['user_id']);
 
                 Response::success([
-                    'items' => $items,
-                    'pagination' => ['page' => 1, 'limit' => count($items), 'total' => count($items)],
+                    'items' => $result['items'],
+                    'planned_count' => $result['planned_count'],
+                    'completed_count' => $result['completed_count'],
+                    'shift' => $shift,
+                    'pagination' => ['page' => 1, 'limit' => count($result['items']), 'total' => count($result['items'])],
                 ]);
                 return;
             }
