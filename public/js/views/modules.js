@@ -1446,57 +1446,181 @@ function uploadView(surface, parentType, title) {
 
 Views.register('green_belt.supervisor_upload', uploadView('SUPERVISOR', 'GREEN_BELT', 'Supervisor Upload'));
 Views.register('green_belt.outsourced_upload', uploadView('OUTSOURCED', 'GREEN_BELT', 'Outsourced Upload'));
+
+// Module-scoped state for monitoring.upload — shared between render() and afterRender()
+let _monUploadState = { sites: [], plannedCount: 0, completedCount: 0, shift: null };
+
 Views.register('monitoring.upload', {
   async render() {
-    // Load today's due sites from monitoring plan
-    let planSites = [];
+    // ── State ──
+    let planData = { items: [], planned_count: 0, completed_count: 0, shift: null };
     try {
-      const targets = normalizeItems(await Api.get('upload/targets'));
-      planSites = targets;
+      planData = await Api.get('upload/targets');
     } catch (_) {}
 
-    const hasPlanSites = planSites.length > 0;
+    // Store for afterRender() access
+    _monUploadState = {
+      sites: planData.items || [],
+      plannedCount: planData.planned_count || 0,
+      completedCount: planData.completed_count || 0,
+      shift: planData.shift || null,
+    };
 
-    // Site selector: dropdown for plan sites + search fallback for ad-hoc
-    const planOptions = planSites.map(
-      (s) => `<option value="${s.id}">${UI.escape(s.label)}</option>`
+    const sites = planData.items || [];
+    const plannedCount = planData.planned_count || 0;
+    const completedCount = planData.completed_count || 0;
+    const shift = planData.shift;
+
+    // ── Helpers used in render ──
+    const CONDITIONS = [
+      { value: 'GOOD', label: 'Good', icon: 'ph-check-circle' },
+      { value: 'DAMAGED', label: 'Damaged', icon: 'ph-warning', warn: true },
+      { value: 'FADED', label: 'Faded', icon: 'ph-sun-dim', warn: true },
+      { value: 'CREATIVE_MISSING', label: 'Creative Missing', icon: 'ph-image-broken', warn: true },
+      { value: 'LIGHTS_OFF', label: 'Lights Off', icon: 'ph-lightbulb', warn: true },
+    ];
+
+    const CATEGORIES = [
+      { value: 'GREEN_BELT', label: 'Green Belt' },
+      { value: 'CITY', label: 'City' },
+      { value: 'HIGHWAY', label: 'Highway' },
+    ];
+
+    const renderSiteCard = (s, opts = {}) => {
+      const isDone = s.uploaded_today;
+      const doneClass = isDone ? ' done' : '';
+      const doneTime = isDone && s.uploaded_today_at
+        ? new Date(s.uploaded_today_at.replace(' ', 'T')).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        : '';
+      const parts = [];
+      if (s.client_name) parts.push(UI.escape(s.client_name));
+      if (s.board_width_ft && s.board_height_ft) parts.push(`${s.board_width_ft}×${s.board_height_ft} ft`);
+      const subtitle = parts.join(' · ');
+      const dist = opts.distance != null ? `<span class="mon-site-meta">${opts.distance}</span>` : '';
+      const issueBadge = s.open_issue_count > 0
+        ? `<span class="mon-site-issue"><i class="ph ph-warning-circle"></i> ${s.open_issue_count} open issue${s.open_issue_count > 1 ? 's' : ''}</span>`
+        : '';
+      const thumb = s.creative_url
+        ? `<img src="${s.creative_url}" class="mon-site-thumb" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="mon-site-thumb-placeholder" style="display:none"><i class="ph ph-image"></i></div>`
+        : `<div class="mon-site-thumb-placeholder"><i class="ph ph-image"></i></div>`;
+      const mapBtn = (s.latitude && s.longitude)
+        ? `<div class="mon-site-nav"><a href="https://www.google.com/maps/dir/?api=1&destination=${s.latitude},${s.longitude}" target="_blank" rel="noopener" class="mon-map-btn" title="Directions"><i class="ph ph-navigation-arrow"></i></a></div>`
+        : '';
+
+      return `<div class="mon-site-card${doneClass}" data-site-id="${s.id}">
+        ${thumb}
+        <div class="mon-site-info">
+          <div class="mon-site-primary">${UI.escape(s.site_code)}</div>
+          ${subtitle ? `<div class="mon-site-location">${subtitle}</div>` : ''}
+          ${s.location_text ? `<div class="mon-site-meta">${UI.escape(s.location_text)}</div>` : ''}
+          ${dist}
+          ${issueBadge}
+          ${isDone ? `<div class="mon-site-meta" style="color:#16a34a;"><i class="ph ph-check-circle"></i> Done ${doneTime}</div>` : ''}
+        </div>
+        ${mapBtn}
+      </div>`;
+    };
+
+    // ── Shift bar ──
+    let shiftBarHTML = '';
+    if (!shift) {
+      shiftBarHTML = `<div class="mon-shift-bar idle">
+        <i class="ph ph-play-circle" style="font-size:1.3rem;"></i>
+        <span>Tap to start today's monitoring shift</span>
+        <button type="button" class="btn btn-primary btn-sm js-start-shift" style="margin-left:auto;">Start Monitoring</button>
+      </div>`;
+    } else if (shift.completed_at) {
+      shiftBarHTML = `<div class="mon-shift-bar done">
+        <i class="ph ph-check-circle" style="font-size:1.3rem;color:#16a34a;"></i>
+        <span>Shift completed — ${shift.completed_count || 0} planned, ${shift.unplanned_count || 0} unplanned</span>
+      </div>`;
+    } else {
+      shiftBarHTML = `<div class="mon-shift-bar active">
+        <i class="ph ph-circle-notch" style="font-size:1.3rem;color:#16a34a;"></i>
+        <span>Shift active — ${shift.completed_count || 0}/${shift.planned_count || 0} done</span>
+        <button type="button" class="btn btn-ghost btn-sm js-complete-shift" style="margin-left:auto;">Complete Day</button>
+      </div>`;
+    }
+
+    // ── Summary banner ──
+    const summaryHTML = plannedCount > 0
+      ? `<div class="mon-summary">
+          <span><strong>${plannedCount}</strong> planned</span>
+          <span><strong>${completedCount}</strong> done</span>
+          <span><strong>${plannedCount - completedCount}</strong> remaining</span>
+        </div>`
+      : `<div class="mon-summary"><span>No planned sites for today. Browse sites below or search by code.</span></div>`;
+
+    // ── Separate done vs pending ──
+    const pendingSites = sites.filter((s) => !s.uploaded_today);
+    const doneSites = sites.filter((s) => s.uploaded_today);
+
+    const plannedCardsHTML = pendingSites.map((s) => renderSiteCard(s)).join('')
+      + (doneSites.length > 0 ? `<div class="mon-done-divider">${doneSites.length} completed today</div>` : '')
+      + doneSites.map((s) => renderSiteCard(s)).join('');
+
+    // ── Category chips for unplanned tab ──
+    const categoryChipsHTML = CATEGORIES.map(
+      (c) => `<button type="button" class="mon-chip js-cat-chip" data-cat="${c.value}">${c.label}</button>`
     ).join('');
 
-    const siteSection = `
-      <div class="upload-section js-mon-site-section">
-        <div class="upload-section-label">Site</div>
-        ${hasPlanSites ? `
-          <select name="parent_id" class="mon-site-select" required
-                  style="width:100%;min-height:44px;padding:8px 12px;border:1px solid var(--line-strong,#b8c4d2);border-radius:var(--radius,8px);background:var(--surface,#fff);color:var(--ink-950);font:inherit;">
-            <option value="">Select a site from today's plan</option>
-            ${planOptions}
-          </select>
-          <p class="mon-site-hint" style="font-size:0.8rem;color:var(--ink-500);margin:6px 0 0;">
-            Not in the list? <button type="button" class="btn-link js-show-site-search" style="font-size:0.8rem;">Search by site code</button>
-          </p>
-        ` : `
-          <p style="font-size:0.85rem;color:var(--ink-500);margin:0 0 8px;">No sites due today. Search by site code:</p>
-        `}
-        <div class="mon-site-search-wrap ${hasPlanSites ? 'hidden' : ''}" style="position:relative;">
-          <input type="text" class="js-site-search-input" placeholder="Type site code (e.g. GBN-01)"
-                 autocomplete="off"
-                 style="width:100%;min-height:44px;padding:8px 12px;border:1px solid var(--line-strong,#b8c4d2);border-radius:var(--radius,8px);background:var(--surface,#fff);color:var(--ink-950);font:inherit;">
-          <div class="js-site-search-results mon-search-results" hidden></div>
-          <input type="hidden" name="parent_id_search" class="js-site-search-id" value="">
-          <div class="js-site-search-selected mon-search-selected" hidden></div>
-        </div>
-      </div>`;
+    // ── Condition strip ──
+    const conditionStripHTML = CONDITIONS.map(
+      (c) => `<button type="button" class="mon-condition-chip${c.warn ? ' warn' : ''} js-condition-chip" data-cond="${c.value}"><i class="ph ${c.icon}"></i> ${c.label}</button>`
+    ).join('');
 
     return UI.page('Monitoring Upload', 'Submit site monitoring proof')
-      + UI.panel('Upload proof', `
-        <form class="upload-mobile-form js-monitoring-upload-form" autocomplete="off" novalidate>
+      + UI.panel('', `
+        ${shiftBarHTML}
+        ${summaryHTML}
+
+        <!-- Tabs -->
+        <div class="mon-tabs">
+          <button type="button" class="mon-tab active js-mon-tab" data-tab="planned">Planned${plannedCount > 0 ? ` (${plannedCount})` : ''}</button>
+          <button type="button" class="mon-tab js-mon-tab" data-tab="unplanned">Unplanned</button>
+        </div>
+
+        <!-- Search -->
+        <div class="mon-search-wrap" style="position:relative;margin-bottom:12px;">
+          <input type="text" class="js-mon-search-input" placeholder="Search by site code, location, or client…"
+                 autocomplete="off"
+                 style="width:100%;min-height:44px;padding:8px 12px 8px 36px;border:1px solid var(--line-strong,#b8c4d2);border-radius:var(--radius,8px);background:var(--surface,#fff);color:var(--ink-950);font:inherit;">
+          <i class="ph ph-magnifying-glass" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--ink-400);"></i>
+          <div class="js-mon-search-results mon-search-results" hidden></div>
+        </div>
+
+        <!-- Planned Tab Content -->
+        <div class="js-tab-planned">
+          ${plannedCount > 0
+            ? `<div class="mon-progress">${completedCount} of ${plannedCount} sites monitored</div>`
+            : ''}
+          <div class="mon-site-list js-planned-site-list">${plannedCardsHTML}</div>
+        </div>
+
+        <!-- Unplanned Tab Content -->
+        <div class="js-tab-unplanned" hidden>
+          <div class="mon-category-chips js-category-chips">${categoryChipsHTML}</div>
+          <div class="mon-route-chips js-route-chips"></div>
+          <div class="mon-site-list js-unplanned-site-list"></div>
+        </div>
+
+        <!-- Selected Site Actions (shown when a card is tapped) -->
+        <div class="mon-selected-actions js-selected-actions" hidden>
+          <div class="mon-prev-photo js-prev-photo" hidden></div>
+          <div class="js-issue-resolved-bar" hidden></div>
+          <div class="upload-section-label" style="margin-bottom:4px;">Site Condition</div>
+          <div class="mon-condition-strip js-condition-strip">${conditionStripHTML}</div>
+        </div>
+
+        <!-- Upload Form (shown when site is selected) -->
+        <form class="upload-mobile-form js-monitoring-upload-form" autocomplete="off" novalidate hidden>
           <input type="hidden" name="parent_type" value="SITE">
+          <input type="hidden" name="parent_id" class="js-mon-parent-id" value="">
           <input type="hidden" name="surface" value="MONITORING">
           <input type="hidden" name="upload_type" value="WORK">
+          <input type="hidden" name="site_condition" class="js-mon-condition-val" value="">
           <input type="hidden" name="gps_latitude" id="mon_gps_lat" value="">
           <input type="hidden" name="gps_longitude" id="mon_gps_lng" value="">
-
-          ${siteSection}
 
           <div class="upload-section">
             ${UI.field({ name: 'comment_text', label: 'Comment (optional)', type: 'textarea', full: true })}
@@ -1531,12 +1655,16 @@ Views.register('monitoring.upload', {
           </button>
         </form>
 
+        <!-- Success Card -->
         <div class="upload-success js-upload-success" hidden>
           <i class="ph ph-check-circle upload-success-icon"></i>
           <h3 class="js-success-headline">Photos uploaded</h3>
           <p class="upload-success-sub">Submitted for review.</p>
           <div class="upload-success-actions">
             <button type="button" class="btn btn-ghost js-upload-more">Upload more</button>
+            <button type="button" class="btn btn-primary js-auto-advance" hidden>
+              <i class="ph ph-arrow-right"></i><span class="js-advance-label">Next site</span>
+            </button>
             <button type="button" class="btn btn-primary js-nav-history" data-nav="monitoring.history">
               <i class="ph ph-clock-counter-clockwise"></i><span>View History</span>
             </button>
@@ -1547,94 +1675,390 @@ Views.register('monitoring.upload', {
   },
 
   async afterRender() {
-    // Load and render recent uploads strip
-    const recentStrip = document.querySelector('.js-mon-recent-strip');
-    const loadRecent = async () => {
-      if (!recentStrip) return;
-      try {
-        const data = await Api.get('monitoring/upload', { limit: 4 });
-        const recents = normalizeItems(data);
-        if (!recents.length) {
-          recentStrip.innerHTML = '';
-          return;
-        }
-        recentStrip.innerHTML = UI.panel('Recent Uploads', `
-          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:8px;">
-            ${recents.map((r) => {
-              const url = r.id ? Api.url('upload/serve', { id: r.id }) : '';
-              return `<img src="${url}" class="upload-thumb js-recent-thumb" data-id="${r.id}"
-                           alt="Recent" loading="lazy" style="aspect-ratio:1;border-radius:8px;object-fit:cover;width:100%;cursor:pointer;"
-                           onerror="this.style.display='none'">`;
-            }).join('')}
-          </div>
-          <div style="margin-top:10px;text-align:center;">
-            <button type="button" class="btn btn-ghost btn-sm" data-nav="monitoring.history">
-              <i class="ph ph-clock-counter-clockwise"></i><span>View All History</span>
-            </button>
-          </div>
-        `);
-        // Wire photo preview on recent thumbnails
-        const thumbs = recentStrip.querySelectorAll('.js-recent-thumb');
-        if (thumbs.length) {
-          const items = Array.from(thumbs).map((img) => ({
-            url: img.src,
-            download: img.src + '&download=1',
-          }));
-          thumbs.forEach((img, i) => {
-            img.addEventListener('click', () => openPhotoGallery(items, i));
-          });
-        }
-        // Wire nav button
-        recentStrip.querySelector('[data-nav]')?.addEventListener('click', (e) => {
-          App.navigate(e.currentTarget.dataset.nav);
-        });
-      } catch (_) {
-        recentStrip.innerHTML = '';
-      }
-    };
-    loadRecent();
-
-    // Silent GPS capture
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const lat = document.getElementById('mon_gps_lat');
-          const lng = document.getElementById('mon_gps_lng');
-          if (lat) lat.value = pos.coords.latitude;
-          if (lng) lng.value = pos.coords.longitude;
-        },
-        () => {}
-      );
-    }
-
+    // ── State ──
+    let selectedSiteId = null;
+    let selectedCondition = '';
     let selectedFiles = [];
-    const form       = document.querySelector('.js-monitoring-upload-form');
-    const fileInput  = form?.querySelector('.js-file-input');
+    let userLat = null;
+    let userLng = null;
+    let activeTab = 'planned';
+    let unplannedCategory = '';
+    let unplannedRoute = '';
+    let unplannedSites = [];
+    let allPlannedSites = []; // populated after GPS sort
+
+    // ── DOM refs ──
+    const form = document.querySelector('.js-monitoring-upload-form');
+    const fileInput = form?.querySelector('.js-file-input');
     const previewBox = form?.querySelector('.js-upload-preview');
-    const previewGrid= form?.querySelector('.js-preview-grid');
+    const previewGrid = form?.querySelector('.js-preview-grid');
     const previewCount = form?.querySelector('.js-preview-count');
-    const progressBox  = form?.querySelector('.js-upload-progress');
+    const progressBox = form?.querySelector('.js-upload-progress');
     const progressFill = form?.querySelector('.js-progress-fill');
     const progressText = form?.querySelector('.js-progress-text');
-    const submitBtn    = form?.querySelector('.js-upload-submit');
-    const submitLabel  = form?.querySelector('.js-upload-submit-label');
-    const successBox   = document.querySelector('.js-upload-success');
-    const siteSelect   = form?.querySelector('.mon-site-select');
-    const searchWrap   = form?.querySelector('.mon-site-search-wrap');
-    const searchInput  = form?.querySelector('.js-site-search-input');
-    const searchResults = form?.querySelector('.js-site-search-results');
-    const searchIdInput = form?.querySelector('.js-site-search-id');
-    const searchSelected = form?.querySelector('.js-site-search-selected');
+    const submitBtn = form?.querySelector('.js-upload-submit');
+    const submitLabel = form?.querySelector('.js-upload-submit-label');
+    const parentIdInput = form?.querySelector('.js-mon-parent-id');
+    const conditionInput = form?.querySelector('.js-mon-condition-val');
+    const successBox = document.querySelector('.js-upload-success');
+    const actionsBox = document.querySelector('.js-selected-actions');
+    const conditionStrip = document.querySelector('.js-condition-strip');
+    const prevPhotoBox = document.querySelector('.js-prev-photo');
+    const issueResolvedBar = document.querySelector('.js-issue-resolved-bar');
+    const plannedList = document.querySelector('.js-planned-site-list');
+    const unplannedList = document.querySelector('.js-unplanned-site-list');
+    const searchInput = document.querySelector('.js-mon-search-input');
+    const searchResults = document.querySelector('.js-mon-search-results');
+    const autoAdvanceBtn = document.querySelector('.js-auto-advance');
+    const advanceLabel = document.querySelector('.js-advance-label');
+    const recentStrip = document.querySelector('.js-mon-recent-strip');
 
-    // --- Site search (ad-hoc) ---
+    // ── Haversine distance (meters) ──
+    function haversineDistance(lat1, lng1, lat2, lng2) {
+      const R = 6371000;
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLng = (lng2 - lng1) * Math.PI / 180;
+      const a = Math.sin(dLat / 2) ** 2
+        + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    function formatDistance(meters) {
+      if (meters < 1000) return `${Math.round(meters)} m away`;
+      return `${(meters / 1000).toFixed(1)} km away`;
+    }
+
+    // ── GPS capture ──
+    const captureGPS = () => new Promise((resolve) => {
+      if (!navigator.geolocation) { resolve(null); return; }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          userLat = pos.coords.latitude;
+          userLng = pos.coords.longitude;
+          const latEl = document.getElementById('mon_gps_lat');
+          const lngEl = document.getElementById('mon_gps_lng');
+          if (latEl) latEl.value = userLat;
+          if (lngEl) lngEl.value = userLng;
+          resolve({ lat: userLat, lng: userLng });
+        },
+        () => resolve(null),
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
+    });
+
+    // ── Sort sites by GPS distance ──
+    function sortByDistance(siteList) {
+      if (userLat == null || userLng == null) return siteList;
+      return siteList.slice().sort((a, b) => {
+        const da = (a.latitude && a.longitude) ? haversineDistance(userLat, userLng, a.latitude, a.longitude) : Infinity;
+        const db = (b.latitude && b.longitude) ? haversineDistance(userLat, userLng, b.latitude, b.longitude) : Infinity;
+        return da - db;
+      });
+    }
+
+    function getDistance(site) {
+      if (userLat == null || userLng == null || !site.latitude || !site.longitude) return null;
+      return haversineDistance(userLat, userLng, site.latitude, site.longitude);
+    }
+
+    // ── Render a site card with distance ──
+    function renderCardWithDist(s) {
+      const dist = getDistance(s);
+      const distLabel = dist != null ? formatDistance(dist) : '';
+      const isDone = s.uploaded_today;
+      const doneClass = isDone ? ' done' : '';
+      const selClass = (s.id === selectedSiteId && !isDone) ? ' selected' : '';
+      const doneTime = isDone && s.uploaded_today_at
+        ? new Date(s.uploaded_today_at.replace(' ', 'T')).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        : '';
+      const parts = [];
+      if (s.client_name) parts.push(UI.escape(s.client_name));
+      if (s.board_width_ft && s.board_height_ft) parts.push(`${s.board_width_ft}×${s.board_height_ft} ft`);
+      const subtitle = parts.join(' · ');
+      const issueBadge = s.open_issue_count > 0
+        ? `<span class="mon-site-issue"><i class="ph ph-warning-circle"></i> ${s.open_issue_count} open issue${s.open_issue_count > 1 ? 's' : ''}</span>`
+        : '';
+      const thumb = s.creative_url
+        ? `<img src="${s.creative_url}" class="mon-site-thumb" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="mon-site-thumb-placeholder" style="display:none"><i class="ph ph-image"></i></div>`
+        : `<div class="mon-site-thumb-placeholder"><i class="ph ph-image"></i></div>`;
+      const mapBtn = (s.latitude && s.longitude)
+        ? `<div class="mon-site-nav"><a href="https://www.google.com/maps/dir/?api=1&destination=${s.latitude},${s.longitude}" target="_blank" rel="noopener" class="mon-map-btn" title="Directions"><i class="ph ph-navigation-arrow"></i></a></div>`
+        : '';
+
+      return `<div class="mon-site-card${doneClass}${selClass}" data-site-id="${s.id}">
+        ${thumb}
+        <div class="mon-site-info">
+          <div class="mon-site-primary">${UI.escape(s.site_code)}</div>
+          ${subtitle ? `<div class="mon-site-location">${subtitle}</div>` : ''}
+          ${s.location_text ? `<div class="mon-site-meta">${UI.escape(s.location_text)}</div>` : ''}
+          ${distLabel ? `<div class="mon-site-meta">${distLabel}</div>` : ''}
+          ${issueBadge}
+          ${isDone ? `<div class="mon-site-meta" style="color:#16a34a;"><i class="ph ph-check-circle"></i> Done ${doneTime}</div>` : ''}
+        </div>
+        ${mapBtn}
+      </div>`;
+    }
+
+    // ── Re-render planned list with GPS sort ──
+    function refreshPlannedList() {
+      if (!plannedList) return;
+      // Get current data from initial load (stored in closure via planData)
+      let planItems;
+      try { planItems = JSON.parse(plannedList.dataset.items || '[]'); } catch (_) { planItems = []; }
+      const sorted = sortByDistance(planItems);
+      allPlannedSites = sorted;
+      const pending = sorted.filter((s) => !s.uploaded_today);
+      const done = sorted.filter((s) => s.uploaded_today);
+      plannedList.innerHTML = pending.map((s) => renderCardWithDist(s)).join('')
+        + (done.length > 0 ? `<div class="mon-done-divider">${done.length} completed today</div>` : '')
+        + done.map((s) => renderCardWithDist(s)).join('');
+    }
+
+    // ── Re-render unplanned list ──
+    function refreshUnplannedList() {
+      if (!unplannedList) return;
+      const sorted = sortByDistance(unplannedSites);
+      const pending = sorted.filter((s) => !s.uploaded_today);
+      const done = sorted.filter((s) => s.uploaded_today);
+      unplannedList.innerHTML = pending.map((s) => renderCardWithDist(s)).join('')
+        + (done.length > 0 ? `<div class="mon-done-divider">${done.length} completed today</div>` : '')
+        + done.map((s) => renderCardWithDist(s)).join('');
+    }
+
+    // ── Load planned data from module-scoped state ──
+    allPlannedSites = _monUploadState.sites.slice();
+    if (plannedList) {
+      plannedList.dataset.items = JSON.stringify(allPlannedSites);
+    }
+
+    // ── GPS capture + sort ──
+    captureGPS().then(() => {
+      refreshPlannedList();
+      if (unplannedSites.length) refreshUnplannedList();
+    });
+
+    // ── Tab switching ──
+    document.querySelectorAll('.js-mon-tab').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.js-mon-tab').forEach((t) => t.classList.remove('active'));
+        btn.classList.add('active');
+        activeTab = btn.dataset.tab;
+        const plannedPanel = document.querySelector('.js-tab-planned');
+        const unplannedPanel = document.querySelector('.js-tab-unplanned');
+        if (activeTab === 'planned') {
+          if (plannedPanel) plannedPanel.hidden = false;
+          if (unplannedPanel) unplannedPanel.hidden = true;
+        } else {
+          if (plannedPanel) plannedPanel.hidden = true;
+          if (unplannedPanel) unplannedPanel.hidden = false;
+        }
+        // Deselect site when switching tabs
+        deselectSite();
+      });
+    });
+
+    // ── Category chips (unplanned) ──
+    const routeChipsEl = document.querySelector('.js-route-chips');
+    document.querySelector('.js-category-chips')?.addEventListener('click', async (e) => {
+      const chip = e.target.closest('.js-cat-chip');
+      if (!chip) return;
+      const cat = chip.dataset.cat;
+      document.querySelectorAll('.js-cat-chip').forEach((c) => c.classList.toggle('active', c.dataset.cat === cat));
+      unplannedCategory = cat;
+      unplannedRoute = '';
+      unplannedSites = [];
+      if (unplannedList) unplannedList.innerHTML = '';
+      if (routeChipsEl) routeChipsEl.innerHTML = '<span style="color:var(--ink-400);font-size:0.85rem;">Loading routes…</span>';
+
+      try {
+        const data = await Api.get('monitoring/browse-routes', { category: cat });
+        const routes = data?.routes || [];
+        if (!routes.length) {
+          routeChipsEl.innerHTML = '<span style="color:var(--ink-400);font-size:0.85rem;">No routes found</span>';
+          return;
+        }
+        routeChipsEl.innerHTML = routes.map(
+          (r) => `<button type="button" class="mon-chip js-route-chip" data-route="${UI.escape(r.route_or_group)}">${UI.escape(r.route_or_group)} <span class="chip-count">(${r.site_count})</span></button>`
+        ).join('');
+      } catch (err) {
+        routeChipsEl.innerHTML = `<span style="color:var(--ink-400);font-size:0.85rem;">Error loading routes</span>`;
+      }
+    });
+
+    // ── Route chips (unplanned) ──
+    routeChipsEl?.addEventListener('click', async (e) => {
+      const chip = e.target.closest('.js-route-chip');
+      if (!chip) return;
+      const route = chip.dataset.route;
+      routeChipsEl.querySelectorAll('.js-route-chip').forEach((c) => c.classList.toggle('active', c.dataset.route === route));
+      unplannedRoute = route;
+
+      if (unplannedList) unplannedList.innerHTML = '<div style="text-align:center;color:var(--ink-400);padding:16px;">Loading sites…</div>';
+
+      try {
+        const data = await Api.get('monitoring/browse-sites', { category: unplannedCategory, route });
+        unplannedSites = data?.items || [];
+        refreshUnplannedList();
+      } catch (err) {
+        if (unplannedList) unplannedList.innerHTML = '<div style="text-align:center;color:var(--ink-400);padding:16px;">Error loading sites</div>';
+      }
+    });
+
+    // ── Site card selection ──
+    function selectSite(siteId) {
+      selectedSiteId = siteId;
+      selectedCondition = '';
+      if (conditionInput) conditionInput.value = '';
+      if (parentIdInput) parentIdInput.value = siteId;
+
+      // Highlight selected card
+      document.querySelectorAll('.mon-site-card').forEach((c) => {
+        c.classList.toggle('selected', parseInt(c.dataset.siteId) === siteId && !c.classList.contains('done'));
+      });
+
+      // Show actions + form
+      if (actionsBox) actionsBox.hidden = false;
+      if (form) form.hidden = false;
+      if (successBox) successBox.hidden = true;
+
+      // Reset condition chips
+      conditionStrip?.querySelectorAll('.js-condition-chip').forEach((c) => c.classList.remove('active'));
+
+      // Load previous photo for this site
+      loadPrevPhoto(siteId);
+
+      // Show issue resolved button if site has open issues
+      loadIssueResolvedBar(siteId);
+
+      // Scroll actions into view
+      actionsBox?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function deselectSite() {
+      selectedSiteId = null;
+      selectedCondition = '';
+      if (conditionInput) conditionInput.value = '';
+      if (parentIdInput) parentIdInput.value = '';
+      if (actionsBox) actionsBox.hidden = true;
+      if (form) form.hidden = true;
+      if (prevPhotoBox) prevPhotoBox.hidden = true;
+      if (issueResolvedBar) issueResolvedBar.hidden = true;
+      document.querySelectorAll('.mon-site-card.selected').forEach((c) => c.classList.remove('selected'));
+      // Reset file selection
+      selectedFiles = [];
+      renderPreviews();
+    }
+
+    // Delegate click on site cards (both tabs)
+    document.addEventListener('click', (e) => {
+      // Don't intercept map link clicks
+      if (e.target.closest('.mon-map-btn')) return;
+
+      const card = e.target.closest('.mon-site-card');
+      if (!card) return;
+
+      const siteId = parseInt(card.dataset.siteId);
+      if (!siteId || card.classList.contains('done')) return;
+
+      if (siteId === selectedSiteId) {
+        deselectSite();
+      } else {
+        selectSite(siteId);
+      }
+    });
+
+    // ── Previous photo ──
+    async function loadPrevPhoto(siteId) {
+      if (!prevPhotoBox) return;
+      prevPhotoBox.hidden = true;
+      prevPhotoBox.innerHTML = '';
+      try {
+        const data = await Api.get('monitoring/upload', { parent_id: siteId, limit: 1 });
+        const recents = normalizeItems(data);
+        if (!recents.length) return;
+        const r = recents[0];
+        const url = r.id ? Api.url('upload/serve', { id: r.id }) : '';
+        if (!url) return;
+        prevPhotoBox.innerHTML = `
+          <img src="${url}" alt="Last photo" class="js-prev-thumb" style="cursor:pointer;" onerror="this.parentElement.hidden=true">
+          <div style="font-size:0.82rem;color:var(--ink-500);">
+            Last upload: ${r.created_at ? new Date(r.created_at.replace(' ', 'T')).toLocaleDateString() : 'unknown'}
+          </div>`;
+        prevPhotoBox.hidden = false;
+        prevPhotoBox.querySelector('.js-prev-thumb')?.addEventListener('click', () => {
+          openPhotoGallery([{ url, download: url + '&download=1' }], 0);
+        });
+      } catch (_) { /* silent */ }
+    }
+
+    // ── Issue resolved bar ──
+    function loadIssueResolvedBar(siteId) {
+      if (!issueResolvedBar) return;
+      // Find the site data
+      const site = [...allPlannedSites, ...unplannedSites].find((s) => s.id === siteId);
+      if (!site || site.open_issue_count <= 0) {
+        issueResolvedBar.hidden = true;
+        return;
+      }
+      issueResolvedBar.innerHTML = `
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 0;">
+          <i class="ph ph-warning-circle" style="color:#d97706;font-size:1.2rem;"></i>
+          <span style="font-size:0.85rem;color:#d97706;flex:1;">This site has open issues</span>
+          <button type="button" class="btn btn-sm" style="background:#f59e0b;color:#fff;border:none;" data-site-id="${siteId}" disabled title="Upload proof first, then resolve">Issue Resolved</button>
+        </div>`;
+      issueResolvedBar.hidden = false;
+    }
+
+    // ── Condition chips ──
+    conditionStrip?.addEventListener('click', (e) => {
+      const chip = e.target.closest('.js-condition-chip');
+      if (!chip) return;
+      const cond = chip.dataset.cond;
+      if (selectedCondition === cond) {
+        // Deselect
+        selectedCondition = '';
+        chip.classList.remove('active');
+      } else {
+        selectedCondition = cond;
+        conditionStrip.querySelectorAll('.js-condition-chip').forEach((c) => c.classList.remove('active'));
+        chip.classList.add('active');
+      }
+      if (conditionInput) conditionInput.value = selectedCondition;
+    });
+
+    // ── Shift controls ──
+    document.querySelector('.js-start-shift')?.addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      btn.disabled = true;
+      btn.textContent = 'Starting…';
+      try {
+        await Api.post('monitoring/start-shift');
+        UI.toast('Shift started', 'good');
+        App.navigate('monitoring.upload'); // reload page
+      } catch (err) {
+        UI.toast(err.message, 'bad');
+        btn.disabled = false;
+        btn.textContent = 'Start Monitoring';
+      }
+    });
+
+    document.querySelector('.js-complete-shift')?.addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      btn.disabled = true;
+      btn.textContent = 'Completing…';
+      try {
+        await Api.post('monitoring/complete-shift');
+        UI.toast('Shift completed', 'good');
+        App.navigate('monitoring.upload'); // reload page
+      } catch (err) {
+        UI.toast(err.message, 'bad');
+        btn.disabled = false;
+        btn.textContent = 'Complete Day';
+      }
+    });
+
+    // ── Search ──
     let searchDebounce = null;
-    const showSearchWrap = () => {
-      if (searchWrap) searchWrap.classList.remove('hidden');
-      if (siteSelect) siteSelect.value = '';
-    };
-
-    form?.querySelector('.js-show-site-search')?.addEventListener('click', showSearchWrap);
-
     searchInput?.addEventListener('input', () => {
       clearTimeout(searchDebounce);
       const q = searchInput.value.trim();
@@ -1650,7 +2074,12 @@ Views.register('monitoring.upload', {
             searchResults.innerHTML = '<div class="mon-search-empty">No sites found</div>';
           } else {
             searchResults.innerHTML = items.map(
-              (s) => `<div class="mon-search-item" data-id="${s.id}" data-label="${UI.escape(s.label)}">${UI.escape(s.label)} <span style="color:var(--ink-500);font-size:0.8rem;">${UI.escape(s.category)}</span></div>`
+              (s) => {
+                const parts = [UI.escape(s.site_code)];
+                if (s.client_name) parts.push(UI.escape(s.client_name));
+                if (s.location_text) parts.push(`<span style="color:var(--ink-500);font-size:0.8rem;">${UI.escape(s.location_text)}</span>`);
+                return `<div class="mon-search-item js-search-pick" data-id="${s.id}">${parts.join(' — ')}</div>`;
+              }
             ).join('');
           }
           searchResults.hidden = false;
@@ -1662,53 +2091,27 @@ Views.register('monitoring.upload', {
     });
 
     searchResults?.addEventListener('click', (e) => {
-      const item = e.target.closest('.mon-search-item');
-      if (!item) return;
-      const id = item.dataset.id;
-      const label = item.dataset.label;
-      if (searchIdInput) searchIdInput.value = id;
-      if (siteSelect) siteSelect.value = '';
+      const pick = e.target.closest('.js-search-pick');
+      if (!pick) return;
+      const siteId = parseInt(pick.dataset.id);
       searchResults.hidden = true;
       searchInput.value = '';
-      if (searchSelected) {
-        searchSelected.innerHTML = `
-          <span style="font-weight:600;">${UI.escape(label)}</span>
-          <button type="button" class="btn btn-ghost btn-sm js-clear-site-search" style="padding:2px 6px;font-size:0.78rem;">Change</button>
-        `;
-        searchSelected.hidden = false;
-        searchInput.style.display = 'none';
-      }
+      if (siteId) selectSite(siteId);
     });
 
-    searchSelected?.addEventListener('click', (e) => {
-      if (!e.target.closest('.js-clear-site-search')) return;
-      if (searchIdInput) searchIdInput.value = '';
-      searchSelected.hidden = true;
-      searchInput.style.display = '';
-      searchInput.value = '';
-      searchInput.focus();
-    });
-
-    // Close search results on outside click
+    // Close search on outside click
     document.addEventListener('click', (e) => {
-      if (searchResults && !searchResults.hidden && !e.target.closest('.mon-site-search-wrap')) {
+      if (searchResults && !searchResults.hidden && !e.target.closest('.mon-search-wrap')) {
         searchResults.hidden = true;
       }
     });
 
-    // Resolve final parent_id: prefer plan-site dropdown, fallback to ad-hoc search
-    // (Discovery mode is now its own dedicated page — monitoring.discovery)
-    const getParentId = () => {
-      if (siteSelect && siteSelect.value) return siteSelect.value;
-      if (searchIdInput && searchIdInput.value) return searchIdInput.value;
-      return '';
-    };
-
-    // --- File selection & preview ---
+    // ── File selection & preview ──
     const refreshSubmitState = () => {
       if (!submitBtn) return;
       const hasFiles = selectedFiles.length > 0;
-      submitBtn.disabled = !hasFiles;
+      const hasSite = !!selectedSiteId;
+      submitBtn.disabled = !(hasFiles && hasSite);
       if (submitLabel) {
         submitLabel.textContent = hasFiles
           ? `Upload ${selectedFiles.length} photo${selectedFiles.length > 1 ? 's' : ''}`
@@ -1726,12 +2129,9 @@ Views.register('monitoring.upload', {
             <button type="button" class="upload-thumb-remove js-remove-file" data-index="${i}" aria-label="Remove photo ${i + 1}">
               <i class="ph ph-x"></i>
             </button>
-          </div>
-        `;
+          </div>`;
       }).join('');
-      if (previewCount) {
-        previewCount.textContent = `${selectedFiles.length} photo${selectedFiles.length > 1 ? 's' : ''} selected`;
-      }
+      if (previewCount) previewCount.textContent = `${selectedFiles.length} photo${selectedFiles.length > 1 ? 's' : ''} selected`;
       if (previewBox) previewBox.hidden = selectedFiles.length === 0;
       refreshSubmitState();
     };
@@ -1745,8 +2145,7 @@ Views.register('monitoring.upload', {
     previewGrid?.addEventListener('click', (e) => {
       const btn = e.target.closest('.js-remove-file');
       if (!btn) return;
-      const idx = parseInt(btn.dataset.index, 10);
-      selectedFiles.splice(idx, 1);
+      selectedFiles.splice(parseInt(btn.dataset.index, 10), 1);
       renderPreviews();
     });
 
@@ -1755,35 +2154,53 @@ Views.register('monitoring.upload', {
       renderPreviews();
     });
 
-    // --- Success card nav ---
-    successBox?.querySelector('[data-nav]')?.addEventListener('click', (e) => {
+    // ── Auto-advance: find next nearest unvisited site ──
+    function findNextSite(justUploadedId) {
+      const pool = activeTab === 'planned' ? allPlannedSites : unplannedSites;
+      const candidates = pool.filter((s) => !s.uploaded_today && s.id !== justUploadedId);
+      if (!candidates.length) return null;
+      return sortByDistance(candidates)[0] || null;
+    }
+
+    // ── Success card nav ──
+    successBox?.querySelector('.js-nav-history')?.addEventListener('click', (e) => {
       App.navigate(e.currentTarget.dataset.nav);
     });
 
-    form?.querySelector('.js-upload-more')?.addEventListener('click', () => {
-      successBox.hidden = true;
-      form.hidden = false;
-      form.reset();
-      selectedFiles = [];
-      renderPreviews();
-      // Reset site search
-      if (searchIdInput) searchIdInput.value = '';
-      if (searchSelected) searchSelected.hidden = true;
-      if (searchInput) { searchInput.style.display = ''; searchInput.value = ''; }
-      refreshSubmitState();
+    document.querySelector('.js-upload-more')?.addEventListener('click', () => {
+      if (successBox) successBox.hidden = true;
+      deselectSite();
+      // Re-capture GPS (user may have moved)
+      captureGPS().then(() => {
+        refreshPlannedList();
+        if (unplannedSites.length) refreshUnplannedList();
+      });
     });
 
-    // --- Form submit ---
+    autoAdvanceBtn?.addEventListener('click', () => {
+      const nextId = parseInt(autoAdvanceBtn.dataset.nextId || '0');
+      if (successBox) successBox.hidden = true;
+      if (form) form.reset();
+      selectedFiles = [];
+      renderPreviews();
+      // Re-capture GPS
+      captureGPS().then(() => {
+        refreshPlannedList();
+        if (unplannedSites.length) refreshUnplannedList();
+        if (nextId) selectSite(nextId);
+      });
+    });
+
+    // ── Form submit ──
     form?.addEventListener('submit', async (event) => {
       event.preventDefault();
 
-      const parentId = getParentId();
-      if (!parentId) { UI.toast('Please select a site', 'bad'); return; }
+      if (!selectedSiteId) { UI.toast('Please select a site', 'bad'); return; }
       if (!selectedFiles.length) { UI.toast('Please select at least one photo', 'bad'); return; }
 
       const formData = new FormData(form);
-      formData.set('parent_id', parentId);
-      formData.delete('parent_id_search');
+      formData.set('parent_id', selectedSiteId);
+      formData.set('site_condition', selectedCondition);
       formData.delete('files[]');
       selectedFiles.forEach((file, i) => formData.append(`files[${i}]`, file));
 
@@ -1799,13 +2216,48 @@ Views.register('monitoring.upload', {
         });
 
         const count = selectedFiles.length;
-        form.hidden = true;
+        const uploadedSiteId = selectedSiteId;
+
+        // Mark site as done in local data
+        const markDone = (list) => list.forEach((s) => {
+          if (s.id === uploadedSiteId) {
+            s.uploaded_today = true;
+            s.uploaded_today_at = new Date().toISOString().replace('T', ' ').slice(0, 19);
+          }
+        });
+        markDone(allPlannedSites);
+        markDone(unplannedSites);
+
+        // Update planned data in DOM store
+        if (plannedList) plannedList.dataset.items = JSON.stringify(allPlannedSites);
+
+        // Hide form, show success
+        if (form) form.hidden = true;
+        if (actionsBox) actionsBox.hidden = true;
+        if (progressBox) progressBox.hidden = true;
         if (successBox) {
           successBox.hidden = false;
           const headline = successBox.querySelector('.js-success-headline');
           if (headline) headline.textContent = `${count} photo${count > 1 ? 's' : ''} uploaded successfully`;
         }
-        // Refresh the recent uploads strip
+
+        // Auto-advance setup
+        const nextSite = findNextSite(uploadedSiteId);
+        if (nextSite && autoAdvanceBtn) {
+          autoAdvanceBtn.hidden = false;
+          autoAdvanceBtn.dataset.nextId = nextSite.id;
+          const dist = getDistance(nextSite);
+          const distText = dist != null ? ` (${formatDistance(dist)})` : '';
+          if (advanceLabel) advanceLabel.textContent = `Next: ${nextSite.site_code}${distText}`;
+        } else if (autoAdvanceBtn) {
+          autoAdvanceBtn.hidden = true;
+        }
+
+        // Refresh lists to show done state
+        refreshPlannedList();
+        if (unplannedSites.length) refreshUnplannedList();
+
+        deselectSite();
         loadRecent();
       } catch (err) {
         UI.toast(err.message, 'bad');
@@ -1813,6 +2265,42 @@ Views.register('monitoring.upload', {
         if (submitBtn) { submitBtn.disabled = false; refreshSubmitState(); }
       }
     });
+
+    // ── Recent uploads strip ──
+    const loadRecent = async () => {
+      if (!recentStrip) return;
+      try {
+        const data = await Api.get('monitoring/upload', { limit: 4 });
+        const recents = normalizeItems(data);
+        if (!recents.length) { recentStrip.innerHTML = ''; return; }
+        recentStrip.innerHTML = UI.panel('Recent Uploads', `
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:8px;">
+            ${recents.map((r) => {
+              const url = r.id ? Api.url('upload/serve', { id: r.id }) : '';
+              return `<img src="${url}" class="upload-thumb js-recent-thumb" data-id="${r.id}"
+                           alt="Recent" loading="lazy" style="aspect-ratio:1;border-radius:8px;object-fit:cover;width:100%;cursor:pointer;"
+                           onerror="this.style.display='none'">`;
+            }).join('')}
+          </div>
+          <div style="margin-top:10px;text-align:center;">
+            <button type="button" class="btn btn-ghost btn-sm js-nav-to-history" data-nav="monitoring.history">
+              <i class="ph ph-clock-counter-clockwise"></i><span>View All History</span>
+            </button>
+          </div>
+        `);
+        const thumbs = recentStrip.querySelectorAll('.js-recent-thumb');
+        if (thumbs.length) {
+          const items = Array.from(thumbs).map((img) => ({ url: img.src, download: img.src + '&download=1' }));
+          thumbs.forEach((img, i) => {
+            img.addEventListener('click', () => openPhotoGallery(items, i));
+          });
+        }
+        recentStrip.querySelector('.js-nav-to-history')?.addEventListener('click', (e) => {
+          App.navigate(e.currentTarget.dataset.nav);
+        });
+      } catch (_) { recentStrip.innerHTML = ''; }
+    };
+    loadRecent();
 
     refreshSubmitState();
   }
