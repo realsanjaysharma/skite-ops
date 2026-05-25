@@ -3383,13 +3383,23 @@ Views.register('monitoring.history', {
               }
             }
 
+            // Enriched card info
+            const clientLine = item.client_name ? `<div class="mu-card-belt" style="font-weight:700;">${UI.escape(item.client_name)}</div>` : '';
+            const boardSize = (item.board_width_ft && item.board_height_ft)
+              ? `<span style="font-size:0.78rem;color:var(--ink-400);">${item.board_width_ft}×${item.board_height_ft} ft</span>`
+              : '';
+            const conditionBadge = item.site_condition && item.site_condition !== 'GOOD'
+              ? `<span class="mu-badge mu-badge-issue" style="margin-left:4px;"><i class="ph ph-warning"></i>${item.site_condition.replace(/_/g, ' ')}</span>`
+              : '';
+
             return `
               <div class="mu-card" data-index="${idx}" data-upload-id="${item.upload_id}" data-created-at="${UI.escape(ts)}">
                 <img src="${photoUrl}" class="av-card-photo js-mh-photo" data-index="${idx}"
                      alt="Monitoring photo" loading="lazy"
                      onerror="this.style.display='none'">
                 <div class="mu-card-body">
-                  <div class="mu-card-belt">${UI.escape(item.site_code || '')}</div>
+                  ${clientLine}
+                  <div class="mu-card-belt" ${item.client_name ? 'style="font-size:0.82rem;font-weight:400;color:var(--ink-500);"' : ''}>${UI.escape(item.site_code || '')}${boardSize ? ' · ' + boardSize : ''}</div>
                   <div class="mu-card-row">
                     <span>${UI.escape(item.location_text || '')}</span>
                   </div>
@@ -3399,6 +3409,7 @@ Views.register('monitoring.history', {
                   </div>
                   <div class="mu-card-row">
                     <span class="${badgeClass}"><i class="ph ${badgeIcon}"></i>${badgeLabel}</span>
+                    ${conditionBadge}
                     <span style="font-size:0.78rem;color:var(--ink-500);">${UI.escape(item.uploader_name || '')}</span>
                   </div>
                   ${comment}

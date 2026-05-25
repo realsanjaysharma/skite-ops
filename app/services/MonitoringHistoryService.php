@@ -33,6 +33,10 @@ class MonitoringHistoryService {
             $item['has_comment'] = !empty($item['comment_text']);
             $item['preview_photo'] = $item['file_path'];
             $item['work_type'] = $item['work_type'] ?? null;
+            $item['site_condition'] = $item['site_condition'] ?? null;
+            $item['client_name'] = $item['client_name'] ?? null;
+            $item['board_width_ft'] = $item['board_width_ft'] ? (int) $item['board_width_ft'] : null;
+            $item['board_height_ft'] = $item['board_height_ft'] ? (int) $item['board_height_ft'] : null;
             unset($item['file_path']);
         }
 
