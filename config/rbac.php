@@ -24,6 +24,7 @@ return [
         'monitoring.upload',
         'monitoring.plan',
         'monitoring.history',
+        'monitoring.discovery',
         'media.free_media_inventory',
         'task.request_intake',
         'task.progress_read',

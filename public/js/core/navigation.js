@@ -25,6 +25,7 @@ const NavMap = {
   'advertisement.site_master': { label: 'Site Master', icon: 'ph-storefront', route: 'site/list', section: 'Advertisement' },
   'advertisement.campaign_management': { label: 'Campaigns', icon: 'ph-flag-banner', route: 'campaign/list', section: 'Advertisement' },
   'monitoring.upload': { label: 'Monitoring Upload', icon: 'ph-eye', route: 'monitoring/upload', section: 'Monitoring', roles: ['MONITORING_TEAM'] },
+  'monitoring.discovery': { label: 'Media Discovery', icon: 'ph-binoculars', route: 'discovery/my-list', section: 'Monitoring', roles: ['MONITORING_TEAM'] },
   'monitoring.plan': { label: 'Monitoring Plan', icon: 'ph-map-trifold', route: 'monitoringplan/list', section: 'Monitoring' },
   'monitoring.history': { label: 'Monitoring History', icon: 'ph-clock-counter-clockwise', route: 'monitoring/history', section: 'Monitoring' },
   'media.free_media_inventory': { label: 'Free Media', icon: 'ph-gift', route: 'freemedia/list', section: 'Advertisement' },

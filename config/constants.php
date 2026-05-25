@@ -101,9 +101,13 @@ define('CYCLE_DELAY_ALERT_DAYS', 4);
 // Governance Reference: DATA_AND_FLOW section (future)
 define('FREE_MEDIA_EXPIRY_ALERT_DAYS', 7);
 
-// Site ID used as the auto-assigned parent for Free Media Discovery uploads.
-// This site (site_code = 'FREE-MEDIA-DEFAULT') exists in the sites table.
-define('FREE_MEDIA_DEFAULT_SITE_ID', 38);
+// Days before a pending discovery triggers a stale alert on dashboard.
+// Governance Reference: DATA_AND_FLOW section (future)
+define('DISCOVERY_PENDING_ALERT_DAYS', 7);
+
+// GPS radius in meters for proximity dedup check before creating new discovery site.
+// Two discoveries within this radius are merged onto the same placeholder site.
+define('DISCOVERY_GPS_DEDUP_RADIUS_METERS', 50);
 
 
 // ==========================================

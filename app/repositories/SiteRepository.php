@@ -95,6 +95,57 @@ class SiteRepository extends BaseRepository {
         return $this->fetchAll($sql, [$prefix . '%']);
     }
 
+    /**
+     * Find the nearest pending-discovery site within a radius using Haversine.
+     * Only matches DISC-* sites with a DISCOVERED free_media_record.
+     *
+     * @param float $lat Latitude of the new discovery
+     * @param float $lng Longitude of the new discovery
+     * @param int $radiusMeters Maximum distance in meters
+     * @return array|null Nearest matching site row or null
+     */
+    public function findDiscoveryNearby(float $lat, float $lng, int $radiusMeters): ?array
+    {
+        $sql = "SELECT s.id, s.site_code, s.latitude, s.longitude,
+                       (6371000 * ACOS(
+                           COS(RADIANS(?)) * COS(RADIANS(s.latitude)) *
+                           COS(RADIANS(s.longitude) - RADIANS(?)) +
+                           SIN(RADIANS(?)) * SIN(RADIANS(s.latitude))
+                       )) AS distance_meters
+                FROM sites s
+                INNER JOIN free_media_records fm ON fm.site_id = s.id AND fm.status = 'DISCOVERED'
+                WHERE s.site_code LIKE 'DISC-%'
+                  AND s.is_active = 0
+                  AND s.latitude IS NOT NULL
+                  AND s.longitude IS NOT NULL
+                HAVING distance_meters <= ?
+                ORDER BY distance_meters ASC
+                LIMIT 1";
+
+        return $this->fetchOne($sql, [$lat, $lng, $lat, $radiusMeters]);
+    }
+
+    /**
+     * Generate next sequential discovery site code for today.
+     * Format: DISC-YYYYMMDD-NNN (e.g., DISC-20260524-001)
+     *
+     * @return string The generated site_code (caller must handle race conditions)
+     */
+    public function generateDiscoverySiteCode(): string
+    {
+        $today = date('Ymd');
+        $prefix = 'DISC-' . $today . '-';
+
+        $row = $this->fetchOne(
+            "SELECT COUNT(*) AS cnt FROM sites WHERE site_code LIKE ?",
+            [$prefix . '%']
+        );
+
+        $next = ((int)($row['cnt'] ?? 0)) + 1;
+
+        return $prefix . str_pad((string)$next, 3, '0', STR_PAD_LEFT);
+    }
+
     public function create(array $data): int {
         $query = "INSERT INTO sites (
             site_code, location_text, site_category, green_belt_id, route_or_group,

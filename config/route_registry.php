@@ -688,6 +688,23 @@ return [
     ],
 
     // ==========================================
+    // MEDIA DISCOVERY (MONITORING_TEAM)
+    // ==========================================
+
+    'discovery/submit' => [
+        'controller' => 'MediaDiscoveryController',
+        'method'     => 'submit',
+        'module_key' => 'monitoring.discovery',
+        'capability' => 'manage',
+    ],
+    'discovery/my-list' => [
+        'controller' => 'MediaDiscoveryController',
+        'method'     => 'myList',
+        'module_key' => 'monitoring.discovery',
+        'capability' => 'read',
+    ],
+
+    // ==========================================
     // CAMPAIGN MANAGEMENT
     // ==========================================
 

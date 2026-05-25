@@ -189,3 +189,27 @@ First instinct was to default to Yesterday+Today so recent uploads are visible. 
 **Deferred to Phase 2:** Media Planner actions (confirm/merge/dismiss in Free Media Inventory module) — requires separate plan.
 
 **Deferred separately:** Monitoring Upload UX improvements (site search changes, remove site IDs, show site names with client names) — requires separate brainstorming.
+
+---
+
+## 2026-05-25 — Media Discovery Phase 1 implemented
+
+Plan `docs/superpowers/plans/2026-05-24-media-discovery.md` executed end-to-end with four approved deviations (logged below). All PHP syntax + `test_frontend_route_map.php` (213/213) + `test_upload_review_safety.php` (4/4) green. Migration 005 applied locally. Browser smoke test not run from this session — manual checklist sits in AGENT_START.md.
+
+**Deviation 1 — Migration renumbered 004 → 005.** Plan said `004_media_discovery_module.sql`; that filename was already taken by the OUTSOURCED `my_uploads` scope fix from commit `b58f770`. Renumbered to keep migration history append-only.
+
+**Deviation 2 — FreeMediaRepository got one method, not three.** Plan asked for `createDiscoveredRecord()`, `findDiscoveredBySiteId()`, `refreshSourceReference()`. UploadRepository already owns the write path (`findDiscoveryFreeMediaBySiteId`, `createDiscoveryFreeMediaRecord`, `refreshDiscoveryFreeMediaRecord`), called from `UploadService::createOrRefreshDiscoveryRecord()`. Adding the two write methods to FreeMediaRepository would have been dead code — MediaDiscoveryService delegates the write to UploadService anyway. Only `findDiscoveredBySiteId()` was added, used purely for the post-delegate read to fetch the new record_id for the audit/response.
+
+**Deviation 3 — `Api.postFormData` dropped.** `Api.upload(formData)` already exists for multipart uploads, and we needed XHR progress events for parity with monitoring.upload. Generalised the existing `uploadWithProgress(formData, onProgress, route='upload/create')` helper to accept a route argument (default preserves the two existing callers). The new discovery view calls it with `route='discovery/submit'`.
+
+**Deviation 4 — `MAX_UPLOAD_FILES_PER_SUBMISSION` is PHP-only.** Plan referenced it as a JS global. Introduced a `DISCOVERY_MAX_FILES = 10` JS constant with a comment pointing at `config/constants.php` as the source of truth. Future drift would require updating both — flagged in AGENT_START "what NOT to touch".
+
+**Site placeholder strategy preserved as designed.** `DISC-YYYYMMDD-NNN`, `is_active = 0`, `site_category = 'CITY'`, `lighting_type = 'NON_LIT'`. Three retries on `Duplicate entry` for race-condition safety against the UNIQUE constraint on `site_code`. Orphan placeholder sites (when the subsequent upload step fails) are intentionally tolerated — they're invisible to all `WHERE is_active = 1` queries and the next dedup pass within 50m will reuse them.
+
+**Transaction architecture honoured.** MediaDiscoveryService does NOT begin its own transaction. UploadService::createUploadsForSurface() already manages one internally for the uploads + the `createOrRefreshDiscoveryRecord()` write. Nested `beginTransaction()` on the singleton PDO would throw immediately. Site row write auto-commits before the upload begins.
+
+**GPS handling.** Browser geo (5s timeout) is requested **on submit click**, not on page load — keeps the permission prompt user-initiated. EXIF GPS is parsed in JS from the first selected file's first 128 KB (covers the EXIF segment in any real-world JPEG). EXIF coords are also kept and stored on the upload row even when browser geo wins, for forensic purposes (gallery uploads where the photographer was not at the spot at submit time).
+
+**discovery toggle on `monitoring.upload`.** Removed completely: Visit type chips, hidden `js-mon-fmd-auto-site` section, `js-mon-discovery-note`, `discoveryInput` / `discoveryNote` / `siteSection_` / `fmdAutoSite` refs, `FREE_MEDIA_DEFAULT_SITE_ID` JS const, and the `getParentId()` branch that auto-assigned site `38`. `getParentId()` now simply prefers the plan-site dropdown then falls back to the ad-hoc search.
+
+**Phase 2 still untouched.** Media Planner confirm / merge / dismiss flows in Free Media Inventory remain in design only — separate plan needed.

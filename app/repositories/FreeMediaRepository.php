@@ -93,6 +93,29 @@ class FreeMediaRepository extends BaseRepository
     }
 
     /**
+     * Find the active DISCOVERED record for a given site (used by MediaDiscoveryService
+     * to retrieve the record_id after UploadService creates/refreshes it via UploadRepository).
+     *
+     * Note: Writes to discovery records happen in UploadRepository (called from UploadService).
+     * This read method lives here because reading free_media_records belongs to this repository.
+     *
+     * @param int $siteId
+     * @return array|null
+     */
+    public function findDiscoveredBySiteId(int $siteId): ?array
+    {
+        return $this->fetchOne(
+            "SELECT * FROM free_media_records
+             WHERE site_id = ?
+               AND source_type = 'MONITORING_DISCOVERY'
+               AND status = 'DISCOVERED'
+             ORDER BY updated_at DESC, id DESC
+             LIMIT 1",
+            [$siteId]
+        );
+    }
+
+    /**
      * Confirm a DISCOVERED record → CONFIRMED_ACTIVE.
      */
     public function confirmRecord(int $recordId, int $confirmedByUserId, string $confirmedDate, ?string $expiryDate): void

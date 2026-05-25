@@ -1069,10 +1069,10 @@ const UPLOAD_WORK_TYPES = [
  * @param {FormData} formData
  * @param {function(percent: number)} onProgress  — called with 0-100
  */
-function uploadWithProgress(formData, onProgress) {
+function uploadWithProgress(formData, onProgress, route = 'upload/create') {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.open('POST', '../index.php?route=upload/create');
+    xhr.open('POST', `../index.php?route=${route}`);
     xhr.setRequestHeader('Accept', 'application/json');
     const csrf = Auth.getCsrfToken();
     if (csrf) xhr.setRequestHeader('X-CSRF-Token', csrf);
@@ -1436,12 +1436,6 @@ Views.register('monitoring.upload', {
           <input type="hidden" name="parent_id_search" class="js-site-search-id" value="">
           <div class="js-site-search-selected mon-search-selected" hidden></div>
         </div>
-      </div>
-      <div class="upload-section js-mon-fmd-auto-site" hidden>
-        <div class="upload-section-label">Site</div>
-        <p style="font-size:0.85rem;color:var(--brand,#0f766e);margin:0;font-weight:600;">
-          <i class="ph ph-check-circle"></i> Auto-assigned — site not required for free media discovery
-        </p>
       </div>`;
 
     return UI.page('Monitoring Upload', 'Submit site monitoring proof')
@@ -1454,22 +1448,6 @@ Views.register('monitoring.upload', {
           <input type="hidden" name="gps_longitude" id="mon_gps_lng" value="">
 
           ${siteSection}
-
-          <div class="upload-section">
-            <div class="upload-section-label">Visit type</div>
-            <div class="upload-type-chips">
-              <button type="button" class="upload-type-chip active js-mon-visit-chip" data-discovery="0">
-                <i class="ph ph-map-pin"></i><span>Standard Visit</span>
-              </button>
-              <button type="button" class="upload-type-chip js-mon-visit-chip" data-discovery="1">
-                <i class="ph ph-binoculars"></i><span>Free Media Discovery</span>
-              </button>
-            </div>
-            <input type="hidden" name="discovery_mode" value="0">
-            <p class="js-mon-discovery-note" hidden style="font-size:0.8rem;color:var(--brand,#0f766e);margin:8px 0 0;font-weight:600;">
-              <i class="ph ph-info"></i> A free media record will be created for this site.
-            </p>
-          </div>
 
           <div class="upload-section">
             ${UI.field({ name: 'comment_text', label: 'Comment (optional)', type: 'textarea', full: true })}
@@ -1669,31 +1647,13 @@ Views.register('monitoring.upload', {
       }
     });
 
-    // Resolve final parent_id: discovery auto-assigns, else prefer dropdown, fallback to search
+    // Resolve final parent_id: prefer plan-site dropdown, fallback to ad-hoc search
+    // (Discovery mode is now its own dedicated page — monitoring.discovery)
     const getParentId = () => {
-      if (discoveryInput && discoveryInput.value === '1') return String(FREE_MEDIA_DEFAULT_SITE_ID);
       if (siteSelect && siteSelect.value) return siteSelect.value;
       if (searchIdInput && searchIdInput.value) return searchIdInput.value;
       return '';
     };
-
-    // --- Discovery mode toggle ---
-    const discoveryInput = form?.querySelector('[name="discovery_mode"]');
-    const discoveryNote = form?.querySelector('.js-mon-discovery-note');
-    const siteSection_ = form?.querySelector('.js-mon-site-section');
-    const fmdAutoSite = document.querySelector('.js-mon-fmd-auto-site');
-    form?.querySelectorAll('.js-mon-visit-chip').forEach((chip) => {
-      chip.addEventListener('click', () => {
-        form.querySelectorAll('.js-mon-visit-chip').forEach((c) => c.classList.remove('active'));
-        chip.classList.add('active');
-        const isDiscovery = chip.dataset.discovery === '1';
-        if (discoveryInput) discoveryInput.value = chip.dataset.discovery;
-        if (discoveryNote) discoveryNote.hidden = !isDiscovery;
-        // Toggle site section visibility
-        if (siteSection_) siteSection_.hidden = isDiscovery;
-        if (fmdAutoSite) fmdAutoSite.hidden = !isDiscovery;
-      });
-    });
 
     // --- File selection & preview ---
     const refreshSubmitState = () => {
@@ -1757,12 +1717,6 @@ Views.register('monitoring.upload', {
       form.reset();
       selectedFiles = [];
       renderPreviews();
-      // Reset discovery
-      form.querySelectorAll('.js-mon-visit-chip').forEach((c, i) => c.classList.toggle('active', i === 0));
-      if (discoveryInput) discoveryInput.value = '0';
-      if (discoveryNote) discoveryNote.hidden = true;
-      if (siteSection_) siteSection_.hidden = false;
-      if (fmdAutoSite) fmdAutoSite.hidden = true;
       // Reset site search
       if (searchIdInput) searchIdInput.value = '';
       if (searchSelected) searchSelected.hidden = true;
@@ -1817,8 +1771,6 @@ Views.register('monitoring.upload', {
 
 // Self-delete window in milliseconds — matches config/constants.php UPLOAD_SELF_DELETE_WINDOW_MINUTES
 const MY_UPLOADS_DELETE_WINDOW_MS = 5 * 60 * 1000;
-// Default site for Free Media Discovery uploads — matches config/constants.php FREE_MEDIA_DEFAULT_SITE_ID
-const FREE_MEDIA_DEFAULT_SITE_ID = 38;
 const MY_UPLOADS_MAX_DAYS = 7; // hard cap — chips never exceed this
 
 const MY_UPLOADS_PRESETS = [
@@ -2432,6 +2384,367 @@ function monHistoryActivePreset(dateFrom, dateTo) {
     (p) => p.from() === dateFrom && p.to() === dateTo
   )?.key || 'today';
 }
+
+// ============================================================
+// MEDIA DISCOVERY (MONITORING_TEAM)
+// Cap matches config/constants.php MAX_UPLOAD_FILES_PER_SUBMISSION = 10
+// ============================================================
+const DISCOVERY_MAX_FILES = 10;
+
+/**
+ * Minimal client-side EXIF GPS reader. Parses only the GPS IFD of a JPEG.
+ * Returns { lat, lng } or null. Fails silently on any parse error so the
+ * submission can still proceed using browser geolocation.
+ */
+function discoveryReadExifGps(file) {
+  return new Promise((resolve) => {
+    if (!file || !/jpe?g$/i.test(file.type)) { resolve(null); return; }
+    const reader = new FileReader();
+    reader.onerror = () => resolve(null);
+    reader.onload = (e) => {
+      try {
+        const view = new DataView(e.target.result);
+        if (view.getUint16(0) !== 0xFFD8) { resolve(null); return; }
+        let offset = 2;
+        const len = view.byteLength;
+        while (offset < len - 1) {
+          const marker = view.getUint16(offset);
+          if (marker === 0xFFE1) { resolve(discoveryParseExifGps(view, offset + 4)); return; }
+          if (marker < 0xFF00) { resolve(null); return; }
+          offset += 2 + view.getUint16(offset + 2);
+        }
+        resolve(null);
+      } catch (_) { resolve(null); }
+    };
+    // 128KB is plenty for EXIF
+    reader.readAsArrayBuffer(file.slice(0, 128 * 1024));
+  });
+}
+
+function discoveryParseExifGps(view, start) {
+  try {
+    const sig = String.fromCharCode(view.getUint8(start), view.getUint8(start+1),
+                                    view.getUint8(start+2), view.getUint8(start+3));
+    if (sig !== 'Exif') return null;
+    const tiffStart = start + 6;
+    const bigEndian = view.getUint16(tiffStart) === 0x4D4D;
+    const u16 = (o) => view.getUint16(o, !bigEndian);
+    const u32 = (o) => view.getUint32(o, !bigEndian);
+
+    const ifd0 = tiffStart + u32(tiffStart + 4);
+    const ifd0Count = u16(ifd0);
+    let gpsIfdOff = null;
+    for (let i = 0; i < ifd0Count; i++) {
+      const eOff = ifd0 + 2 + i * 12;
+      if (u16(eOff) === 0x8825) { gpsIfdOff = u32(eOff + 8); break; }
+    }
+    if (gpsIfdOff === null) return null;
+
+    const gpsStart = tiffStart + gpsIfdOff;
+    const gpsCount = u16(gpsStart);
+    let latRef = null, lngRef = null, latVals = null, lngVals = null;
+    const readRationals = (offset, count) => {
+      const vals = [];
+      for (let i = 0; i < count; i++) {
+        const num = u32(offset + i * 8);
+        const den = u32(offset + i * 8 + 4);
+        vals.push(den ? num / den : 0);
+      }
+      return vals;
+    };
+    for (let i = 0; i < gpsCount; i++) {
+      const eOff = gpsStart + 2 + i * 12;
+      const tag = u16(eOff);
+      if (tag === 1) latRef = String.fromCharCode(view.getUint8(eOff + 8));
+      else if (tag === 3) lngRef = String.fromCharCode(view.getUint8(eOff + 8));
+      else if (tag === 2) latVals = readRationals(tiffStart + u32(eOff + 8), 3);
+      else if (tag === 4) lngVals = readRationals(tiffStart + u32(eOff + 8), 3);
+    }
+    if (!latVals || !lngVals) return null;
+    let lat = latVals[0] + latVals[1] / 60 + latVals[2] / 3600;
+    let lng = lngVals[0] + lngVals[1] / 60 + lngVals[2] / 3600;
+    if (latRef === 'S') lat = -lat;
+    if (lngRef === 'W') lng = -lng;
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+    return { lat, lng };
+  } catch (_) { return null; }
+}
+
+Views.register('monitoring.discovery', {
+  async render() {
+    // Load actor's recent discoveries for the strip
+    let recent = [];
+    try {
+      const data = await Api.get('discovery/my-list', { limit: 8 });
+      recent = (data && data.items) || [];
+    } catch (_) {}
+
+    const recentStrip = recent.length === 0 ? '' : UI.panel('Recent Discoveries', `
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;">
+        ${recent.map((r) => {
+          const url = r.upload_id ? Api.url('upload/serve', { id: r.upload_id }) : '';
+          const dateStr = r.created_at ? new Date(r.created_at.replace(' ', 'T')).toLocaleDateString() : '';
+          return `
+            <div class="js-disc-recent-card" data-id="${r.upload_id}"
+                 style="cursor:pointer;border-radius:8px;overflow:hidden;background:var(--surface,#fff);border:1px solid var(--line,#e5e7eb);">
+              <img src="${url}" alt="" loading="lazy" onerror="this.style.display='none'"
+                   style="width:100%;aspect-ratio:1;object-fit:cover;display:block;">
+              <div style="padding:4px 6px;font-size:0.72rem;color:var(--ink-700);text-align:center;">${UI.escape(r.site_code || '')}</div>
+              <div style="padding:0 6px 6px;font-size:0.68rem;color:var(--ink-500);text-align:center;">${UI.escape(dateStr)}</div>
+            </div>`;
+        }).join('')}
+      </div>
+    `);
+
+    return UI.page('Media Discovery', 'Report newly spotted advertising media')
+      + UI.panel('Submit discovery', `
+        <form class="upload-mobile-form js-discovery-form" autocomplete="off" novalidate enctype="multipart/form-data">
+          <input type="hidden" name="browser_lat" class="js-disc-browser-lat" value="">
+          <input type="hidden" name="browser_lng" class="js-disc-browser-lng" value="">
+          <input type="hidden" name="exif_lat"    class="js-disc-exif-lat"    value="">
+          <input type="hidden" name="exif_lng"    class="js-disc-exif-lng"    value="">
+
+          <div class="upload-section">
+            <div class="upload-section-label">Photos</div>
+            <p style="font-size:0.8rem;color:var(--ink-500);margin:0 0 8px;">
+              Capture 1&ndash;${DISCOVERY_MAX_FILES} photos of the discovered media
+            </p>
+            <label class="upload-file-btn js-upload-file-btn">
+              <i class="ph ph-camera-plus"></i>
+              <span class="js-upload-file-label">Take a photo or choose from gallery</span>
+              <input type="file" name="photos[]" multiple accept="image/*"
+                     class="upload-file-input js-disc-file-input" aria-label="Select photos">
+            </label>
+          </div>
+
+          <div class="upload-section js-disc-gps-status" hidden>
+            <div class="upload-section-label">Location</div>
+            <p class="js-disc-gps-badge" style="font-size:0.85rem;margin:0;font-weight:600;"></p>
+            <p class="js-disc-gps-warning" hidden style="font-size:0.8rem;color:var(--warning-text,#92400e);margin:6px 0 0;">
+              <i class="ph ph-warning"></i> No GPS detected in photo. Please describe the location below so the planner can find this site.
+            </p>
+          </div>
+
+          <div class="upload-section">
+            ${UI.field({ name: 'comment_text', label: 'Location / description (optional)', type: 'textarea', full: true })}
+          </div>
+
+          <div class="upload-preview js-disc-preview" hidden>
+            <div class="upload-preview-header">
+              <span class="js-disc-preview-count"></span>
+              <button type="button" class="btn btn-ghost btn-sm js-disc-clear">Clear all</button>
+            </div>
+            <div class="upload-preview-grid js-disc-preview-grid"></div>
+          </div>
+
+          <div class="upload-progress js-disc-progress" hidden>
+            <div class="upload-progress-track"><div class="upload-progress-fill js-disc-progress-fill"></div></div>
+            <p class="js-disc-progress-text upload-progress-text">Submitting…</p>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-block upload-submit-btn js-disc-submit" disabled>
+            <i class="ph ph-upload-simple"></i>
+            <span class="js-disc-submit-label">Select photos to submit</span>
+          </button>
+        </form>
+
+        <div class="upload-success js-disc-success" hidden>
+          <i class="ph ph-check-circle upload-success-icon"></i>
+          <h3 class="js-disc-success-headline">Discovery submitted</h3>
+          <p class="upload-success-sub js-disc-success-sub"></p>
+          <div class="upload-success-actions">
+            <button type="button" class="btn btn-ghost js-disc-another">Report another</button>
+          </div>
+        </div>
+      `)
+      + recentStrip;
+  },
+
+  async afterRender() {
+    const form         = document.querySelector('.js-discovery-form');
+    const fileInput    = form?.querySelector('.js-disc-file-input');
+    const previewBox   = form?.querySelector('.js-disc-preview');
+    const previewGrid  = form?.querySelector('.js-disc-preview-grid');
+    const previewCount = form?.querySelector('.js-disc-preview-count');
+    const gpsStatus    = form?.querySelector('.js-disc-gps-status');
+    const gpsBadge     = form?.querySelector('.js-disc-gps-badge');
+    const gpsWarning   = form?.querySelector('.js-disc-gps-warning');
+    const browserLat   = form?.querySelector('.js-disc-browser-lat');
+    const browserLng   = form?.querySelector('.js-disc-browser-lng');
+    const exifLat      = form?.querySelector('.js-disc-exif-lat');
+    const exifLng      = form?.querySelector('.js-disc-exif-lng');
+    const progressBox  = form?.querySelector('.js-disc-progress');
+    const progressFill = form?.querySelector('.js-disc-progress-fill');
+    const progressText = form?.querySelector('.js-disc-progress-text');
+    const submitBtn    = form?.querySelector('.js-disc-submit');
+    const submitLabel  = form?.querySelector('.js-disc-submit-label');
+    const successBox   = document.querySelector('.js-disc-success');
+    const successSub   = successBox?.querySelector('.js-disc-success-sub');
+    const successHead  = successBox?.querySelector('.js-disc-success-headline');
+
+    if (!form) return;
+
+    let selectedFiles = [];
+
+    const refreshSubmitState = () => {
+      const has = selectedFiles.length > 0;
+      submitBtn.disabled = !has;
+      submitLabel.textContent = has
+        ? `Submit discovery (${selectedFiles.length} photo${selectedFiles.length > 1 ? 's' : ''})`
+        : 'Select photos to submit';
+    };
+
+    const renderPreviews = () => {
+      previewGrid.innerHTML = selectedFiles.map((file, i) => {
+        const url = URL.createObjectURL(file);
+        return `
+          <div class="upload-thumb-wrap">
+            <img src="${url}" class="upload-thumb" alt="Preview ${i + 1}">
+            <button type="button" class="upload-thumb-remove js-disc-remove-file" data-index="${i}" aria-label="Remove photo ${i + 1}">
+              <i class="ph ph-x"></i>
+            </button>
+          </div>`;
+      }).join('');
+      previewCount.textContent = `${selectedFiles.length} photo${selectedFiles.length > 1 ? 's' : ''} selected`;
+      previewBox.hidden = selectedFiles.length === 0;
+      refreshSubmitState();
+    };
+
+    const showGpsBadge = (text, kind) => {
+      gpsStatus.hidden = false;
+      const color = kind === 'ok' ? 'var(--success,#15803d)' : 'var(--warning-text,#92400e)';
+      const icon  = kind === 'ok' ? 'ph-map-pin' : 'ph-map-pin-line';
+      gpsBadge.innerHTML = `<i class="ph ${icon}" style="color:${color}"></i> <span style="color:${color}">${UI.escape(text)}</span>`;
+      gpsWarning.hidden = (kind === 'ok');
+    };
+
+    // Read EXIF GPS from the first selected file
+    const updateExifFromFirst = async () => {
+      exifLat.value = '';
+      exifLng.value = '';
+      if (selectedFiles.length === 0) {
+        gpsStatus.hidden = true;
+        return;
+      }
+      const gps = await discoveryReadExifGps(selectedFiles[0]);
+      if (gps) {
+        exifLat.value = gps.lat.toFixed(7);
+        exifLng.value = gps.lng.toFixed(7);
+        showGpsBadge(`GPS detected (${gps.lat.toFixed(4)}, ${gps.lng.toFixed(4)})`, 'ok');
+      } else {
+        showGpsBadge('No GPS in photo', 'warn');
+      }
+    };
+
+    fileInput?.addEventListener('change', async () => {
+      Array.from(fileInput.files).forEach((f) => {
+        if (selectedFiles.length < DISCOVERY_MAX_FILES) selectedFiles.push(f);
+      });
+      fileInput.value = '';
+      renderPreviews();
+      await updateExifFromFirst();
+    });
+
+    previewGrid?.addEventListener('click', async (e) => {
+      const btn = e.target.closest('.js-disc-remove-file');
+      if (!btn) return;
+      const idx = parseInt(btn.dataset.index, 10);
+      selectedFiles.splice(idx, 1);
+      renderPreviews();
+      await updateExifFromFirst();
+    });
+
+    form.querySelector('.js-disc-clear')?.addEventListener('click', () => {
+      selectedFiles = [];
+      renderPreviews();
+      gpsStatus.hidden = true;
+      exifLat.value = '';
+      exifLng.value = '';
+    });
+
+    // --- Submit ---
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (!selectedFiles.length) { UI.toast('Please select at least one photo', 'bad'); return; }
+
+      submitBtn.disabled = true;
+      progressBox.hidden = false;
+      progressFill.style.width = '0%';
+      progressText.textContent = `Submitting ${selectedFiles.length} photo${selectedFiles.length > 1 ? 's' : ''}…`;
+
+      // Browser geolocation (5s timeout) — captured on submit so the user has
+      // already consented by clicking. Fails silently if denied/unavailable.
+      try {
+        const pos = await new Promise((resolve, reject) => {
+          if (!navigator.geolocation) { reject(new Error('no-geo')); return; }
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: 5000,
+            maximumAge: 30000,
+          });
+        });
+        browserLat.value = pos.coords.latitude.toFixed(7);
+        browserLng.value = pos.coords.longitude.toFixed(7);
+      } catch (_) {
+        browserLat.value = '';
+        browserLng.value = '';
+      }
+
+      const fd = new FormData();
+      selectedFiles.forEach((file) => fd.append('photos[]', file));
+      fd.append('comment_text', form.querySelector('[name="comment_text"]')?.value || '');
+      fd.append('browser_lat', browserLat.value);
+      fd.append('browser_lng', browserLng.value);
+      fd.append('exif_lat', exifLat.value);
+      fd.append('exif_lng', exifLng.value);
+
+      try {
+        const data = await uploadWithProgress(fd, (pct) => {
+          progressFill.style.width = `${pct}%`;
+          progressText.textContent = `Submitting… ${pct}%`;
+        }, 'discovery/submit');
+
+        form.hidden = true;
+        progressBox.hidden = true;
+        successBox.hidden = false;
+        const newOrReused = data?.is_new_site ? 'new site' : 'matched nearby site';
+        const gpsState    = data?.has_gps ? 'GPS captured' : 'no GPS';
+        successHead.textContent = `Discovery submitted — ${UI.escape(data?.site_code || '')}`;
+        successSub.textContent  = `${data?.photo_count || selectedFiles.length} photo(s) • ${newOrReused} • ${gpsState}`;
+      } catch (err) {
+        UI.toast(err.message || 'Submission failed', 'bad');
+        progressBox.hidden = true;
+        submitBtn.disabled = false;
+        refreshSubmitState();
+      }
+    });
+
+    successBox?.querySelector('.js-disc-another')?.addEventListener('click', () => {
+      successBox.hidden = true;
+      form.hidden = false;
+      form.reset();
+      selectedFiles = [];
+      renderPreviews();
+      gpsStatus.hidden = true;
+      browserLat.value = '';
+      browserLng.value = '';
+      exifLat.value = '';
+      exifLng.value = '';
+    });
+
+    // Recent discoveries — click to preview via shared gallery
+    const cards = document.querySelectorAll('.js-disc-recent-card');
+    if (cards.length && typeof openPhotoGallery === 'function') {
+      const items = Array.from(cards).map((c) => {
+        const url = Api.url('upload/serve', { id: c.dataset.id });
+        return { url, download: url + '&download=1' };
+      });
+      cards.forEach((c, i) => c.addEventListener('click', () => openPhotoGallery(items, i)));
+    }
+
+    refreshSubmitState();
+  }
+});
 
 Views.register('monitoring.history', {
   async render({ params = {} }) {

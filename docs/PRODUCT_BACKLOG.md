@@ -166,28 +166,45 @@ Previously 📋 Planned. Completed — see entry above.
 
 ---
 
-## 📋 Planned — Media Discovery Page (`monitoring.discovery`)
+## ✅ Media Discovery Page (`monitoring.discovery`) — Phase 1 implemented (uncommitted, 2026-05-25)
 
 **New page for MONITORING_TEAM** to report newly discovered advertising media (poles, boards, hoardings) spotted in the field.
 
-**Design approved:** `docs/superpowers/specs/2026-05-24-media-discovery-design.md`
-**Implementation plan:** `docs/superpowers/plans/2026-05-24-media-discovery.md` (11 tasks)
+**Design spec:** `docs/superpowers/specs/2026-05-24-media-discovery-design.md`
+**Implementation plan:** `docs/superpowers/plans/2026-05-24-media-discovery.md` (11 tasks — executed)
 
-**Key decisions:**
-- Separate page from `monitoring.upload` (different intent: reporting opportunities vs routine proof)
-- Each discovery auto-creates a placeholder site with `site_code = 'DISC-YYYYMMDD-NNN'`, `is_active = 0`
-- Dual GPS: browser `navigator.geolocation` (priority) + photo EXIF `exif_read_data()` (fallback)
-- GPS proximity dedup (Haversine, 50m radius) — avoids duplicate discoveries for same physical location
-- `free_media_records.status = 'DISCOVERED'` → Media Planner can confirm, merge, or dismiss
-- Confirmed discoveries: site gets real code, `is_active = 1`, enters campaign pipeline
-- Dismissed: soft-delete uploads, 30-day purge cycle (existing mechanism)
-- Merged duplicates: uploads moved to keep-site, discard-site renamed `MERGED-*`
-- `FREE_MEDIA_DEFAULT_SITE_ID` removed (each discovery gets own site)
-- MediaDiscoveryService does NOT start its own transaction — UploadService manages its own internally
+**What was built (uncommitted — browser smoke test pending):**
+- New backend layer: `MediaDiscoveryController → MediaDiscoveryService → SiteRepository + FreeMediaRepository + UploadService` (reuses UploadService for the actual upload + free_media_record write).
+- New endpoints: `discovery/submit` (POST), `discovery/my-list` (GET). RBAC: `monitoring.discovery` module key, MONITORING_TEAM only.
+- `SiteRepository::findDiscoveryNearby()` — Haversine query against `DISC-*` sites with pending free_media_records.
+- `SiteRepository::generateDiscoverySiteCode()` — `DISC-YYYYMMDD-NNN` with retry on UNIQUE collision.
+- `FreeMediaRepository::findDiscoveredBySiteId()` — read access only; writes happen via existing UploadRepository helpers (unchanged).
+- `MediaDiscoveryService::submitDiscovery()` — GPS resolution (browser priority, EXIF fallback) → dedup check → placeholder site create or reuse → delegate to UploadService.
+- `MediaDiscoveryService::listMyDiscoveries()` — paginated list of actor's own discovery uploads with site_code and discovery_status.
+- Frontend: new `Views.register('monitoring.discovery', …)` block (camera picker, EXIF parser, browser geo, photo preview, XHR progress, success card, recent strip).
+- `uploadWithProgress()` generalized to accept a `route` parameter (defaults to `upload/create` — existing callers unaffected).
+- `monitoring.upload`: Visit type chips, hidden auto-site section, `js-mon-discovery-note`, and discovery_mode handler all removed. `getParentId()` simplified. `FREE_MEDIA_DEFAULT_SITE_ID = 38` const removed from modules.js.
+- `config/constants.php`: `FREE_MEDIA_DEFAULT_SITE_ID` removed. Added `DISCOVERY_PENDING_ALERT_DAYS = 7` and `DISCOVERY_GPS_DEDUP_RADIUS_METERS = 50`.
+- `config/rbac.php`: `monitoring.discovery` added to `module_catalog`.
+- `migrations/005_media_discovery_module.sql` — grants `monitoring.discovery` to MONITORING_TEAM via role_module_scopes. **Already executed against local DB.**
+- `public/js/core/navigation.js`: new `monitoring.discovery` entry, icon `ph-binoculars`, role-restricted to MONITORING_TEAM.
+- `public/index.html`: bumped `modules.js?v=51` and `navigation.js?v=13`.
 
-**Phase 2 (separate plan):** Media Planner actions (confirm/merge/dismiss in Free Media Inventory)
+**Plan deviations from the original 11-task spec (all approved before execution):**
+- Migration renamed to `005_*` (004 was already taken by the OUTSOURCED my_uploads scope fix).
+- Task 3 trimmed: only `findDiscoveredBySiteId()` added to FreeMediaRepository. The plan also asked for `createDiscoveredRecord()` and `refreshSourceReference()`, but UploadRepository already owns those writes (called from `UploadService::createOrRefreshDiscoveryRecord()`); adding duplicates would have been dead code.
+- Task 9 dropped: `Api.postFormData` is redundant — `Api.upload(formData)` already exists, and for progress we use the existing `uploadWithProgress()` helper (now route-parameterised).
+- `MAX_UPLOAD_FILES_PER_SUBMISSION` is a PHP constant, not a JS global — replaced with a `DISCOVERY_MAX_FILES = 10` JS const with a comment pointing at the PHP source of truth.
+- `Api.url()` is used to build `upload/serve` thumbnails for the recent strip (matches monitoring.upload pattern). The `?download=1` suffix is appended manually as elsewhere in the codebase.
 
-**Implementation:** Execute plan with `superpowers:executing-plans` skill in a fresh session.
+**Manual browser verification still required:**
+1. Login as MONITORING_TEAM, confirm "Media Discovery" appears in the Monitoring sidebar section (icon: binoculars).
+2. Submit a discovery without GPS (gallery photo with no EXIF) → expect amber "No GPS in photo" badge + warning, and a success card showing the new site code `DISC-YYYYMMDD-001`.
+3. Submit a second discovery using the camera (browser geo prompt → allow) → expect green GPS badge with coords; if you do it from the same physical spot, success card should say "matched nearby site".
+4. Confirm `monitoring.upload` no longer shows Visit type chips and that the regular upload form still works against an active site.
+5. SQL: `SELECT site_code, is_active, latitude, longitude FROM sites WHERE site_code LIKE 'DISC-%' ORDER BY id DESC LIMIT 5;` and `SELECT * FROM free_media_records WHERE source_type = 'MONITORING_DISCOVERY' ORDER BY id DESC LIMIT 5;`
+
+**Phase 2 (separate plan, deferred):** Media Planner actions (confirm/merge/dismiss in Free Media Inventory).
 
 ---
 
@@ -316,7 +333,7 @@ are worked together so shared improvements land once for all.
 | 1 | AUTHORITY_REPRESENTATIVE | 1 | 1 | ✅ Complete |
 | 2 | GREEN_BELT_SUPERVISOR | 2 | 2 | ✅ Complete |
 | 3 | OUTSOURCED_MAINTAINER | 2 | 2 | ✅ Complete (shares both pages with GBS) |
-| 4 | MONITORING_TEAM | 2 (+1 new) | 2 | 🔄 In progress — upload+history done (uncommitted), discovery page designed+planned |
+| 4 | MONITORING_TEAM | 3 | 3 | 🔄 Implementation complete (uncommitted) — upload, history, discovery all built; browser smoke test pending |
 | 5 | FABRICATION_LEAD | 2 | 0 | ⬜ Not started |
 | 6 | SALES_TEAM / CLIENT_SERVICING / MEDIA_PLANNING | 2–3 | 1 partial | 🔧 Partial (shared gallery only) |
 | 7 | MANAGEMENT | 1–2 | 0 | ⬜ Not started |
@@ -354,13 +371,13 @@ Shares both pages with GREEN_BELT_SUPERVISOR — completing GBS completed this r
 
 ---
 
-### 4 · MONITORING_TEAM — 🔄 In progress (2 of 3 pages done)
+### 4 · MONITORING_TEAM — 🔄 Implementation complete, browser smoke test pending (3 of 3 pages built)
 
 | Page | Module key | Status | Notes |
 |---|---|---|---|
-| Monitoring Upload | `monitoring.upload` | ✅ Fully improved | Site search dropdown, discovery toggle (Regular Visit / Free Media Discovery), mobile camera picker, photo preview grid, XHR progress bar, recent uploads strip, auto-assign to default site for discovery mode. Uncommitted. Discovery toggle will be removed when `monitoring.discovery` is built. |
+| Monitoring Upload | `monitoring.upload` | ✅ Fully improved | Site search dropdown, mobile camera picker, photo preview grid, XHR progress bar, recent uploads strip. **Visit-type chips / discovery toggle removed** (2026-05-25) now that `monitoring.discovery` is its own page. Uncommitted. |
 | Monitoring History | `monitoring.history` | ✅ Fully improved | Gallery cards, date chips (Today/Yesterday/Last 5/Last 7), site category chips, discovery filter chips, photo preview modal via `openPhotoGallery`, self-delete on own uploads with countdown. Uncommitted. |
-| Media Discovery | `monitoring.discovery` | 📋 Designed + planned | **NEW PAGE.** Separate page for field discovery of new advertising media. Auto-creates placeholder sites (`DISC-*`, `is_active=0`), extracts GPS from photos + browser geolocation, GPS proximity dedup (50m), feeds to Media Planning for review. Design spec: `docs/superpowers/specs/2026-05-24-media-discovery-design.md`. Implementation plan: `docs/superpowers/plans/2026-05-24-media-discovery.md` (11 tasks). |
+| Media Discovery | `monitoring.discovery` | ✅ Implemented (uncommitted) | **NEW PAGE built 2026-05-25.** MediaDiscoveryController/Service, SiteRepository GPS dedup, FreeMediaRepository read access, full frontend view with camera, EXIF parser, browser geolocation, success card, recent strip. Auto-creates `DISC-YYYYMMDD-NNN` placeholder sites (`is_active=0`). Migration 005 applied. Browser smoke test still required — see manual checklist in AGENT_START.md. Phase 2 (planner confirm/merge/dismiss) is a separate plan. |
 
 ---
 

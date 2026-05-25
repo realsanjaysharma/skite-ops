@@ -5,8 +5,8 @@
 
 ---
 
-Last updated by: Claude Opus 4.6 — 2026-05-24
-Last commit: `0aeae18 docs: end-of-session update — My Uploads complete, next is Monitoring Team`
+Last updated by: Claude Opus 4.7 — 2026-05-25
+Last commit: `b28741e feat(monitoring): UX redesign for upload + history, media discovery design + plan`
 
 ---
 
@@ -51,18 +51,26 @@ Agent testing (T01–T70 QA pass) is **complete**. That phase is archived in
 | *(uncommitted)* | Bug fixes: free media auto-assign to default site, upload scope for monitoring, photo URL fix |
 | *(uncommitted)* | Media Discovery design spec: `docs/superpowers/specs/2026-05-24-media-discovery-design.md` |
 | *(uncommitted)* | Media Discovery implementation plan: `docs/superpowers/plans/2026-05-24-media-discovery.md` |
+| *(uncommitted)* | Media Discovery feature implemented: new `monitoring.discovery` module, MediaDiscoveryController/Service, SiteRepository + FreeMediaRepository extensions, migration 005, discovery toggle removed from monitoring.upload, FREE_MEDIA_DEFAULT_SITE_ID retired |
 
 ---
 
 ## Current focus
 
-**MONITORING_TEAM — Phase 1 done, Phase 2 next**
+**MONITORING_TEAM — All three pages done (uncommitted), awaiting browser verification**
 
-- `monitoring.upload` ✅ UX improved (uncommitted — camera picker, site search, discovery toggle, photo preview, progress bar, recent uploads strip)
-- `monitoring.history` ✅ UX improved (uncommitted — gallery cards, date/category/discovery chips, preview modal, self-delete)
-- `monitoring.discovery` 📋 **Designed and planned** — separate dedicated page for field discovery of new advertising media. Spec + 11-task implementation plan written. **Execute next session using `superpowers:executing-plans` skill.**
-- After discovery: monitoring.upload UX improvements (site search changes, remove site IDs, show site names with client names) — requires separate brainstorming/plan.
+- `monitoring.upload` ✅ UX improved + discovery toggle removed (uncommitted)
+- `monitoring.history` ✅ UX improved (uncommitted)
+- `monitoring.discovery` ✅ **Implemented** (uncommitted) — new dedicated page, browser+EXIF GPS, Haversine dedup, auto site creation (`DISC-YYYYMMDD-NNN`), feeds `free_media_records` for Media Planner. Phase 2 (planner confirm/merge/dismiss) is a separate plan.
+- After commit + manual browser test: monitoring.upload UX improvements (site search changes, remove site IDs, show site names with client names) — requires separate brainstorming/plan.
 - After monitoring: Head Supervisor pages (`green_belt.watering_oversight` and related).
+
+**Manual verification still needed** (PHP/PDO syntax + frontend route map all green, but no browser smoke test yet):
+1. Login as MONITORING_TEAM, confirm "Media Discovery" appears in the Monitoring section of the sidebar.
+2. Submit a discovery without GPS → expect amber "No GPS" badge; confirm success card shows new site code (`DISC-YYYYMMDD-001`).
+3. Submit a second discovery from same physical spot (browser geo on) → expect "matched nearby site" in success card.
+4. Confirm `monitoring.upload` no longer has the Visit type chips and that the form still submits a regular monitoring upload.
+5. SQL check: `SELECT site_code, is_active, latitude, longitude FROM sites WHERE site_code LIKE 'DISC-%' ORDER BY id DESC LIMIT 5;` and `SELECT * FROM free_media_records WHERE source_type = 'MONITORING_DISCOVERY' ORDER BY id DESC LIMIT 5;`
 
 GREEN_BELT_SUPERVISOR ✅ complete. OUTSOURCED_MAINTAINER ✅ complete. AUTHORITY_REPRESENTATIVE ✅ complete.
 
@@ -76,9 +84,11 @@ GREEN_BELT_SUPERVISOR ✅ complete. OUTSOURCED_MAINTAINER ✅ complete. AUTHORIT
 - **`UI.panel()` in `ui.js`** — extended with `collapsible` option. Test any changes across pages.
 - **`green_belt.my_uploads`** — chips, gallery, delete all stable. Do not refactor.
 - **`MY_UPLOADS_PRESETS` constant** — defines the 4 chip date ranges. If adding a new chip, update both this and `myUploadsActivePreset()`.
-- **`monitoring.upload`** — UX improvements done (uncommitted). Discovery toggle will be removed when `monitoring.discovery` is built. Do not touch until discovery plan is executed.
+- **`monitoring.upload`** — UX improvements done + discovery toggle removed (uncommitted). Do not refactor.
 - **`monitoring.history`** — UX improvements done (uncommitted). Do not refactor.
+- **`monitoring.discovery`** — Newly implemented (uncommitted). MediaDiscoveryService deliberately does NOT start its own transaction; it relies on UploadService for the upload+free_media_record transaction. Do not add a wrapping `beginTransaction()` — it will throw a nested-transaction error.
 - **`UploadService::createUploadsForSurface()`** — manages its own PDO transaction internally. Do NOT wrap calls to this method in another transaction or PDO will throw a nested transaction error. See Media Discovery design spec §6.1.
+- **`uploadWithProgress(formData, onProgress, route='upload/create')`** — generalized to accept a route. Existing callers still default to `upload/create`. Do not remove the default.
 - **`tests/TEST_RESULTS.md`** — QA phase is archived. Do not add new test results there.
 
 ---
@@ -88,9 +98,8 @@ GREEN_BELT_SUPERVISOR ✅ complete. OUTSOURCED_MAINTAINER ✅ complete. AUTHORIT
 | Issue | Page | Severity | Notes |
 |---|---|---|---|
 | `[hidden]` CSS fix applied globally | All | Low | Added `[hidden] { display:none !important }` to fix upload form — verify no regressions on other pages |
-| Monitoring UX work is uncommitted | monitoring.upload, monitoring.history | Medium | All changes working but need commit. Also includes 3 bug fixes (free media auto-assign, upload scope, photo URL). |
-| Discovery toggle must be removed from monitoring.upload | monitoring.upload | Low | When `monitoring.discovery` page is built, the discovery toggle + auto-site logic in monitoring.upload must be removed (see design spec §13) |
-| `FREE_MEDIA_DEFAULT_SITE_ID = 38` still in constants.php | config | Low | Will be removed when discovery feature is implemented (each discovery gets its own site) |
+| Monitoring UX + Media Discovery uncommitted | monitoring.upload, monitoring.history, monitoring.discovery | Medium | All code working (PHP syntax + 213 route-map tests green). Browser smoke test still pending — see manual verification checklist above. Includes the 3 monitoring-upload bug fixes from previous session. |
+| Phase 2 of Media Discovery (planner side) | media.free_media_inventory | Low | Confirm / merge / dismiss flows for Media Planner — separate brainstorm + plan needed. |
 | Monitoring Upload UX improvements planned | monitoring.upload | Low | Site search changes, remove site IDs, show site names with client names — requires separate brainstorming |
 
 ---
