@@ -112,10 +112,27 @@ Fabrication-only occupancy layer for assigning workers to active tasks and deriv
 Advertisement site and asset master.
 May reference a green belt for location context but remains a separate entity.
 
+Columns added for monitoring overhaul:
+- `board_width_ft` — Board width in feet (SMALLINT UNSIGNED, nullable). Entered during site creation/editing.
+- `board_height_ft` — Board height in feet (SMALLINT UNSIGNED, nullable). Entered during site creation/editing.
+- `creative_upload_id` — FK to uploads.id. The current creative artwork image for the site. ON DELETE SET NULL. Mandatory for active sites (service-layer validation, not DB constraint).
+- `last_monitored_at` — Denormalized timestamp of the last monitoring upload for this site. Updated automatically by MonitoringUploadService post-upload hook. Avoids expensive join queries.
+- `last_monitored_by_user_id` — FK to users.id. Who performed the last monitoring upload.
+- `idx_sites_lat_lng` — Composite index on (latitude, longitude) for spatial queries.
+
 ### `site_monitoring_due_dates`
 
 Stored monthly monitoring due truth.
 Supports multiple due dates per site, copy-forward, and bulk-copy planning behavior.
+
+Columns added for monitoring overhaul:
+- `completed_at` — Timestamp when the monitoring visit for this due date was actually completed. Updated by post-upload side effects. NULL means not yet completed; past due_date with NULL completed_at = missed visit.
+
+### `monitoring_shifts`
+
+Tracks monitoring shift lifecycle for MONITORING_TEAM users. One shift per user per day (UNIQUE on user_id + shift_date). Records planned count at shift start, increments completed/unplanned counts as uploads are submitted. `completed_at` set when the user ends their day.
+
+Columns: id, user_id (FK users), shift_date, started_at, completed_at, planned_count, completed_count, unplanned_count, created_at, updated_at.
 
 ### `campaigns`
 
@@ -136,6 +153,9 @@ When the source is monitoring discovery, `source_reference_id` points back to re
 
 Unified proof table for green belts, sites, and tasks.
 Stores file metadata, proof type, optional `work_type`, discovery-mode flag for monitoring uploads, review metadata, GPS, authority visibility, soft-delete state, and purge markers.
+
+Columns added for monitoring overhaul:
+- `site_condition` — ENUM('GOOD','DAMAGED','FADED','CREATIVE_MISSING','LIGHTS_OFF'), nullable. Set only for MONITORING surface uploads. When not GOOD, a condition-based issue is auto-created via MonitoringUploadService.
 
 ### `issues`
 

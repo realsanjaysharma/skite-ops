@@ -58,6 +58,7 @@ Use the SQL file for executable DDL and the specification file for table-by-tabl
 
 - `sites`
 - `site_monitoring_due_dates`
+- `monitoring_shifts`
 - `campaigns`
 - `campaign_sites`
 - `free_media_records`
@@ -82,6 +83,7 @@ Use the SQL file for executable DDL and the specification file for table-by-tabl
 - one labour row per belt and date
 - one worker daily entry per worker and date
 - one site due-date row per site and due date
+- one monitoring shift per user per day
 - one upload row per physical file
 
 ## Important Modeling Boundaries

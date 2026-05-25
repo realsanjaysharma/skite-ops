@@ -285,23 +285,32 @@ CREATE TABLE sites (
     route_or_group VARCHAR(150) NULL,
     ownership_name VARCHAR(150) NULL,
     board_type VARCHAR(100) NULL,
+    board_width_ft SMALLINT UNSIGNED NULL,
+    board_height_ft SMALLINT UNSIGNED NULL,
     lighting_type ENUM('LIT','NON_LIT') NOT NULL,
     latitude DECIMAL(10,7) NULL,
     longitude DECIMAL(10,7) NULL,
+    creative_upload_id BIGINT UNSIGNED NULL,
+    last_monitored_at DATETIME NULL,
+    last_monitored_by_user_id BIGINT UNSIGNED NULL,
     is_active TINYINT(1) NOT NULL DEFAULT 1,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_sites_green_belt_id FOREIGN KEY (green_belt_id) REFERENCES green_belts(id) ON DELETE SET NULL,
+    CONSTRAINT fk_sites_creative_upload_id FOREIGN KEY (creative_upload_id) REFERENCES uploads(id) ON DELETE SET NULL,
+    CONSTRAINT fk_sites_last_monitored_by FOREIGN KEY (last_monitored_by_user_id) REFERENCES users(id) ON DELETE SET NULL,
     UNIQUE KEY uq_sites_site_code (site_code),
     KEY idx_sites_category (site_category),
     KEY idx_sites_green_belt_id (green_belt_id),
-    KEY idx_sites_route_or_group (route_or_group)
+    KEY idx_sites_route_or_group (route_or_group),
+    KEY idx_sites_lat_lng (latitude, longitude)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE site_monitoring_due_dates (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     site_id BIGINT UNSIGNED NOT NULL,
     due_date DATE NOT NULL,
+    completed_at DATETIME NULL,
     plan_month DATE NOT NULL,
     source_group_key VARCHAR(100) NULL,
     created_by_user_id BIGINT UNSIGNED NOT NULL,
@@ -313,6 +322,21 @@ CREATE TABLE site_monitoring_due_dates (
     KEY idx_smdd_due_date (due_date),
     KEY idx_smdd_plan_month (plan_month),
     KEY idx_smdd_source_group_key (source_group_key)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE monitoring_shifts (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT UNSIGNED NOT NULL,
+    shift_date DATE NOT NULL,
+    started_at DATETIME NOT NULL,
+    completed_at DATETIME NULL,
+    planned_count SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+    completed_count SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+    unplanned_count SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_user_shift_date (user_id, shift_date),
+    CONSTRAINT fk_shifts_user_id FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE campaigns (
@@ -510,6 +534,7 @@ CREATE TABLE uploads (
     mime_type VARCHAR(100) NOT NULL,
     file_size_bytes BIGINT UNSIGNED NOT NULL,
     photo_label ENUM('BEFORE_WORK','AFTER_WORK','GENERAL') NOT NULL DEFAULT 'GENERAL',
+    site_condition ENUM('GOOD','DAMAGED','FADED','CREATIVE_MISSING','LIGHTS_OFF') NULL,
     comment_text TEXT NULL,
     gps_latitude DECIMAL(10,7) NULL,
     gps_longitude DECIMAL(10,7) NULL,
