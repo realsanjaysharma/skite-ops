@@ -6,7 +6,7 @@
 ---
 
 Last updated by: Claude Opus 4.6 — 2026-05-25
-Last commit: `c6a84cd docs: update data flow for monitoring upload overhaul, bump cache`
+Last commit: `84f4971 docs: update governance docs for monitoring upload overhaul completion`
 
 ---
 
