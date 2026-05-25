@@ -162,6 +162,35 @@ Primary references:
 - per-user reports remain domain-scoped
 - archived tasks stay historically visible where the report model requires them
 
+## Monitoring Upload Flow
+
+### Planned Monitoring
+1. MONITORING_TEAM opens monitoring.upload page
+2. Frontend calls `upload/targets` — returns enriched planned sites (client, size, creative, GPS, done status)
+3. Person taps "Start Monitoring" — POST `monitoring/start-shift`
+4. Person selects a site card — condition strip + upload form appear
+5. Person selects condition tag (Good/Damaged/etc.) + takes photos
+6. Person submits — POST `upload/create` with surface=MONITORING, site_condition in payload
+7. Post-upload side effects: update sites.last_monitored_at, mark due_date completed, increment shift count
+8. If condition != GOOD: quick issue created via MonitoringUploadService::reportConditionIssue()
+9. Success card — auto-advance to next nearest unvisited site
+10. At end of day: "Complete Day" — POST `monitoring/complete-shift`
+
+### Unplanned Monitoring
+Same as above but site selection via: Category chip — Route chip — GPS-sorted site list.
+Route chips from `monitoring/browse-routes`, sites from `monitoring/browse-sites`.
+
+### Creative Upload
+1. CLIENT_SERVICING / OPS / MEDIA_PLANNING opens site detail page
+2. Uploads creative via `site/upload-creative` (single image)
+3. sites.creative_upload_id updated to new upload ID
+4. Creative thumbnail visible on monitoring upload cards
+
+### Issue Resolution from Field
+1. Monitoring person sees open issue badge on site card
+2. Taps "Issue Resolved" — must upload proof photo
+3. POST `monitoring/resolve-issue` closes the issue
+
 ## Sync Rule
 
 When this file and the build-spec layer diverge, the build-spec layer wins on implementation detail.
