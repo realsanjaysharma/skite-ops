@@ -18,12 +18,38 @@ class MonitoringPlanService {
         if (!empty($params['lighting_type'])) $filters['lighting_type'] = $params['lighting_type'];
         if (!empty($params['route_or_group'])) $filters['route_or_group'] = $params['route_or_group'];
 
-        $items = $this->repo->getPlanList($filters, $month);
-        
-        foreach ($items as &$item) {
-            $item['selected_due_dates_count'] = (int) $item['selected_due_dates_count'];
-            $item['due_dates'] = $item['due_dates_list'] ? explode(',', $item['due_dates_list']) : [];
-            unset($item['due_dates_list']);
+        // Use completion-aware query when filtering by completion_status
+        $completionStatus = $params['completion_status'] ?? '';
+        if ($completionStatus !== '' && in_array($completionStatus, ['completed', 'missed'], true)) {
+            $filters['completion_status'] = $completionStatus;
+            $rawItems = $this->repo->getPlanListWithCompletion($filters, $month);
+
+            // Group by site_id (since the completion query returns per-due-date rows)
+            $grouped = [];
+            foreach ($rawItems as $row) {
+                $siteId = (int) $row['site_id'];
+                if (!isset($grouped[$siteId])) {
+                    $grouped[$siteId] = [
+                        'site_id' => $siteId,
+                        'site_code' => $row['site_code'],
+                        'location_text' => $row['location_text'],
+                        'site_category' => $row['site_category'],
+                        'lighting_type' => $row['lighting_type'],
+                        'route_or_group' => $row['route_or_group'],
+                        'selected_due_dates_count' => (int) $row['total_due_dates'],
+                        'due_dates' => [],
+                    ];
+                }
+                $grouped[$siteId]['due_dates'][] = $row['due_date'];
+            }
+            $items = array_values($grouped);
+        } else {
+            $items = $this->repo->getPlanList($filters, $month);
+            foreach ($items as &$item) {
+                $item['selected_due_dates_count'] = (int) $item['selected_due_dates_count'];
+                $item['due_dates'] = $item['due_dates_list'] ? explode(',', $item['due_dates_list']) : [];
+                unset($item['due_dates_list']);
+            }
         }
 
         return [
@@ -33,7 +59,8 @@ class MonitoringPlanService {
                 'limit' => count($items) > 0 ? count($items) : 50,
                 'total' => count($items)
             ],
-            'month' => $month
+            'month' => $month,
+            'completion_status' => $completionStatus,
         ];
     }
 

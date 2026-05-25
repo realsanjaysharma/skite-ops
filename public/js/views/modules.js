@@ -2756,6 +2756,8 @@ Views.register('monitoring.plan', {
     if (params.lighting_type) filters.lighting_type = params.lighting_type;
     if (params.route_or_group) filters.route_or_group = params.route_or_group;
 
+    if (params.completion_status) filters.completion_status = params.completion_status;
+
     const data = await Api.get('monitoringplan/list', filters);
     const rows = normalizeItems(data);
     const columns = [
@@ -2772,6 +2774,14 @@ Views.register('monitoring.plan', {
       UI.button('Refresh', { icon: 'ph-arrows-clockwise', attr: 'data-refresh' }) +
       UI.button('Bulk Copy Pattern', { icon: 'ph-copy', attr: 'data-bulk-copy' });
 
+    // Completion status chips
+    const activeCS = params.completion_status || '';
+    const completionChips = [
+      { value: '', label: 'All' },
+      { value: 'completed', label: 'Completed' },
+      { value: 'missed', label: 'Missed' },
+    ].map((c) => `<button type="button" class="mu-chip js-mp-cs-chip ${c.value === activeCS ? 'active' : ''}" data-value="${c.value}">${c.label}</button>`).join('');
+
     return UI.page('Monitoring Plan', 'Manage monthly monitoring schedules', actions)
       + UI.panel('Filters', UI.filters([
         { name: 'month', label: 'Month', type: 'month', value: month },
@@ -2779,6 +2789,12 @@ Views.register('monitoring.plan', {
         { name: 'lighting_type', label: 'Lighting', type: 'select', value: params.lighting_type || '', options: ['', 'LIT', 'NON_LIT'] },
         { name: 'route_or_group', label: 'Route / Group', value: params.route_or_group || '' }
       ], 'Load'))
+      + `<div class="mu-controls" style="margin-bottom:8px;">
+           <div class="mu-chips" style="display:flex;gap:8px;flex-wrap:wrap;padding:0 4px;">
+             <span style="font-size:0.85rem;color:var(--ink-500);align-self:center;">Show:</span>
+             ${completionChips}
+           </div>
+         </div>`
       + UI.panel('Plan Records', UI.table(columns, rows, { 
           empty: 'No sites found for this month',
           rowAttr: (row) => `data-site='${JSON.stringify(row).replace(/'/g, "&#39;")}' data-month="${month}"`
@@ -2819,9 +2835,22 @@ Views.register('monitoring.plan', {
         </form>
       `);
   },
-  async afterRender() {
+  async afterRender({ params = {} }) {
     attachRefresh();
     wireFilters((payload) => App.navigate('monitoring.plan', payload));
+
+    // Completion status chip navigation
+    document.querySelectorAll('.js-mp-cs-chip').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        const newParams = { ...params, page: undefined };
+        if (chip.dataset.value) {
+          newParams.completion_status = chip.dataset.value;
+        } else {
+          delete newParams.completion_status;
+        }
+        App.navigate('monitoring.plan', newParams);
+      });
+    });
 
     // Old modal-based bulk copy removed in favor of in-page panel per plan
     
