@@ -695,7 +695,9 @@ return [
         'controller' => 'MediaDiscoveryController',
         'method'     => 'submit',
         'module_key' => 'monitoring.discovery',
-        'capability' => 'manage',
+        // 'upload' so MONITORING_TEAM (UPLOAD permission group: read+upload) can submit.
+        // 'manage' would gate this to OPS_MANAGER only.
+        'capability' => 'upload',
     ],
     'discovery/my-list' => [
         'controller' => 'MediaDiscoveryController',
