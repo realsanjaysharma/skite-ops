@@ -629,6 +629,12 @@ return [
         'module_key' => 'advertisement.site_master',
         'capability' => 'manage',
     ],
+    'site/upload-creative' => [
+        'controller' => 'MonitoringUploadController',
+        'method'     => 'uploadCreative',
+        'module_key' => 'advertisement.site_master',
+        'capability' => 'manage',
+    ],
 
     // ==========================================
     // MONITORING PLAN
@@ -674,6 +680,36 @@ return [
         'method'     => 'siteSearch',
         'module_key' => 'monitoring.upload',
         'capability' => 'read',
+    ],
+    'monitoring/browse-routes' => [
+        'controller' => 'MonitoringUploadController',
+        'method'     => 'browseRoutes',
+        'module_key' => 'monitoring.upload',
+        'capability' => 'read',
+    ],
+    'monitoring/browse-sites' => [
+        'controller' => 'MonitoringUploadController',
+        'method'     => 'browseSites',
+        'module_key' => 'monitoring.upload',
+        'capability' => 'read',
+    ],
+    'monitoring/start-shift' => [
+        'controller' => 'MonitoringUploadController',
+        'method'     => 'startShift',
+        'module_key' => 'monitoring.upload',
+        'capability' => 'upload',
+    ],
+    'monitoring/complete-shift' => [
+        'controller' => 'MonitoringUploadController',
+        'method'     => 'completeShift',
+        'module_key' => 'monitoring.upload',
+        'capability' => 'upload',
+    ],
+    'monitoring/resolve-issue' => [
+        'controller' => 'MonitoringUploadController',
+        'method'     => 'resolveIssue',
+        'module_key' => 'monitoring.upload',
+        'capability' => 'upload',
     ],
 
     // ==========================================

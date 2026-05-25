@@ -19,9 +19,9 @@ class UploadRepository extends BaseRepository
         $this->execute(
             "INSERT INTO uploads
             (parent_type, parent_id, upload_type, work_type, is_discovery_mode, file_path,
-             original_file_name, mime_type, file_size_bytes, photo_label, comment_text,
-             gps_latitude, gps_longitude, authority_visibility, created_by_user_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+             original_file_name, mime_type, file_size_bytes, photo_label, site_condition,
+             comment_text, gps_latitude, gps_longitude, authority_visibility, created_by_user_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [
                 $data['parent_type'],
                 $data['parent_id'],
@@ -33,6 +33,7 @@ class UploadRepository extends BaseRepository
                 $data['mime_type'],
                 $data['file_size_bytes'],
                 $data['photo_label'],
+                $data['site_condition'] ?? null,
                 $data['comment_text'],
                 $data['gps_latitude'],
                 $data['gps_longitude'],

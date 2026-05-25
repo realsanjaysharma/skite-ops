@@ -120,6 +120,7 @@ class UploadService
                     'mime_type' => $stored['mime_type'],
                     'file_size_bytes' => $stored['file_size_bytes'],
                     'photo_label' => $normalized['photo_label'],
+                    'site_condition' => $normalized['site_condition'] ?? null,
                     'comment_text' => $normalized['comment_text'],
                     'gps_latitude' => $normalized['gps_latitude'],
                     'gps_longitude' => $normalized['gps_longitude'],
@@ -158,7 +159,32 @@ class UploadService
                 $this->createOrRefreshDiscoveryRecord($normalized['parent_id'], (int) $created[0]['id']);
             }
 
+            // Store pending monitoring side effects to execute after commit
+            $pendingMonitoringSideEffect = null;
+            if ($surface === 'MONITORING' && !$normalized['is_discovery_mode']) {
+                $pendingMonitoringSideEffect = [
+                    'site_id' => $normalized['parent_id'],
+                    'user_id' => $actorUserId,
+                ];
+            }
+
             $this->uploadRepository->commit();
+
+            // Execute deferred monitoring side effects after commit
+            if ($pendingMonitoringSideEffect !== null) {
+                try {
+                    require_once __DIR__ . '/MonitoringUploadService.php';
+                    $monService = new MonitoringUploadService();
+                    $monService->handlePostUploadSideEffects(
+                        $pendingMonitoringSideEffect['site_id'],
+                        $pendingMonitoringSideEffect['user_id']
+                    );
+                } catch (Throwable $e) {
+                    // Side effects are non-critical — upload already committed.
+                    // Log silently but don't fail the upload.
+                    error_log("Monitoring post-upload side effect error: " . $e->getMessage());
+                }
+            }
 
             return [
                 'created_uploads' => array_map(
@@ -392,6 +418,10 @@ class UploadService
             'is_discovery_mode' => $discoveryMode,
             'gps_latitude' => $this->normalizeOptionalDecimal($data['gps_latitude'] ?? null, -90.0, 90.0),
             'gps_longitude' => $this->normalizeOptionalDecimal($data['gps_longitude'] ?? null, -180.0, 180.0),
+            'site_condition' => $this->normalizeOptionalEnum(
+                $data['site_condition'] ?? null,
+                ['GOOD', 'DAMAGED', 'FADED', 'CREATIVE_MISSING', 'LIGHTS_OFF']
+            ),
             'authority_visibility' => $this->resolveDefaultAuthorityVisibility($surface, $uploadType),
         ];
     }
@@ -549,6 +579,13 @@ class UploadService
         }
 
         return (string) $value;
+    }
+
+    private function normalizeOptionalEnum(?string $value, array $allowed): ?string
+    {
+        if ($value === null || $value === '') return null;
+        $value = strtoupper(trim($value));
+        return in_array($value, $allowed, true) ? $value : null;
     }
 
     public function getCleanupList(array $filters, int $page = 1, int $limit = 50): array
