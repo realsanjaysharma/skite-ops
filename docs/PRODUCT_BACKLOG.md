@@ -333,7 +333,7 @@ are worked together so shared improvements land once for all.
 | 1 | AUTHORITY_REPRESENTATIVE | 1 | 1 | ✅ Complete |
 | 2 | GREEN_BELT_SUPERVISOR | 2 | 2 | ✅ Complete |
 | 3 | OUTSOURCED_MAINTAINER | 2 | 2 | ✅ Complete (shares both pages with GBS) |
-| 4 | MONITORING_TEAM | 3 | 3 | 🔄 Implementation complete (uncommitted) — upload, history, discovery all built; browser smoke test pending |
+| 4 | MONITORING_TEAM | 3 | 3 | ✅ Complete (`683375b`–`c6a84cd`) — upload redesigned (tabs/cards/GPS/shifts/conditions), history enriched (client/size/condition), plan filters (completed/missed), discovery page |
 | 5 | FABRICATION_LEAD | 2 | 0 | ⬜ Not started |
 | 6 | SALES_TEAM / CLIENT_SERVICING / MEDIA_PLANNING | 2–3 | 1 partial | 🔧 Partial (shared gallery only) |
 | 7 | MANAGEMENT | 1–2 | 0 | ⬜ Not started |
@@ -371,13 +371,13 @@ Shares both pages with GREEN_BELT_SUPERVISOR — completing GBS completed this r
 
 ---
 
-### 4 · MONITORING_TEAM — 🔄 Implementation complete, browser smoke test pending (3 of 3 pages built)
+### 4 · MONITORING_TEAM — ✅ Complete (3 of 3 pages done)
 
 | Page | Module key | Status | Notes |
 |---|---|---|---|
-| Monitoring Upload | `monitoring.upload` | ✅ Fully improved | Site search dropdown, mobile camera picker, photo preview grid, XHR progress bar, recent uploads strip. **Visit-type chips / discovery toggle removed** (2026-05-25) now that `monitoring.discovery` is its own page. Uncommitted. |
-| Monitoring History | `monitoring.history` | ✅ Fully improved | Gallery cards, date chips (Today/Yesterday/Last 5/Last 7), site category chips, discovery filter chips, photo preview modal via `openPhotoGallery`, self-delete on own uploads with countdown. Uncommitted. |
-| Media Discovery | `monitoring.discovery` | ✅ Implemented (uncommitted) | **NEW PAGE built 2026-05-25.** MediaDiscoveryController/Service, SiteRepository GPS dedup, FreeMediaRepository read access, full frontend view with camera, EXIF parser, browser geolocation, success card, recent strip. Auto-creates `DISC-YYYYMMDD-NNN` placeholder sites (`is_active=0`). Migration 005 applied. Browser smoke test still required — see manual checklist in AGENT_START.md. Phase 2 (planner confirm/merge/dismiss) is a separate plan. |
+| Monitoring Upload | `monitoring.upload` | ✅ Fully improved | **Overhaul committed `683375b`–`c6a84cd`.** Planned/Unplanned tabs, GPS-sorted card list with client name + creative thumbnail + board size, shift bar (start/complete day), condition chips (Good/Damaged/Faded/Creative Missing/Lights Off) with auto issue creation, site search, auto-advance to next nearest site. Migration 006 (board dims, creative_upload_id, last_monitored_at, site_condition, monitoring_shifts). |
+| Monitoring History | `monitoring.history` | ✅ Fully improved | **Enriched `6a71d21`.** Gallery cards now show client_name as primary line, site_code + board size as secondary, condition badge for non-GOOD states. Date chips, category chips, discovery chips, photo preview modal, self-delete. |
+| Media Discovery | `monitoring.discovery` | ✅ Implemented | MediaDiscoveryController/Service, SiteRepository GPS dedup, FreeMediaRepository read access, full frontend view. Auto-creates `DISC-YYYYMMDD-NNN` placeholder sites. Migration 005. Phase 2 (planner confirm/merge/dismiss) is a separate plan. |
 
 ---
 
@@ -460,5 +460,5 @@ Pages listed where any improvement has landed — all others are completely unto
 | Campaign Management | `advertisement.campaign_management` | ⬜ Not yet reviewed | |
 | Free Media | `media.free_media_inventory` | ⬜ Not yet reviewed | |
 | Media Planning View | `commercial.media_planning_inventory` | ⬜ Not yet reviewed | |
-| Monitoring Plan | `monitoring.plan` | ⬜ Not yet reviewed | |
-| Monitoring History | `monitoring.history` | ⬜ Not yet reviewed | |
+| Monitoring Plan | `monitoring.plan` | ✅ Improved (`7a232df`) | Completed/Missed filter chips added via completion-aware query |
+| Monitoring History | `monitoring.history` | ✅ Improved (`6a71d21`) | Enriched cards: client name, board size, condition badge |

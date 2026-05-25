@@ -5,8 +5,8 @@
 
 ---
 
-Last updated by: Claude Opus 4.7 — 2026-05-25
-Last commit: `b28741e feat(monitoring): UX redesign for upload + history, media discovery design + plan`
+Last updated by: Claude Opus 4.6 — 2026-05-25
+Last commit: `c6a84cd docs: update data flow for monitoring upload overhaul, bump cache`
 
 ---
 
@@ -37,6 +37,7 @@ Agent testing (T01–T70 QA pass) is **complete**. That phase is archived in
 
 | Commit | What |
 |---|---|
+| *(uncommitted)* | Initialized Antigravity Superpowers profile at `.agent` using portable Node.js v20.15.0 and ran validation test checks successfully (82/82 PASS). |
 | `65112ac` | QA batch: 8 targeted fixes (upload/serve scope, IS/RQ codes, settings, cycle auto-close, SPA refresh, form validation, belt dropdown, HTML badges) |
 | `4ff3080` | Authority View v1: gallery, belt-name filters, date range, group-by, JSZip bulk download, mobile swipe, photo preview modal |
 | `f392038` | Authority View UX polish: collapsible filters, compact stat cards, card layout, Refresh moved, sticky group headers, keyboard nav, swipe gestures, per-belt photo count, auto-swap dates |
@@ -52,25 +53,22 @@ Agent testing (T01–T70 QA pass) is **complete**. That phase is archived in
 | *(uncommitted)* | Media Discovery design spec: `docs/superpowers/specs/2026-05-24-media-discovery-design.md` |
 | *(uncommitted)* | Media Discovery implementation plan: `docs/superpowers/plans/2026-05-24-media-discovery.md` |
 | *(uncommitted)* | Media Discovery feature implemented: new `monitoring.discovery` module, MediaDiscoveryController/Service, SiteRepository + FreeMediaRepository extensions, migration 005, discovery toggle removed from monitoring.upload, FREE_MEDIA_DEFAULT_SITE_ID retired |
+| `683375b`–`c6a84cd` | **Monitoring Upload Overhaul** (15 commits): migration 006 (board dims, creative_upload_id, last_monitored, site_condition, monitoring_shifts table), enriched site cards API, shift lifecycle, condition tags + quick issue, GPS sorting, tabs/cards/search frontend, history card enrichment, plan completion filter, cache bump + data flow docs |
 
 ---
 
 ## Current focus
 
-**MONITORING_TEAM — All three pages done (uncommitted), awaiting browser verification**
+**Monitoring Upload Overhaul — COMPLETE** (Tasks 1–15 all committed)
 
-- `monitoring.upload` ✅ UX improved + discovery toggle removed (uncommitted)
-- `monitoring.history` ✅ UX improved (uncommitted)
-- `monitoring.discovery` ✅ **Implemented** (uncommitted) — new dedicated page, browser+EXIF GPS, Haversine dedup, auto site creation (`DISC-YYYYMMDD-NNN`), feeds `free_media_records` for Media Planner. Phase 2 (planner confirm/merge/dismiss) is a separate plan.
-- After commit + manual browser test: monitoring.upload UX improvements (site search changes, remove site IDs, show site names with client names) — requires separate brainstorming/plan.
-- After monitoring: Head Supervisor pages (`green_belt.watering_oversight` and related).
+- `monitoring.upload` ✅ Fully redesigned: tabs (Planned/Unplanned), GPS-sorted card list, shift bar, condition chips, search, auto-advance
+- `monitoring.history` ✅ Enriched with client_name, board_size, site_condition badge
+- `monitoring.plan` ✅ Completed/Missed filter chips added
+- `monitoring.discovery` ✅ Implemented in prior session (committed)
 
-**Manual verification still needed** (PHP/PDO syntax + frontend route map all green, but no browser smoke test yet):
-1. Login as MONITORING_TEAM, confirm "Media Discovery" appears in the Monitoring section of the sidebar.
-2. Submit a discovery without GPS → expect amber "No GPS" badge; confirm success card shows new site code (`DISC-YYYYMMDD-001`).
-3. Submit a second discovery from same physical spot (browser geo on) → expect "matched nearby site" in success card.
-4. Confirm `monitoring.upload` no longer has the Visit type chips and that the form still submits a regular monitoring upload.
-5. SQL check: `SELECT site_code, is_active, latitude, longitude FROM sites WHERE site_code LIKE 'DISC-%' ORDER BY id DESC LIMIT 5;` and `SELECT * FROM free_media_records WHERE source_type = 'MONITORING_DISCOVERY' ORDER BY id DESC LIMIT 5;`
+**Next up:**
+- Head Supervisor pages (`green_belt.watering_oversight` and related)
+- Phase 2 of Media Discovery (planner confirm/merge/dismiss flows)
 
 GREEN_BELT_SUPERVISOR ✅ complete. OUTSOURCED_MAINTAINER ✅ complete. AUTHORITY_REPRESENTATIVE ✅ complete.
 
@@ -84,8 +82,11 @@ GREEN_BELT_SUPERVISOR ✅ complete. OUTSOURCED_MAINTAINER ✅ complete. AUTHORIT
 - **`UI.panel()` in `ui.js`** — extended with `collapsible` option. Test any changes across pages.
 - **`green_belt.my_uploads`** — chips, gallery, delete all stable. Do not refactor.
 - **`MY_UPLOADS_PRESETS` constant** — defines the 4 chip date ranges. If adding a new chip, update both this and `myUploadsActivePreset()`.
-- **`monitoring.upload`** — UX improvements done + discovery toggle removed (uncommitted). Do not refactor.
-- **`monitoring.history`** — UX improvements done (uncommitted). Do not refactor.
+- **`monitoring.upload`** — Fully redesigned with tabs, cards, GPS sorting, shifts, conditions (committed). Do not refactor.
+- **`monitoring.history`** — Enriched with client name, board size, condition badge (committed). Do not refactor.
+- **`monitoring_shifts` table** — One shift per user per day (UNIQUE on user_id+shift_date). Do not create duplicate shifts.
+- **`creative_upload_id` on sites** — FK to uploads with ON DELETE SET NULL. Must be non-null for active sites (service validation).
+- **`last_monitored_at` on sites** — Denormalized, auto-updated by post-upload hook. Do not update manually.
 - **`monitoring.discovery`** — Newly implemented (uncommitted). MediaDiscoveryService deliberately does NOT start its own transaction; it relies on UploadService for the upload+free_media_record transaction. Do not add a wrapping `beginTransaction()` — it will throw a nested-transaction error.
 - **`UploadService::createUploadsForSurface()`** — manages its own PDO transaction internally. Do NOT wrap calls to this method in another transaction or PDO will throw a nested transaction error. See Media Discovery design spec §6.1.
 - **`uploadWithProgress(formData, onProgress, route='upload/create')`** — generalized to accept a route. Existing callers still default to `upload/create`. Do not remove the default.
@@ -98,9 +99,8 @@ GREEN_BELT_SUPERVISOR ✅ complete. OUTSOURCED_MAINTAINER ✅ complete. AUTHORIT
 | Issue | Page | Severity | Notes |
 |---|---|---|---|
 | `[hidden]` CSS fix applied globally | All | Low | Added `[hidden] { display:none !important }` to fix upload form — verify no regressions on other pages |
-| Monitoring UX + Media Discovery uncommitted | monitoring.upload, monitoring.history, monitoring.discovery | Medium | All code working (PHP syntax + 213 route-map tests green). Browser smoke test still pending — see manual verification checklist above. Includes the 3 monitoring-upload bug fixes from previous session. |
 | Phase 2 of Media Discovery (planner side) | media.free_media_inventory | Low | Confirm / merge / dismiss flows for Media Planner — separate brainstorm + plan needed. |
-| Monitoring Upload UX improvements planned | monitoring.upload | Low | Site search changes, remove site IDs, show site names with client names — requires separate brainstorming |
+| Route/group data missing | sites | Low | All sites have `route_or_group = NULL` in test data. Unplanned tab browse-by-route shows "No routes found" until routes are assigned. |
 
 ---
 

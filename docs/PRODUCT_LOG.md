@@ -213,3 +213,41 @@ Plan `docs/superpowers/plans/2026-05-24-media-discovery.md` executed end-to-end 
 **discovery toggle on `monitoring.upload`.** Removed completely: Visit type chips, hidden `js-mon-fmd-auto-site` section, `js-mon-discovery-note`, `discoveryInput` / `discoveryNote` / `siteSection_` / `fmdAutoSite` refs, `FREE_MEDIA_DEFAULT_SITE_ID` JS const, and the `getParentId()` branch that auto-assigned site `38`. `getParentId()` now simply prefers the plan-site dropdown then falls back to the ad-hoc search.
 
 **Phase 2 still untouched.** Media Planner confirm / merge / dismiss flows in Free Media Inventory remain in design only — separate plan needed.
+
+---
+
+## 2026-05-25 — Monitoring Upload Overhaul: 15-task plan executed
+
+**Schema additions authorized and applied (migration 006):**
+- `sites.board_width_ft`, `sites.board_height_ft` — nullable DECIMAL(6,2) for board dimensions
+- `sites.creative_upload_id` — FK to uploads with ON DELETE SET NULL; holds the latest creative image
+- `sites.last_monitored_at` — denormalized DATETIME, auto-updated by post-upload hook
+- `uploads.site_condition` — ENUM('GOOD','DAMAGED','FADED','CREATIVE_MISSING','LIGHTS_OFF') nullable, stored only for MONITORING surface
+- `monitoring_shifts` table — one row per user per day (UNIQUE on user_id + shift_date), tracks started_at/completed_at/photos_uploaded
+- `site_monitoring_due_dates.completed_at` — nullable DATETIME, marks individual due dates as completed
+
+**Card list vs dropdown for site selection:**
+Monitoring Upload replaced the single site search dropdown with a card-based list showing site_code, location, client name, board dimensions, creative thumbnail, GPS distance, and done/open-issue badges. Cards are sorted by GPS proximity (Haversine, client-side). Tabs split Planned (sites with due dates this month) from Unplanned (browse by category → route → GPS-sorted list). This gives field workers spatial context they couldn't get from a dropdown.
+
+**GPS sorting is client-side only:**
+Browser `navigator.geolocation` is requested once on page load (monitoring context justifies it — unlike discovery where GPS is requested on submit). Haversine distance computed in JS for all visible cards, then sorted ascending. No server round-trip needed since site lat/lng is already in the card data. Re-sort happens on tab switch.
+
+**Condition tags merged with auto issue creation:**
+When a monitoring person selects a condition other than GOOD and uploads photos, MonitoringUploadService calls `reportConditionIssue()` which auto-creates an issue with the condition as description. This removes a separate "report issue" step — the condition chip IS the issue report. GOOD condition skips issue creation entirely.
+
+**Module-scoped state pattern for render()/afterRender() sharing:**
+`Views.register()` calls `render()` and `afterRender()` as separate methods on the config object. They don't share closure scope. For monitoring.upload, a module-scoped `let _monUploadState = {}` variable above the `Views.register()` call shares API data (sites, shift, counts) between the two methods. This is the pattern going forward for any view that needs state across render/afterRender.
+
+**Shift lifecycle (one per user per day):**
+POST `monitoring/start-shift` creates a shift row (or returns existing). POST `monitoring/complete-shift` sets `completed_at`. UNIQUE constraint on (user_id, shift_date) enforces one shift per person per day. Shift bar in the UI reflects status: not started → "Start Monitoring" button; active → photo count + "Complete Day" button; completed → "Day complete" badge.
+
+**monitoring.history enrichment:**
+Added client_name (via campaign_sites → campaigns subquery), board_width_ft × board_height_ft as "WxH ft" size string, and site_condition badge. Client name is now the primary bold line on history cards; site_code + size are secondary metadata.
+
+**monitoring.plan completion filter:**
+Added Completed/Missed chip row. "Completed" filters for sites where all due dates in the month have `completed_at IS NOT NULL`. "Missed" filters for sites where at least one due date has `completed_at IS NULL` and `due_date < CURDATE()`. Uses a separate repository query (`getPlanListWithCompletion`) that returns per-due-date rows, then service groups them back to per-site format.
+
+**Post-upload side effects are intentionally non-transactional:**
+`MonitoringUploadService::handlePostUploadSideEffects()` updates `sites.last_monitored_at`, marks the due date completed, and increments the shift photo count. These run AFTER the upload transaction commits. If a side effect fails, the upload still succeeds — stale metadata is preferable to lost uploads. Each side effect is independently idempotent.
+
+**Route/group data gap:** All sites in test data have `route_or_group = NULL`. The Unplanned tab's browse-by-route shows "No routes found" until real route data is assigned. Documented as known open issue — not a bug, just missing test data.
