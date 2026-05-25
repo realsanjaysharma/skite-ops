@@ -757,6 +757,7 @@ Views.register('advertisement.site_master', {
       { key: 'site_category', label: 'Category' },
       { key: 'lighting_type', label: 'Lighting' },
       { key: 'route_or_group', label: 'Route/Group' },
+      { key: 'board_size', label: 'Board Size', html: true, render: (row) => row.board_width_ft && row.board_height_ft ? `${row.board_width_ft}×${row.board_height_ft} ft` : '—' },
       { key: 'green_belt_reference', label: 'Belt Reference' },
       { key: 'is_active', label: 'Active', html: true, render: (row) => UI.status(row.is_active ? 'ACTIVE' : 'INACTIVE') }
     ];
@@ -790,12 +791,16 @@ Views.register('advertisement.site_master', {
         { name: 'route_or_group', label: 'Route/Group' },
         { name: 'ownership_name', label: 'Ownership' },
         { name: 'board_type', label: 'Board Type' },
+        { name: 'board_width_ft', label: 'Board Width (ft)', type: 'number' },
+        { name: 'board_height_ft', label: 'Board Height (ft)', type: 'number' },
         { name: 'lighting_type', label: 'Lighting', type: 'select', value: 'NON_LIT', options: ['NON_LIT', 'LIT'] },
         { name: 'latitude', label: 'Latitude', type: 'number' },
         { name: 'longitude', label: 'Longitude', type: 'number' },
         { name: 'is_active', label: 'Is Active', type: 'select', value: '1', options: [{ value: '1', label: 'Yes' }, { value: '0', label: 'No' }] }
       ], 'Create', (payload) => {
         payload.is_active = payload.is_active === '1' ? 1 : 0;
+        if (payload.board_width_ft) payload.board_width_ft = parseInt(payload.board_width_ft, 10);
+        if (payload.board_height_ft) payload.board_height_ft = parseInt(payload.board_height_ft, 10);
         return simpleAction('site/create', payload, 'Site created');
       });
     });
@@ -812,14 +817,58 @@ Views.register('advertisement.site_master', {
           { name: 'route_or_group', label: 'Route/Group', value: site.route_or_group },
           { name: 'ownership_name', label: 'Ownership', value: site.ownership_name },
           { name: 'board_type', label: 'Board Type', value: site.board_type },
+          { name: 'board_width_ft', label: 'Board Width (ft)', type: 'number', value: site.board_width_ft || '' },
+          { name: 'board_height_ft', label: 'Board Height (ft)', type: 'number', value: site.board_height_ft || '' },
           { name: 'lighting_type', label: 'Lighting', type: 'select', value: site.lighting_type, options: ['NON_LIT', 'LIT'] },
           { name: 'latitude', label: 'Latitude', type: 'number', value: site.latitude || '' },
           { name: 'longitude', label: 'Longitude', type: 'number', value: site.longitude || '' },
           { name: 'is_active', label: 'Is Active', type: 'select', value: site.is_active ? '1' : '0', options: [{ value: '1', label: 'Yes' }, { value: '0', label: 'No' }] }
         ], 'Update', (payload) => {
           payload.is_active = payload.is_active === '1' ? 1 : 0;
+          if (payload.board_width_ft) payload.board_width_ft = parseInt(payload.board_width_ft, 10);
+          if (payload.board_height_ft) payload.board_height_ft = parseInt(payload.board_height_ft, 10);
           return simpleAction('site/update', payload, 'Site updated');
-        });
+        }, /* extraHTML: creative upload section */
+        `<div class="field full" style="margin-top:12px; padding-top:12px; border-top:1px solid var(--line,#e2e8f0);">
+          <label style="font-weight:600; margin-bottom:8px; display:block;">Creative Artwork</label>
+          ${site.creative_upload_id
+            ? `<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+                 <img src="../index.php?route=upload/serve&id=${site.creative_upload_id}" style="width:80px;height:80px;border-radius:8px;object-fit:cover;" />
+                 <span style="font-size:0.85rem;color:var(--ink-500);">Current creative</span>
+               </div>`
+            : `<p style="font-size:0.85rem;color:var(--ink-400);margin-bottom:8px;">No creative uploaded yet</p>`}
+          <input type="file" accept="image/*" id="creative-file-input" style="font-size:0.85rem;" />
+          <button type="button" class="btn btn-sm" id="upload-creative-btn" style="margin-top:6px;">Upload Creative</button>
+          <span id="creative-status" style="font-size:0.8rem;margin-left:8px;"></span>
+        </div>`);
+
+        // Wire creative upload button
+        setTimeout(() => {
+          const btn = document.getElementById('upload-creative-btn');
+          if (btn) {
+            btn.addEventListener('click', async () => {
+              const fileInput = document.getElementById('creative-file-input');
+              const statusEl = document.getElementById('creative-status');
+              if (!fileInput || !fileInput.files.length) {
+                if (statusEl) statusEl.textContent = 'Select a file first';
+                return;
+              }
+              btn.disabled = true;
+              if (statusEl) statusEl.textContent = 'Uploading...';
+              try {
+                const fd = new FormData();
+                fd.append('site_id', site.site_id || site.id);
+                fd.append('file', fileInput.files[0]);
+                await Api.upload('site/upload-creative', fd);
+                if (statusEl) statusEl.textContent = 'Done!';
+                setTimeout(() => App.navigate('advertisement.site_master'), 1000);
+              } catch (err) {
+                if (statusEl) statusEl.textContent = 'Error: ' + (err.message || err);
+                btn.disabled = false;
+              }
+            });
+          }
+        }, 100);
       });
     });
   }

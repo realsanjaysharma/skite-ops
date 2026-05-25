@@ -72,6 +72,14 @@ class SiteService {
             throw new Exception("A site with this site_code already exists.");
         }
 
+        $this->validateBoardDimensions($data);
+
+        // Creative mandatory for active sites
+        $isActive = (int) ($data['is_active'] ?? 1);
+        if ($isActive === 1 && empty($data['creative_upload_id'])) {
+            throw new Exception("Active sites must have a creative image uploaded.");
+        }
+
         $this->repo->beginTransaction();
         try {
             $id = $this->repo->create($data);
@@ -107,6 +115,17 @@ class SiteService {
             throw new Exception("Invalid or missing lighting_type");
         }
 
+        $this->validateBoardDimensions($data);
+
+        // Creative mandatory for active sites
+        $isActive = (int) ($data['is_active'] ?? $existing['is_active']);
+        if ($isActive === 1) {
+            $creativeId = $data['creative_upload_id'] ?? $existing['creative_upload_id'] ?? null;
+            if (empty($creativeId)) {
+                throw new Exception("Active sites must have a creative image uploaded.");
+            }
+        }
+
         $this->repo->beginTransaction();
         try {
             $this->repo->update($siteId, $data);
@@ -129,6 +148,25 @@ class SiteService {
         } catch (Throwable $t) {
             $this->repo->rollback();
             throw $t;
+        }
+    }
+
+    /**
+     * Validate board dimension fields if provided.
+     */
+    private function validateBoardDimensions(array $data): void
+    {
+        if (isset($data['board_width_ft']) && $data['board_width_ft'] !== '' && $data['board_width_ft'] !== null) {
+            $val = (int) $data['board_width_ft'];
+            if ($val < 0 || $val > 9999) {
+                throw new Exception("board_width_ft must be between 0 and 9999");
+            }
+        }
+        if (isset($data['board_height_ft']) && $data['board_height_ft'] !== '' && $data['board_height_ft'] !== null) {
+            $val = (int) $data['board_height_ft'];
+            if ($val < 0 || $val > 9999) {
+                throw new Exception("board_height_ft must be between 0 and 9999");
+            }
         }
     }
 }
