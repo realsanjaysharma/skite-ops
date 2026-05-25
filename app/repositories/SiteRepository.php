@@ -146,11 +146,179 @@ class SiteRepository extends BaseRepository {
         return $prefix . str_pad((string)$next, 3, '0', STR_PAD_LEFT);
     }
 
+    /**
+     * Get enriched site data with client name, creative URL, board size.
+     * Used by monitoring upload page for card display.
+     *
+     * Joins campaign_sites + campaigns for active client name.
+     * Joins uploads for today's upload status by the given user.
+     * Joins issues for open issue count.
+     *
+     * @param array $siteIds  If non-empty, filter to these site IDs only
+     * @param int   $userId   Current user ID (for uploaded_today check)
+     * @param array $filters  Optional: ['site_category' => ?, 'route_or_group' => ?]
+     */
+    public function findEnrichedSites(array $siteIds, int $userId, array $filters = []): array
+    {
+        $where = ['s.is_active = 1'];
+        $params = [];
+
+        if (!empty($siteIds)) {
+            $placeholders = implode(',', array_fill(0, count($siteIds), '?'));
+            $where[] = "s.id IN ($placeholders)";
+            $params = array_merge($params, $siteIds);
+        }
+
+        if (!empty($filters['site_category'])) {
+            $where[] = 's.site_category = ?';
+            $params[] = $filters['site_category'];
+        }
+
+        if (!empty($filters['route_or_group'])) {
+            $where[] = 's.route_or_group = ?';
+            $params[] = $filters['route_or_group'];
+        }
+
+        $today = date('Y-m-d');
+        $params[] = $userId;
+        $params[] = $today;
+
+        $whereClause = implode(' AND ', $where);
+
+        $sql = "SELECT s.id, s.site_code, s.location_text, s.site_category,
+                       s.route_or_group, s.board_type,
+                       s.board_width_ft, s.board_height_ft,
+                       s.latitude, s.longitude,
+                       s.creative_upload_id, s.last_monitored_at,
+                       s.last_monitored_by_user_id,
+                       lmu.full_name AS last_monitored_by_name,
+                       -- Active client name (most recently linked campaign)
+                       (SELECT c.client_name
+                        FROM campaign_sites cs2
+                        INNER JOIN campaigns c ON c.id = cs2.campaign_id AND c.status = 'ACTIVE'
+                        WHERE cs2.site_id = s.id AND cs2.linked_to_date IS NULL
+                        ORDER BY cs2.linked_from_date DESC
+                        LIMIT 1
+                       ) AS client_name,
+                       -- Open issue count
+                       (SELECT COUNT(*)
+                        FROM issues i
+                        WHERE i.site_id = s.id AND i.status IN ('OPEN', 'IN_PROGRESS')
+                       ) AS open_issue_count,
+                       -- Uploaded today by current user
+                       (SELECT MAX(u.created_at)
+                        FROM uploads u
+                        WHERE u.parent_type = 'SITE'
+                          AND u.parent_id = s.id
+                          AND u.created_by_user_id = ?
+                          AND DATE(u.created_at) = ?
+                          AND u.is_deleted = 0
+                       ) AS uploaded_today_at
+                FROM sites s
+                LEFT JOIN users lmu ON lmu.id = s.last_monitored_by_user_id
+                WHERE {$whereClause}
+                ORDER BY s.site_code ASC";
+
+        return $this->fetchAll($sql, $params);
+    }
+
+    /**
+     * Get distinct route_or_group values for a site category, with site counts.
+     * Used by monitoring upload "Unplanned" tab route chips.
+     */
+    public function getRoutesByCategory(string $category): array
+    {
+        return $this->fetchAll(
+            "SELECT route_or_group, COUNT(*) AS site_count
+             FROM sites
+             WHERE is_active = 1
+               AND site_category = ?
+               AND route_or_group IS NOT NULL
+               AND route_or_group != ''
+             GROUP BY route_or_group
+             ORDER BY route_or_group ASC",
+            [$category]
+        );
+    }
+
+    /**
+     * Search active sites by client name, location text, or site code.
+     * Returns enriched card data (same shape as findEnrichedSites).
+     */
+    public function searchSitesEnriched(string $query, int $userId, int $limit = 20): array
+    {
+        $today = date('Y-m-d');
+        $likeQuery = '%' . $query . '%';
+
+        $sql = "SELECT s.id, s.site_code, s.location_text, s.site_category,
+                       s.route_or_group, s.board_type,
+                       s.board_width_ft, s.board_height_ft,
+                       s.latitude, s.longitude,
+                       s.creative_upload_id, s.last_monitored_at,
+                       s.last_monitored_by_user_id,
+                       lmu.full_name AS last_monitored_by_name,
+                       (SELECT c.client_name
+                        FROM campaign_sites cs2
+                        INNER JOIN campaigns c ON c.id = cs2.campaign_id AND c.status = 'ACTIVE'
+                        WHERE cs2.site_id = s.id AND cs2.linked_to_date IS NULL
+                        ORDER BY cs2.linked_from_date DESC
+                        LIMIT 1
+                       ) AS client_name,
+                       (SELECT COUNT(*)
+                        FROM issues i
+                        WHERE i.site_id = s.id AND i.status IN ('OPEN', 'IN_PROGRESS')
+                       ) AS open_issue_count,
+                       (SELECT MAX(u.created_at)
+                        FROM uploads u
+                        WHERE u.parent_type = 'SITE'
+                          AND u.parent_id = s.id
+                          AND u.created_by_user_id = ?
+                          AND DATE(u.created_at) = ?
+                          AND u.is_deleted = 0
+                       ) AS uploaded_today_at
+                FROM sites s
+                LEFT JOIN users lmu ON lmu.id = s.last_monitored_by_user_id
+                LEFT JOIN campaign_sites cs ON cs.site_id = s.id AND cs.linked_to_date IS NULL
+                LEFT JOIN campaigns c ON c.id = cs.campaign_id AND c.status = 'ACTIVE'
+                WHERE s.is_active = 1
+                  AND (s.site_code LIKE ?
+                       OR s.location_text LIKE ?
+                       OR c.client_name LIKE ?)
+                GROUP BY s.id
+                ORDER BY s.site_code ASC
+                LIMIT {$limit}";
+
+        return $this->fetchAll($sql, [$userId, $today, $likeQuery, $likeQuery, $likeQuery]);
+    }
+
+    /**
+     * Update last_monitored_at and last_monitored_by_user_id after a monitoring upload.
+     */
+    public function updateLastMonitored(int $siteId, int $userId): bool
+    {
+        return $this->execute(
+            "UPDATE sites SET last_monitored_at = NOW(), last_monitored_by_user_id = ? WHERE id = ?",
+            [$userId, $siteId]
+        );
+    }
+
+    /**
+     * Update just the creative_upload_id for a site.
+     */
+    public function updateCreative(int $siteId, int $uploadId): bool
+    {
+        return $this->execute(
+            "UPDATE sites SET creative_upload_id = ?, updated_at = NOW() WHERE id = ?",
+            [$uploadId, $siteId]
+        );
+    }
+
     public function create(array $data): int {
         $query = "INSERT INTO sites (
             site_code, location_text, site_category, green_belt_id, route_or_group,
-            ownership_name, board_type, lighting_type, latitude, longitude, is_active, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())";
+            ownership_name, board_type, board_width_ft, board_height_ft,
+            lighting_type, latitude, longitude, creative_upload_id, is_active, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())";
 
         $this->execute($query, [
             $data['site_code'],
@@ -160,9 +328,12 @@ class SiteRepository extends BaseRepository {
             $data['route_or_group'] ?? null,
             $data['ownership_name'] ?? null,
             $data['board_type'] ?? null,
+            $data['board_width_ft'] ?? null,
+            $data['board_height_ft'] ?? null,
             $data['lighting_type'],
             $data['latitude'] ?? null,
             $data['longitude'] ?? null,
+            $data['creative_upload_id'] ?? null,
             $data['is_active'] ?? 1
         ]);
 
@@ -170,17 +341,20 @@ class SiteRepository extends BaseRepository {
     }
 
     public function update(int $id, array $data): bool {
-        $query = "UPDATE sites SET 
-            location_text = ?, 
-            site_category = ?, 
-            green_belt_id = ?, 
-            route_or_group = ?, 
-            ownership_name = ?, 
-            board_type = ?, 
-            lighting_type = ?, 
-            latitude = ?, 
-            longitude = ?, 
-            is_active = ?, 
+        $query = "UPDATE sites SET
+            location_text = ?,
+            site_category = ?,
+            green_belt_id = ?,
+            route_or_group = ?,
+            ownership_name = ?,
+            board_type = ?,
+            board_width_ft = ?,
+            board_height_ft = ?,
+            lighting_type = ?,
+            latitude = ?,
+            longitude = ?,
+            creative_upload_id = ?,
+            is_active = ?,
             updated_at = NOW()
         WHERE id = ?";
 
@@ -191,9 +365,12 @@ class SiteRepository extends BaseRepository {
             $data['route_or_group'] ?? null,
             $data['ownership_name'] ?? null,
             $data['board_type'] ?? null,
+            $data['board_width_ft'] ?? null,
+            $data['board_height_ft'] ?? null,
             $data['lighting_type'],
             $data['latitude'] ?? null,
             $data['longitude'] ?? null,
+            $data['creative_upload_id'] ?? null,
             $data['is_active'] ?? 1,
             $id
         ]);
