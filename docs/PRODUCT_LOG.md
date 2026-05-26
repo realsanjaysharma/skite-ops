@@ -251,3 +251,48 @@ Added Completed/Missed chip row. "Completed" filters for sites where all due dat
 `MonitoringUploadService::handlePostUploadSideEffects()` updates `sites.last_monitored_at`, marks the due date completed, and increments the shift photo count. These run AFTER the upload transaction commits. If a side effect fails, the upload still succeeds — stale metadata is preferable to lost uploads. Each side effect is independently idempotent.
 
 **Route/group data gap:** All sites in test data have `route_or_group = NULL`. The Unplanned tab's browse-by-route shows "No routes found" until real route data is assigned. Documented as known open issue — not a bug, just missing test data.
+
+---
+
+## 2026-05-26 — Shift Attendance: self-service replaces oversight model
+
+**Old `supervisor_attendance` table DROPPED.** The previous attendance system was an oversight model — OPS or HS recorded attendance on behalf of supervisors. The new system is self-service: GREEN_BELT_SUPERVISOR and HEAD_SUPERVISOR check in/out themselves with camera-only selfie proof and GPS capture. Migration 007 drops the old table entirely; old `AttendanceController/Service/Repository` files deleted and replaced.
+
+**Self-service over oversight — why:**
+Product owner observed that the oversight model was rarely used and didn't capture proof. Self-service shifts the burden to the field worker, provides photographic evidence (camera-only selfies), and captures GPS coordinates for location validation. OPS_MANAGER retains override capability for corrections.
+
+**Schema design — three new tables:**
+- `shift_attendance` — one row per user per day (UNIQUE on user_id + shift_date), stores start/end times, GPS, photos, vehicle meter, flags
+- `shift_activities` — per-belt activity records logged at shift completion (no UNIQUE constraint — dedup via service-layer `$seen` hashmap because NULL belt_id makes MySQL UNIQUE unreliable)
+- `attendance_activity_types` — OPS-managed master data (11 seed types like WATERING, PLANTING, REPAIR, PRUNING, etc.)
+
+**GPS threshold — 3km soft flag, not hard block:**
+Green belts can be 1-2km long. A supervisor may legitimately start their shift at one end of a belt. 3km radius from the nearest assigned belt centroid is a soft flag (`is_gps_flagged = 1`) shown to OPS reviewers, not a block. Distance computed server-side via Haversine formula.
+
+**Grace periods configurable via system_settings:**
+- `attendance_shift_start_time` / `attendance_shift_end_time` — define the expected window (default 08:00 / 17:00)
+- `attendance_late_start_grace_minutes` — 15 min grace before flagging late (default 15)
+- `attendance_early_end_grace_minutes` — 10 min grace before flagging early end (default 10)
+- Flags (`is_late_start`, `is_early_end`) are computed at write time and stored for query efficiency.
+
+**Status derivation — no stored status column:**
+ABSENT = no row for the day. STARTED = row exists, `completed_at IS NULL`. PRESENT = row exists, `completed_at IS NOT NULL`. OPS override sets `override_status` ('PRESENT'/'ABSENT'/'HALF_DAY') + `override_reason` + `override_by_user_id`.
+
+**Vehicle odometer — optional, for HEAD_SUPERVISOR:**
+HS uses a vehicle for rounds. Start and end meter readings capture distance traveled. Stored as nullable integers on the shift row. Not required for GBS.
+
+**Per-belt activities vs flat activities:**
+GBS logs activities per assigned belt (belt_id FK). HS logs flat activities (belt_id = NULL) since they oversee multiple belts. The shift_activities table handles both: belt_id is nullable. Service layer groups and validates accordingly.
+
+**Activity types are OPS-managed, not hardcoded:**
+The `attendance_activity_types` table is a master data table managed by OPS via `attendance.activity_types` view. Seeds are provided in migration 007 but new types can be added/edited by OPS without code changes. Activity keys should not be hardcoded elsewhere.
+
+**SHIFT_ATTENDANCE upload parent_type:**
+New ENUM value `'SHIFT_ATTENDANCE'` added to `uploads.parent_type`. Photos are initially created with `parent_id = 0` (shift row doesn't exist yet at photo upload time), then updated to `shift_attendance.id` after the shift row is created. Uses `UploadRepository::updateParentId()` — a new public wrapper around the protected `execute()` method.
+
+**Upload handling — direct storage, not createUploadsForSurface:**
+Attendance selfies don't fit the existing upload surface model (no `upload_surface` config, no parent_type validation logic). Uses `UploadStorageService::storeValidatedFile()` directly + `UploadRepository` for row creation + `updateParentId()` for post-insert FK update. Camera-only enforcement is frontend-only (`accept="image/*" capture="user"`).
+
+**DashboardService updated:** Alert panel query for "attendance missing today" changed from `supervisor_attendance` to `shift_attendance`, and added HEAD_SUPERVISOR to the role filter (previously only GREEN_BELT_SUPERVISOR was checked).
+
+**Old files removed:** `AttendanceController.php`, `AttendanceService.php`, `AttendanceRepository.php` all deleted. Route registry cleaned of old `attendance/list` and `attendance/record` routes. RBAC `module_catalog` entry changed from `green_belt.supervisor_attendance` to `attendance.shift`.

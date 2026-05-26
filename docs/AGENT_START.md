@@ -5,8 +5,8 @@
 
 ---
 
-Last updated by: Claude Opus 4.6 — 2026-05-25
-Last commit: `84f4971 docs: update governance docs for monitoring upload overhaul completion`
+Last updated by: Claude Opus 4.6 — 2026-05-26
+Last commit: `e4c22bf feat: update DashboardService attendance query for shift_attendance`
 
 ---
 
@@ -54,17 +54,23 @@ Agent testing (T01–T70 QA pass) is **complete**. That phase is archived in
 | *(uncommitted)* | Media Discovery implementation plan: `docs/superpowers/plans/2026-05-24-media-discovery.md` |
 | *(uncommitted)* | Media Discovery feature implemented: new `monitoring.discovery` module, MediaDiscoveryController/Service, SiteRepository + FreeMediaRepository extensions, migration 005, discovery toggle removed from monitoring.upload, FREE_MEDIA_DEFAULT_SITE_ID retired |
 | `683375b`–`c6a84cd` | **Monitoring Upload Overhaul** (15 commits): migration 006 (board dims, creative_upload_id, last_monitored, site_condition, monitoring_shifts table), enriched site cards API, shift lifecycle, condition tags + quick issue, GPS sorting, tabs/cards/search frontend, history card enrichment, plan completion filter, cache bump + data flow docs |
+| `58f6363`–`e4c22bf` | **Shift Attendance** (12 commits): migration 007 (shift_attendance, shift_activities, attendance_activity_types tables, uploads ENUM, settings, RBAC, drop old supervisor_attendance), ShiftAttendanceRepository + AttendanceActivityRepository, ShiftAttendanceService (GPS Haversine, flags, per-belt activities, selfie upload, vehicle meter), ShiftAttendanceController (9 routes), route_registry + rbac.php update, navigation.js, My Shift view (start/complete with selfie, GPS, activities, meter), OPS Shift Review (calendar grid + list + detail modal + override), Activity Types management, dashboard query update, CSS chip-active + cache bust |
 
 ---
 
 ## Current focus
 
-**Monitoring Upload Overhaul — COMPLETE** (Tasks 1–15 all committed)
+**Shift Attendance — COMPLETE** (Tasks 1–12 all committed)
 
-- `monitoring.upload` ✅ Fully redesigned: tabs (Planned/Unplanned), GPS-sorted card list, shift bar, condition chips, search, auto-advance
-- `monitoring.history` ✅ Enriched with client_name, board_size, site_condition badge
-- `monitoring.plan` ✅ Completed/Missed filter chips added
-- `monitoring.discovery` ✅ Implemented in prior session (committed)
+- `attendance.shift` ✅ Self-service shift start/complete (selfie + GPS + activities + vehicle meter)
+- `attendance.shift_review` ✅ OPS calendar grid + list + detail modal + override
+- `attendance.activity_types` ✅ OPS management view for activity types
+- Old `supervisor_attendance` table and files **DROPPED** — replaced entirely
+- DashboardService attendance query updated for `shift_attendance`
+
+**Previously completed:**
+- Monitoring Upload Overhaul ✅ (15 tasks)
+- Media Discovery ✅
 
 **Next up:**
 - Head Supervisor pages (`green_belt.watering_oversight` and related)
@@ -90,6 +96,12 @@ GREEN_BELT_SUPERVISOR ✅ complete. OUTSOURCED_MAINTAINER ✅ complete. AUTHORIT
 - **`monitoring.discovery`** — Newly implemented (uncommitted). MediaDiscoveryService deliberately does NOT start its own transaction; it relies on UploadService for the upload+free_media_record transaction. Do not add a wrapping `beginTransaction()` — it will throw a nested-transaction error.
 - **`UploadService::createUploadsForSurface()`** — manages its own PDO transaction internally. Do NOT wrap calls to this method in another transaction or PDO will throw a nested transaction error. See Media Discovery design spec §6.1.
 - **`uploadWithProgress(formData, onProgress, route='upload/create')`** — generalized to accept a route. Existing callers still default to `upload/create`. Do not remove the default.
+- **`shift_attendance` table** — One shift per user per day (UNIQUE on user_id+shift_date). Self-service start/complete only.
+- **`shift_activities` table** — No UNIQUE constraint (NULL belt_id makes MySQL UNIQUE unreliable). Dedup is in service layer via `$seen` hashmap.
+- **`attendance_activity_types` table** — OPS-managed master data. Seeds in migration 007. Do not hardcode activity keys elsewhere.
+- **`attendance.shift` view** — Large view with 3 states (no shift/active/completed). Module-scoped `_shiftAttendanceState` variable shared between render/afterRender.
+- **Old `supervisor_attendance`** — DROPPED in migration 007. Do not reference it anywhere.
+- **`UploadRepository::updateParentId()`** — New method for updating parent_id post-creation (shift attendance uploads).
 - **`tests/TEST_RESULTS.md`** — QA phase is archived. Do not add new test results there.
 
 ---

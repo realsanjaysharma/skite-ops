@@ -336,7 +336,16 @@ This section is the single place for all recurring traps, enum facts, field name
 - **`site_monitoring_due_dates.completed_at` marks individual due dates as done.** Set by the post-upload hook when a monitoring upload matches a planned due date. Used by monitoring.plan completion filter. NULL = not yet completed. Once set, not cleared (idempotent — re-uploading for the same date doesn't reset it).
 - **Post-upload side effects are non-transactional.** `handlePostUploadSideEffects()` runs AFTER the upload transaction commits. If a side effect (last_monitored_at, due date completion, shift count increment) fails, the upload is still saved. Each side effect is independently idempotent. Do not wrap these in a transaction with the upload.
 - **`render()` and `afterRender()` in `Views.register()` do NOT share scope.** They are separate methods on the config object. To share state between them (e.g., API data fetched in render()), use a module-scoped variable declared ABOVE the `Views.register()` call. Pattern: `let _moduleState = {};` → set in `render()` → read in `afterRender()`. See `_monUploadState` in monitoring.upload for the reference implementation.
-- **Last migration filename is `006_monitoring_upload_overhaul.sql`.** Next agent should use `007_*`. Always grep `migrations/` before picking a number.
+- **Last migration filename is `007_shift_attendance.sql`.** Next agent should use `008_*`. Always grep `migrations/` before picking a number.
+- **`shift_attendance` table has UNIQUE on `(user_id, shift_date)`.** One shift per user per day. `startShift` must handle duplicate key gracefully (catch exception, return existing row). Never create a second shift row for the same user+date.
+- **`shift_activities` table has NO UNIQUE constraint.** MySQL UNIQUE constraints don't work reliably with nullable columns (`belt_id` is NULL for HEAD_SUPERVISOR flat activities). Deduplication is enforced in `ShiftAttendanceService` via a `$seen` hashmap keyed on `activity_type_id . '-' . ($beltId ?? 'null')`. Do not add a UNIQUE constraint — it will silently fail for NULL belt_id.
+- **`SHIFT_ATTENDANCE` is a valid `uploads.parent_type` ENUM value.** Added in migration 007. Attendance selfies use `parent_id = 0` initially (shift row doesn't exist yet), then `UploadRepository::updateParentId()` sets the real FK after the shift row is created. Do not assume parent_id is always non-zero for SHIFT_ATTENDANCE uploads during the brief window between photo upload and shift creation.
+- **Old `supervisor_attendance` table is DROPPED.** Migration 007 drops it entirely. Do NOT reference `supervisor_attendance`, `supervisor_user_id`, or `attendance_date` anywhere — use `shift_attendance`, `user_id`, `shift_date` instead. Old controller/service/repository files (`AttendanceController`, `AttendanceService`, `AttendanceRepository`) are deleted.
+- **`UploadRepository::updateParentId(int $uploadId, int $parentId)`** — Public wrapper around protected `execute()` for updating parent_id post-creation. Needed because `BaseRepository::execute()` is protected and cannot be called from the service layer. Used by ShiftAttendanceService after creating the shift row.
+- **`UploadStorageService` prefix map includes `'SHIFT_ATTENDANCE' => 'sa'`.** Attendance selfies are stored with `sa` prefix. If adding another parent_type to uploads, also add its prefix mapping here.
+- **`attendance.shift` view uses module-scoped `_shiftAttendanceState`.** Same pattern as `_monUploadState` — declared above `Views.register()`, set in `render()`, read in `afterRender()`. The view has 3 distinct states (no shift / active shift / completed shift) driven by the API response. Do not try to share data between render/afterRender via closure — they are separate methods.
+- **Attendance grace period settings are in `system_settings` table.** Keys: `attendance_shift_start_time`, `attendance_shift_end_time`, `attendance_late_start_grace_minutes`, `attendance_early_end_grace_minutes`. Retrieved via `SystemSettingsService::listSettings()` (NOT `SettingsService` or `getAllSettings()`).
+- **`BaseRepository` methods `execute()`, `fetchOne()`, `fetchAll()` are all `protected`.** Cannot be called from the service layer. If a service needs to run a query through a repository, add a public method on the specific repository class. Do not change BaseRepository visibility — it would break encapsulation for all repositories.
 
 ## Validation Commands
 
@@ -383,6 +392,8 @@ Local test credentials commonly used:
 | Media Discovery implementation plan | `docs/superpowers/plans/2026-05-24-media-discovery.md` |
 | Monitoring Upload Overhaul design spec | `docs/superpowers/specs/2026-05-25-monitoring-upload-overhaul-design.md` |
 | Monitoring Upload Overhaul plan | `docs/superpowers/plans/2026-05-25-monitoring-upload-overhaul.md` |
+| Shift Attendance design spec | `docs/superpowers/specs/2026-05-25-shift-attendance-design.md` |
+| Shift Attendance implementation plan | `docs/superpowers/plans/2026-05-26-shift-attendance.md` |
 | Original build specs (historical, archived) | `docs/11_build_specs/` |
 | QA test history | `tests/TEST_RESULTS.md` (read-only) |
 

@@ -409,12 +409,12 @@ Three roles that share the same pages. Work done here lands for all three simult
 
 ---
 
-### 8 · HEAD_SUPERVISOR — ⬜ Not started (0 of 5 pages done)
+### 8 · HEAD_SUPERVISOR — 🔧 Partial (1 of 5 pages done)
 
 | Page | Module key | Status | Notes |
 |---|---|---|---|
 | Watering Oversight | `green_belt.watering_oversight` | ⬜ Not yet reviewed | Backend correction fixed (T14). UI override-reason flow not verified. Tables not mobile-optimised |
-| Supervisor Attendance | `green_belt.supervisor_attendance` | ⬜ Not yet reviewed | |
+| My Shift (Attendance) | `attendance.shift` | ✅ Implemented (`58f6363`–`e4c22bf`) | Self-service shift start/complete with selfie, GPS, activities, meter. Replaced old `green_belt.supervisor_attendance` |
 | Labour Entries | `green_belt.labour_entries` | ⬜ Not yet reviewed | |
 | Issue Management | `green_belt.issue_management` | ⬜ Not yet reviewed | IS-XXXXX codes showing (T25 fix). Page not reviewed |
 | Green Belt Dashboard | `dashboard.green_belt` | ⬜ Not yet reviewed | |
@@ -445,7 +445,9 @@ Pages listed where any improvement has landed — all others are completely unto
 | Monitoring Dashboard | `dashboard.monitoring` | ⬜ Not yet reviewed | |
 | Maintenance Cycles | `green_belt.maintenance_cycles` | ⬜ Not yet reviewed | |
 | Watering Oversight | `green_belt.watering_oversight` | ⬜ Not yet reviewed | |
-| Supervisor Attendance | `green_belt.supervisor_attendance` | ⬜ Not yet reviewed | |
+| My Shift (Attendance) | `attendance.shift` | ✅ Implemented (`58f6363`–`e4c22bf`) | Self-service shift. OPS: Shift Review + Activity Types |
+| Shift Review | `attendance.shift_review` | ✅ Implemented (`58f6363`–`e4c22bf`) | OPS calendar grid, list, detail modal, override |
+| Activity Types | `attendance.activity_types` | ✅ Implemented (`58f6363`–`e4c22bf`) | OPS management of shift activity types |
 | Labour Entries | `green_belt.labour_entries` | ⬜ Not yet reviewed | |
 | Task Management | `task.management` | ⬜ Not yet reviewed | |
 | Task Detail | `task.detail` | ⬜ Not yet reviewed | |
