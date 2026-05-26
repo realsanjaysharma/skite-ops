@@ -258,22 +258,62 @@ return [
     ],
 
     // ==========================================
-    // SUPERVISOR ATTENDANCE
+    // SHIFT ATTENDANCE
     // ==========================================
 
-    'attendance/list' => [
-        'controller' => 'AttendanceController',
-        'method'     => 'listAttendanceRecords',
-        'module_key' => 'green_belt.supervisor_attendance',
+    'attendance/my-shift' => [
+        'controller' => 'ShiftAttendanceController',
+        'method'     => 'myShift',
+        'module_key' => 'attendance.shift',
         'capability' => 'read',
     ],
-    'attendance/mark' => [
-        'controller' => 'AttendanceController',
-        'method'     => 'markAttendance',
-        'module_key' => 'green_belt.supervisor_attendance',
-        // HEAD_SUPERVISOR (MANAGE group) and OPS_MANAGER both satisfy 'upload' capability.
-        // Service layer enforces who can mark whose attendance and override rules.
+    'attendance/start-shift' => [
+        'controller' => 'ShiftAttendanceController',
+        'method'     => 'startShift',
+        'module_key' => 'attendance.shift',
         'capability' => 'upload',
+    ],
+    'attendance/complete-shift' => [
+        'controller' => 'ShiftAttendanceController',
+        'method'     => 'completeShift',
+        'module_key' => 'attendance.shift',
+        'capability' => 'upload',
+    ],
+    'attendance/review-list' => [
+        'controller' => 'ShiftAttendanceController',
+        'method'     => 'reviewList',
+        'module_key' => 'attendance.shift',
+        'capability' => 'read',
+    ],
+    'attendance/review-detail' => [
+        'controller' => 'ShiftAttendanceController',
+        'method'     => 'reviewDetail',
+        'module_key' => 'attendance.shift',
+        'capability' => 'read',
+    ],
+    'attendance/override' => [
+        'controller' => 'ShiftAttendanceController',
+        'method'     => 'override',
+        'module_key' => 'attendance.shift',
+        'capability' => 'manage',
+    ],
+    'attendance/activity-types' => [
+        'controller' => 'ShiftAttendanceController',
+        'method'     => 'activityTypes',
+        'module_key' => 'attendance.shift',
+        'capability' => 'manage',
+    ],
+    'attendance/activity-type-save' => [
+        'controller' => 'ShiftAttendanceController',
+        'method'     => 'activityTypeSave',
+        'module_key' => 'attendance.shift',
+        'capability' => 'manage',
+    ],
+    'attendance/monthly-summary' => [
+        'controller' => 'ShiftAttendanceController',
+        'method'     => 'monthlySummary',
+        'module_key' => 'attendance.shift',
+        'capability' => 'read',
     ],
 
     // ==========================================
