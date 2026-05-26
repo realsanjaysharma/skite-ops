@@ -1128,6 +1128,227 @@ Views.register('attendance.shift', {
   }
 });
 
+Views.register('attendance.shift_review', {
+  async render({ params = {} }) {
+    const month = params.month || new Date().toISOString().slice(0, 7);
+    const roleFilter = params.role_key || '';
+    const viewMode = params.view || 'calendar';
+    const data = await Api.get('attendance/review-list', { month, role_key: roleFilter });
+    const shifts = data.shifts || [];
+    const users = data.eligible_users || [];
+
+    const roleOptions = '<option value="">All Roles</option><option value="GREEN_BELT_SUPERVISOR"' + (roleFilter === 'GREEN_BELT_SUPERVISOR' ? ' selected' : '') + '>Supervisor</option><option value="HEAD_SUPERVISOR"' + (roleFilter === 'HEAD_SUPERVISOR' ? ' selected' : '') + '>Head Supervisor</option>';
+
+    const controls = `
+      <div style="display:flex;flex-wrap:wrap;gap:0.75rem;align-items:center;margin-bottom:1rem;">
+        <input type="month" id="sa-review-month" class="form-control" value="${month}" style="width:auto;">
+        <select id="sa-review-role" class="form-control" style="width:auto;">${roleOptions}</select>
+        <div style="display:flex;gap:0.25rem;">
+          <button class="chip ${viewMode === 'calendar' ? 'chip-active' : ''}" data-sa-view="calendar">Calendar</button>
+          <button class="chip ${viewMode === 'list' ? 'chip-active' : ''}" data-sa-view="list">List</button>
+        </div>
+        <button class="btn btn-ghost" data-sa-summary>Monthly Summary</button>
+        <button class="btn btn-ghost" data-sa-activity-mgmt>Activity Types</button>
+      </div>`;
+
+    let body = '';
+
+    if (viewMode === 'calendar') {
+      // Build calendar grid
+      const [year, mon] = month.split('-').map(Number);
+      const daysInMonth = new Date(year, mon, 0).getDate();
+
+      // Build shift lookup: userId -> { date -> shift }
+      const shiftMap = {};
+      shifts.forEach(s => {
+        if (!shiftMap[s.user_id]) shiftMap[s.user_id] = {};
+        shiftMap[s.user_id][s.shift_date] = s;
+      });
+
+      const dayHeaders = Array.from({ length: daysInMonth }, (_, i) => `<th style="min-width:32px;text-align:center;font-size:0.75rem;">${i + 1}</th>`).join('');
+
+      const rows = users.map(u => {
+        const cells = Array.from({ length: daysInMonth }, (_, i) => {
+          const dayStr = `${month}-${String(i + 1).padStart(2, '0')}`;
+          const s = shiftMap[u.user_id]?.[dayStr];
+          let icon = '-'; let cls = '';
+          if (s) {
+            if (s.override_status) {
+              icon = 'O'; cls = 'title="Override: ' + UI.escape(s.override_status) + '"';
+            } else if (s.completed_at) {
+              const flagged = parseInt(s.is_late_start) || parseInt(s.is_early_end) || parseInt(s.start_location_flag);
+              icon = flagged ? '!' : 'P';
+            } else {
+              icon = 'S';
+            }
+          }
+          const shiftId = s ? s.id : '';
+          const bgColor = !s ? '' : (s.override_status ? 'background:#dbeafe;' : (s.completed_at ? (icon === '!' ? 'background:#fef3c7;' : 'background:#d1fae5;') : 'background:#ffedd5;'));
+          return `<td style="text-align:center;cursor:${s ? 'pointer' : 'default'};font-size:0.8rem;font-weight:600;${bgColor}" ${cls} data-sa-cell="${shiftId}">${icon}</td>`;
+        }).join('');
+        return `<tr><td style="white-space:nowrap;font-weight:500;position:sticky;left:0;background:var(--bg);z-index:1;">${UI.escape(u.full_name)}</td>${cells}</tr>`;
+      }).join('');
+
+      body = `<div style="overflow-x:auto;">
+        <table class="table" style="font-size:0.85rem;">
+          <thead><tr><th style="position:sticky;left:0;background:var(--bg);z-index:2;">Supervisor</th>${dayHeaders}</tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <div style="margin-top:0.75rem;font-size:0.8rem;color:var(--ink-500);display:flex;gap:1rem;flex-wrap:wrap;">
+          <span><span style="display:inline-block;width:16px;height:16px;background:#d1fae5;border-radius:3px;vertical-align:middle;"></span> P = Present</span>
+          <span><span style="display:inline-block;width:16px;height:16px;background:#fef3c7;border-radius:3px;vertical-align:middle;"></span> ! = Flagged</span>
+          <span><span style="display:inline-block;width:16px;height:16px;background:#ffedd5;border-radius:3px;vertical-align:middle;"></span> S = Started</span>
+          <span><span style="display:inline-block;width:16px;height:16px;background:#dbeafe;border-radius:3px;vertical-align:middle;"></span> O = Override</span>
+          <span>- = Absent</span>
+        </div>
+      </div>`;
+    } else {
+      // List view
+      const listRows = shifts.map(s => {
+        const startTime = s.started_at ? new Date(s.started_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '-';
+        const endTime = s.completed_at ? new Date(s.completed_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '-';
+        const flags = [];
+        if (parseInt(s.is_late_start)) flags.push('Late');
+        if (parseInt(s.is_early_end)) flags.push('Early');
+        if (parseInt(s.start_location_flag)) flags.push('GPS');
+        const flagStr = flags.length ? `<span class="status-pill status-warn">${flags.join(', ')}</span>` : '';
+        const status = s.override_status
+          ? `<span class="status-pill status-info">${s.override_status}</span>`
+          : (s.completed_at ? '<span class="status-pill status-good">Present</span>' : '<span class="status-pill status-warn">Started</span>');
+
+        return `<tr data-sa-row="${s.id}" style="cursor:pointer;">
+          <td>${UI.escape(s.user_name)}</td><td>${s.shift_date}</td>
+          <td>${startTime}</td><td>${endTime}</td>
+          <td>${s.belt_code ? UI.escape(s.belt_code) : '-'}</td>
+          <td>${status} ${flagStr}</td>
+        </tr>`;
+      }).join('');
+
+      body = `<table class="table">
+        <thead><tr><th>Supervisor</th><th>Date</th><th>Start</th><th>End</th><th>Belt</th><th>Status</th></tr></thead>
+        <tbody>${listRows || '<tr><td colspan="6" style="text-align:center;color:var(--ink-500);">No shifts found</td></tr>'}</tbody>
+      </table>`;
+    }
+
+    return UI.page('Shift Review', `${month}`)
+      + controls
+      + UI.panel('Attendance', body);
+  },
+
+  async afterRender({ params = {} }) {
+    const month = params.month || new Date().toISOString().slice(0, 7);
+
+    // Month change
+    document.getElementById('sa-review-month')?.addEventListener('change', (e) => {
+      App.navigate('attendance.shift_review', { ...params, month: e.target.value });
+    });
+
+    // Role filter
+    document.getElementById('sa-review-role')?.addEventListener('change', (e) => {
+      App.navigate('attendance.shift_review', { ...params, role_key: e.target.value });
+    });
+
+    // View toggle
+    document.querySelectorAll('[data-sa-view]').forEach(chip => {
+      chip.addEventListener('click', () => {
+        App.navigate('attendance.shift_review', { ...params, view: chip.dataset.saView });
+      });
+    });
+
+    // Cell / row click -> detail modal
+    const openDetail = async (shiftId) => {
+      if (!shiftId) return;
+      try {
+        const detail = await Api.get('attendance/review-detail', { shift_id: shiftId });
+        const s = detail.shift;
+        const acts = detail.activities || [];
+
+        const startUrl = s.start_upload_id ? Api.url('upload/serve', { id: s.start_upload_id }) : '';
+        const endUrl = s.end_upload_id ? Api.url('upload/serve', { id: s.end_upload_id }) : '';
+        const startMeterUrl = s.start_meter_upload_id ? Api.url('upload/serve', { id: s.start_meter_upload_id }) : '';
+        const endMeterUrl = s.end_meter_upload_id ? Api.url('upload/serve', { id: s.end_meter_upload_id }) : '';
+
+        const startTime = s.started_at ? new Date(s.started_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '-';
+        const endTime = s.completed_at ? new Date(s.completed_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '-';
+
+        const flags = [];
+        if (parseInt(s.is_late_start)) flags.push('Late Start');
+        if (parseInt(s.is_early_end)) flags.push('Early End');
+        if (parseInt(s.start_location_flag)) flags.push('GPS Far (Start)');
+        if (parseInt(s.end_location_flag)) flags.push('GPS Far (End)');
+
+        const actHtml = acts.length ? acts.map(a =>
+          `<span class="chip chip-active" style="font-size:0.8rem;">${UI.escape(a.activity_label || a.activity_key)}${a.belt_code ? ' (' + UI.escape(a.belt_code) + ')' : ''}</span>`
+        ).join(' ') : '<em>None</em>';
+
+        const meterHtml = parseInt(s.has_vehicle)
+          ? `<p><strong>Meter:</strong> ${s.start_meter_reading} → ${s.end_meter_reading || '?'} km</p>
+             <div style="display:flex;gap:0.5rem;margin:0.5rem 0;">
+               ${startMeterUrl ? `<img src="${startMeterUrl}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;">` : ''}
+               ${endMeterUrl ? `<img src="${endMeterUrl}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;">` : ''}
+             </div>` : '';
+
+        const overrideSection = `
+          <hr><h4>Override</h4>
+          <select id="sa-override-status" class="form-control" style="margin-bottom:0.5rem;">
+            <option value="">— No override —</option>
+            <option value="PRESENT" ${s.override_status === 'PRESENT' ? 'selected' : ''}>Present</option>
+            <option value="ABSENT" ${s.override_status === 'ABSENT' ? 'selected' : ''}>Absent</option>
+            <option value="HALF_DAY" ${s.override_status === 'HALF_DAY' ? 'selected' : ''}>Half Day</option>
+          </select>
+          <textarea id="sa-override-reason" class="form-control" rows="2" placeholder="Reason for override">${UI.escape(s.override_reason || '')}</textarea>
+          <button class="btn btn-primary" id="sa-override-btn" style="margin-top:0.5rem;">Save Override</button>`;
+
+        const modalBody = `
+          <p><strong>${UI.escape(s.user_name)}</strong> — ${s.shift_date}</p>
+          <p>${startTime} — ${endTime} | ${s.belt_code ? UI.escape(s.belt_code) + ' — ' + UI.escape(s.belt_name) : 'No belt'}</p>
+          ${flags.length ? '<p>' + flags.map(f => `<span class="status-pill status-warn">${f}</span>`).join(' ') + '</p>' : ''}
+          <div style="display:flex;gap:1rem;margin:1rem 0;">
+            ${startUrl ? `<div style="text-align:center;"><img src="${startUrl}" style="width:100px;height:100px;object-fit:cover;border-radius:12px;"><p style="font-size:0.75rem;">Start</p></div>` : ''}
+            ${endUrl ? `<div style="text-align:center;"><img src="${endUrl}" style="width:100px;height:100px;object-fit:cover;border-radius:12px;"><p style="font-size:0.75rem;">End</p></div>` : ''}
+          </div>
+          ${meterHtml}
+          <p><strong>GPS:</strong> Start: ${s.start_latitude || '-'}, ${s.start_longitude || '-'} (${s.start_distance_km ? s.start_distance_km + ' km from belt' : 'n/a'}) | End: ${s.end_latitude || '-'}, ${s.end_longitude || '-'}</p>
+          <p><strong>Activities:</strong> ${actHtml}</p>
+          ${s.shift_notes ? `<p><strong>Notes:</strong> ${UI.escape(s.shift_notes)}</p>` : ''}
+          ${overrideSection}
+        `;
+
+        UI.showModal('Shift Detail', modalBody);
+
+        // Wire override button
+        document.getElementById('sa-override-btn')?.addEventListener('click', async () => {
+          const status = document.getElementById('sa-override-status').value;
+          const reason = document.getElementById('sa-override-reason').value;
+          if (!status) { UI.toast('Select an override status.', 'bad'); return; }
+          if (!reason.trim()) { UI.toast('Override reason is required.', 'bad'); return; }
+          try {
+            await Api.post('attendance/override', { shift_id: s.id, override_status: status, override_reason: reason });
+            UI.toast('Override saved.', 'good');
+            UI.closeModal();
+            App.refresh();
+          } catch (err) { UI.toast(err.message, 'bad'); }
+        });
+      } catch (err) { UI.toast(err.message, 'bad'); }
+    };
+
+    document.querySelectorAll('[data-sa-cell]').forEach(cell => {
+      cell.addEventListener('click', () => openDetail(cell.dataset.saCell));
+    });
+    document.querySelectorAll('[data-sa-row]').forEach(row => {
+      row.addEventListener('click', () => openDetail(row.dataset.saRow));
+    });
+
+    // Summary + Activity Types nav
+    document.querySelector('[data-sa-summary]')?.addEventListener('click', () => {
+      App.navigate('attendance.shift_review', { ...params, view: 'summary' });
+    });
+    document.querySelector('[data-sa-activity-mgmt]')?.addEventListener('click', () => {
+      App.navigate('attendance.activity_types');
+    });
+  }
+});
+
 Views.register('green_belt.labour_entries', {
   async render({ params = {} }) {
     const data = await Api.get('labour/list', params);
