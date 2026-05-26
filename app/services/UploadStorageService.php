@@ -148,6 +148,7 @@ class UploadStorageService
             'GREEN_BELT' => 'gb',
             'SITE' => 'site',
             'TASK' => 'task',
+            'SHIFT_ATTENDANCE' => 'sa',
         ];
 
         $fileName = sprintf(

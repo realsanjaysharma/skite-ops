@@ -403,6 +403,18 @@ class UploadRepository extends BaseRepository
         );
     }
 
+    /**
+     * Update the parent_id on an upload row.
+     * Used when the parent row is created after the upload (e.g. shift attendance).
+     */
+    public function updateParentId(int $uploadId, int $parentId): bool
+    {
+        return $this->execute(
+            "UPDATE uploads SET parent_id = ?, updated_at = NOW() WHERE id = ?",
+            [$parentId, $uploadId]
+        );
+    }
+
     public function getUploadsForReview(array $uploadIds): array
     {
         if (empty($uploadIds)) {

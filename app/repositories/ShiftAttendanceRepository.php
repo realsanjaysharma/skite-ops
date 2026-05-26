@@ -212,6 +212,17 @@ class ShiftAttendanceRepository extends BaseRepository
     }
 
     /**
+     * Get green belt GPS coordinates by belt ID.
+     */
+    public function getBeltGps(int $beltId): ?array
+    {
+        return $this->fetchOne(
+            "SELECT latitude, longitude FROM green_belts WHERE id = ?",
+            [$beltId]
+        );
+    }
+
+    /**
      * Get monthly summary per belt: which supervisors worked there.
      */
     public function getMonthlySummaryByBelt(string $month): array
