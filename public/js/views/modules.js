@@ -3324,13 +3324,20 @@ Views.register('green_belt.watering_oversight', {
   async render({ params = {} }) {
     const date = params.date || UI.currentDate();
     const [attendanceResp, wateringResp, labourResp, issuesResp] = await Promise.all([
-      Api.get('attendance/list', { date }),
+      Api.get('attendance/review-list', { month: date.slice(0, 7) }),
       Api.get('oversight/watering', { date }),
       Api.get('labour/list', { date }),
       Api.get('issue/list', { status: 'OPEN', site_category: 'GREEN_BELT' })
     ]);
 
-    const attendance = normalizeItems(attendanceResp);
+    const allShifts = attendanceResp.shifts || [];
+    const attendance = allShifts.filter(s => s.shift_date === date).map(s => ({
+      ...s,
+      supervisor_name: s.user_name,
+      attendance_status: s.completed_at ? 'PRESENT' : (s.started_at ? 'STARTED' : 'ABSENT'),
+      marked_by_name: s.user_name,
+      marked_at: s.started_at ? new Date(s.started_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '-',
+    }));
     const watering = normalizeItems(wateringResp);
     const labour = normalizeItems(labourResp);
     const issues = normalizeItems(issuesResp).slice(0, 5);

@@ -2258,3 +2258,9 @@ textarea {
 
 .mon-search-wrap { margin-bottom:12px; }
 .mon-search-wrap input { width:100%; padding:10px 14px; border:1px solid var(--line-strong,#b8c4d2); border-radius:var(--radius,8px); font-size:0.9rem; }
+
+/* Shift Attendance */
+.chip { padding:6px 14px; border-radius:999px; border:1px solid var(--line-strong,#b8c4d2); background:var(--surface,#fff); cursor:pointer; font-size:0.85rem; font-weight:500; transition:all .15s; display:inline-block; }
+.chip:hover { border-color:var(--primary,#2563eb); }
+.chip-active { background:var(--primary,#2563eb) !important; color:#fff !important; border-color:var(--primary,#2563eb) !important; }
+.sa-belt-activities { transition: all 0.2s; }
