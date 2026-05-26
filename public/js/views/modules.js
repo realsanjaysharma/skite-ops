@@ -1349,6 +1349,58 @@ Views.register('attendance.shift_review', {
   }
 });
 
+Views.register('attendance.activity_types', {
+  async render() {
+    const data = await Api.get('attendance/activity-types');
+    const items = normalizeItems(data);
+    const rows = items.map(at => `
+      <tr>
+        <td>${UI.escape(at.activity_key)}</td>
+        <td>${UI.escape(at.label)}</td>
+        <td>${at.sort_order}</td>
+        <td>${parseInt(at.is_active) ? '<span class="status-pill status-good">Active</span>' : '<span class="status-pill status-bad">Inactive</span>'}</td>
+        <td><button class="btn btn-ghost btn-sm" data-sa-edit-activity='${JSON.stringify({ id: at.id, activity_key: at.activity_key, label: at.label, sort_order: at.sort_order, is_active: at.is_active })}'>Edit</button></td>
+      </tr>
+    `).join('');
+
+    const actions = UI.button('Add Activity', { icon: 'ph-plus', kind: 'btn-primary', attr: 'data-sa-add-activity' })
+      + UI.button('Back to Review', { icon: 'ph-arrow-left', attr: 'data-sa-back' });
+
+    return UI.page('Activity Types', 'Manage shift activity options', actions)
+      + UI.panel('Activity Types', `
+        <table class="table">
+          <thead><tr><th>Key</th><th>Label</th><th>Order</th><th>Status</th><th></th></tr></thead>
+          <tbody>${rows || '<tr><td colspan="5">No activity types</td></tr>'}</tbody>
+        </table>`);
+  },
+
+  async afterRender() {
+    document.querySelector('[data-sa-back]')?.addEventListener('click', () => {
+      App.navigate('attendance.shift_review');
+    });
+
+    const openForm = (existing) => {
+      const fields = [
+        { name: 'label', label: 'Label', type: 'text', required: true, value: existing?.label || '' },
+        { name: 'sort_order', label: 'Sort Order', type: 'number', value: existing?.sort_order ?? 0 },
+        { name: 'is_active', label: 'Active', type: 'select', value: existing ? String(existing.is_active) : '1', options: [{ value: '1', label: 'Active' }, { value: '0', label: 'Inactive' }] },
+      ];
+      if (existing?.id) fields.unshift({ name: 'id', type: 'hidden', value: existing.id });
+      if (existing?.activity_key) fields.unshift({ name: 'activity_key', type: 'hidden', value: existing.activity_key });
+
+      openSimpleForm(existing ? 'Edit Activity Type' : 'New Activity Type', fields, 'Save', (payload) => {
+        payload.is_active = payload.is_active === '1' || payload.is_active === true;
+        simpleAction('attendance/activity-type-save', payload, 'Activity type saved');
+      });
+    };
+
+    document.querySelector('[data-sa-add-activity]')?.addEventListener('click', () => openForm(null));
+    document.querySelectorAll('[data-sa-edit-activity]').forEach(btn => {
+      btn.addEventListener('click', () => openForm(JSON.parse(btn.dataset.saEditActivity)));
+    });
+  }
+});
+
 Views.register('green_belt.labour_entries', {
   async render({ params = {} }) {
     const data = await Api.get('labour/list', params);
