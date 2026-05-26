@@ -655,51 +655,476 @@ Views.register('green_belt.maintenance_cycles', {
   }
 });
 
-Views.register('green_belt.supervisor_attendance', {
-  async render({ params = {} }) {
-    const data = await Api.get('attendance/list', params);
-    const rows = normalizeItems(data);
-    const columns = [
-      { key: 'supervisor_name', label: 'Supervisor' },
-      { key: 'attendance_status', label: 'Status', html: true, render: (row) => UI.status(row.attendance_status) },
-      { key: 'reason_text', label: 'Reason' },
-      { key: 'marked_by_name', label: 'Marked By' },
-      { key: 'marked_at', label: 'Marked At' }
-    ];
+let _shiftAttendanceState = { shift: null, belts: [], activityTypes: [], activities: [], settings: {} };
 
-    const filterUI = UI.panel('Filters', UI.filters([
-      { name: 'date', label: 'Date', type: 'date', value: params.date || UI.currentDate() },
-      { name: 'supervisor_user_id', label: 'Supervisor', type: 'select', options: [{ value: '', label: 'Loading...' }], value: params.supervisor_user_id || '' }
-    ], 'Load'));
+Views.register('attendance.shift', {
+  async render() {
+    const data = await Api.get('attendance/my-shift');
+    _shiftAttendanceState = {
+      shift: data.shift,
+      belts: data.belts || [],
+      activityTypes: data.activity_types || [],
+      activities: data.activities || [],
+      settings: data.settings || {},
+    };
+    const shift = _shiftAttendanceState.shift;
+    const belts = _shiftAttendanceState.belts;
+    const settings = _shiftAttendanceState.settings;
+    const roleKey = Auth.getRole();
+    const isGBS = roleKey === 'GREEN_BELT_SUPERVISOR';
+    const isOPS = roleKey === 'OPS_MANAGER';
 
-    const actions = UI.button('Refresh', { icon: 'ph-arrows-clockwise', attr: 'data-refresh' }) +
-                    UI.button('Mark Attendance', { icon: 'ph-user-check', kind: 'btn-primary', attr: 'data-mark-attendance' });
+    // OPS link to review page
+    const opsNav = isOPS ? '<div style="margin-bottom:1rem;"><button class="btn btn-ghost" id="sa-goto-review"><i class="ph ph-calendar-check"></i> Shift Review</button> <button class="btn btn-ghost" id="sa-goto-activity-types"><i class="ph ph-list-checks"></i> Activity Types</button></div>' : '';
 
-    return UI.page('Supervisor Attendance', 'Same-day supervisor attendance grid', actions)
-      + filterUI
-      + UI.panel('Records', UI.table(columns, rows, { empty: 'No attendance records found for this date' }));
+    // ── No shift today ──
+    if (!shift) {
+      let beltSelect = '';
+      if (isGBS) {
+        const beltOpts = belts.map(b =>
+          `<option value="${b.belt_id}">${UI.escape(b.belt_code)} — ${UI.escape(b.common_name)}</option>`
+        ).join('');
+        beltSelect = `
+          <label class="field">
+            <span>Select Belt</span>
+            <select id="sa-belt-select" class="form-control" required>
+              ${belts.length === 1 ? beltOpts : '<option value="">Choose belt…</option>' + beltOpts}
+            </select>
+          </label>`;
+      }
+
+      return UI.page('My Shift', 'Start your day')
+        + opsNav
+        + `<div class="card" style="max-width:480px;margin:0 auto;padding:1.5rem;">
+            ${beltSelect}
+            <label class="field" style="margin-top:1rem;">
+              <span style="display:flex;align-items:center;gap:0.5rem;">
+                <input type="checkbox" id="sa-vehicle-toggle" /> I used a vehicle today
+              </span>
+            </label>
+            <div id="sa-meter-start-section" hidden>
+              <label class="field">
+                <span>Start Meter Reading (km)</span>
+                <input type="number" id="sa-start-meter" class="form-control" step="0.1" min="0" placeholder="e.g. 12345.6" />
+              </label>
+              <label class="field">
+                <span>Meter Photo</span>
+                <input type="file" id="sa-meter-photo" accept="image/*" capture="environment" class="form-control" />
+              </label>
+              <div id="sa-meter-preview" style="margin:0.5rem 0;"></div>
+            </div>
+            <label class="field" style="margin-top:1rem;">
+              <span>Take Selfie</span>
+              <input type="file" id="sa-selfie-start" accept="image/*" capture="user" class="form-control" />
+            </label>
+            <div id="sa-selfie-preview" style="margin:0.5rem 0;"></div>
+            <div id="sa-start-warning" style="color:var(--warn);font-size:0.85rem;margin:0.5rem 0;" hidden></div>
+            <button class="btn btn-primary btn-block" id="sa-start-btn" style="margin-top:1rem;">
+              <i class="ph ph-play"></i> Start Shift
+            </button>
+            <div id="sa-progress" hidden>
+              <div style="height:4px;background:var(--border);border-radius:2px;margin-top:1rem;">
+                <div id="sa-progress-bar" style="height:100%;background:var(--accent);border-radius:2px;width:0%;transition:width .3s;"></div>
+              </div>
+            </div>
+          </div>`;
+    }
+
+    // ── Shift active (started, not completed) ──
+    if (shift && !shift.completed_at) {
+      const startTime = new Date(shift.started_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+      const lateClass = parseInt(shift.is_late_start) ? 'status-pill status-warn' : 'status-pill status-good';
+      const lateLabel = parseInt(shift.is_late_start) ? 'Late Start' : 'On Time';
+      const beltInfo = shift.belt_code ? `${UI.escape(shift.belt_code)} — ${UI.escape(shift.belt_name)}` : 'No belt (oversight)';
+      const locFlag = parseInt(shift.start_location_flag) ? ' <span class="status-pill status-warn">GPS: Far from belt</span>' : '';
+      const meterInfo = parseInt(shift.has_vehicle)
+        ? `<p style="color:var(--ink-500);font-size:0.85rem;"><i class="ph ph-motorcycle"></i> Start reading: ${shift.start_meter_reading} km</p>` : '';
+
+      const selfieUrl = shift.start_upload_id ? Api.url('upload/serve', { id: shift.start_upload_id }) : '';
+      const selfieThumb = selfieUrl ? `<img src="${selfieUrl}" style="width:60px;height:60px;object-fit:cover;border-radius:8px;">` : '';
+
+      // Build activity selector for complete flow
+      const actTypes = _shiftAttendanceState.activityTypes;
+      let activitySection = '';
+
+      if (isGBS) {
+        // Per-belt activity selection
+        activitySection = belts.map(b => `
+          <div class="sa-belt-activities" data-belt-id="${b.belt_id}" style="margin-bottom:1rem;border:1px solid var(--border);border-radius:8px;padding:1rem;">
+            <strong>${UI.escape(b.belt_code)} — ${UI.escape(b.common_name)}</strong>
+            <div class="sa-activity-chips" style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.5rem;">
+              ${actTypes.map(at => `<button type="button" class="chip sa-act-chip" data-belt="${b.belt_id}" data-key="${at.activity_key}">${UI.escape(at.label)}</button>`).join('')}
+            </div>
+          </div>
+        `).join('');
+      } else {
+        // Flat activity chips for HEAD_SUPERVISOR
+        activitySection = `
+          <div class="sa-belt-activities" data-belt-id="" style="margin-bottom:1rem;">
+            <div class="sa-activity-chips" style="display:flex;flex-wrap:wrap;gap:0.5rem;">
+              ${actTypes.map(at => `<button type="button" class="chip sa-act-chip" data-belt="" data-key="${at.activity_key}">${UI.escape(at.label)}</button>`).join('')}
+            </div>
+          </div>
+        `;
+      }
+
+      const meterEndSection = parseInt(shift.has_vehicle) ? `
+        <label class="field" style="margin-top:1rem;">
+          <span>End Meter Reading (km)</span>
+          <input type="number" id="sa-end-meter" class="form-control" step="0.1" min="${shift.start_meter_reading}" placeholder="e.g. 12400.0" />
+        </label>
+        <label class="field">
+          <span>Meter Photo</span>
+          <input type="file" id="sa-meter-photo-end" accept="image/*" capture="environment" class="form-control" />
+        </label>
+        <div id="sa-meter-end-preview" style="margin:0.5rem 0;"></div>
+      ` : '';
+
+      return UI.page('My Shift', 'Active')
+        + opsNav
+        + `<div style="background:var(--good-bg, #ecfdf5);border:1px solid var(--good, #10b981);border-radius:12px;padding:1rem 1.25rem;margin-bottom:1.5rem;display:flex;align-items:center;gap:1rem;">
+            ${selfieThumb}
+            <div>
+              <strong style="font-size:1.1rem;">Active since ${startTime}</strong>
+              <span class="${lateClass}" style="margin-left:0.5rem;">${lateLabel}</span>${locFlag}
+              <p style="color:var(--ink-500);margin:0.25rem 0 0;">${beltInfo}</p>
+              ${meterInfo}
+            </div>
+          </div>
+          <div id="sa-complete-panel" class="card" style="max-width:560px;margin:0 auto;padding:1.5rem;">
+            <h3 style="margin:0 0 1rem;">End of Day Activities</h3>
+            ${activitySection}
+            <label class="field" style="margin-top:0.5rem;">
+              <span>Notes (optional)</span>
+              <textarea id="sa-shift-notes" class="form-control" maxlength="500" rows="2" placeholder="Anything else to note?"></textarea>
+            </label>
+            ${meterEndSection}
+            <label class="field" style="margin-top:1rem;">
+              <span>Take End Selfie</span>
+              <input type="file" id="sa-selfie-end" accept="image/*" capture="user" class="form-control" />
+            </label>
+            <div id="sa-selfie-end-preview" style="margin:0.5rem 0;"></div>
+            <div id="sa-end-warning" style="color:var(--warn);font-size:0.85rem;margin:0.5rem 0;" hidden></div>
+            <button class="btn btn-primary btn-block" id="sa-complete-btn" style="margin-top:1rem;">
+              <i class="ph ph-check-circle"></i> Complete Shift
+            </button>
+            <div id="sa-complete-progress" hidden>
+              <div style="height:4px;background:var(--border);border-radius:2px;margin-top:1rem;">
+                <div id="sa-complete-progress-bar" style="height:100%;background:var(--accent);border-radius:2px;width:0%;transition:width .3s;"></div>
+              </div>
+            </div>
+          </div>`;
+    }
+
+    // ── Shift completed ──
+    if (shift && shift.completed_at) {
+      const startTime = new Date(shift.started_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+      const endTime = new Date(shift.completed_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+      const beltInfo = shift.belt_code ? `${UI.escape(shift.belt_code)} — ${UI.escape(shift.belt_name)}` : 'Oversight (no belt)';
+
+      const flags = [];
+      if (parseInt(shift.is_late_start)) flags.push('<span class="status-pill status-warn">Late Start</span>');
+      if (parseInt(shift.is_early_end)) flags.push('<span class="status-pill status-warn">Early End</span>');
+      if (parseInt(shift.start_location_flag)) flags.push('<span class="status-pill status-warn">GPS Flag (Start)</span>');
+      if (parseInt(shift.end_location_flag)) flags.push('<span class="status-pill status-warn">GPS Flag (End)</span>');
+      const flagHtml = flags.length ? `<div style="margin:0.5rem 0;">${flags.join(' ')}</div>` : '';
+
+      const startSelfieUrl = shift.start_upload_id ? Api.url('upload/serve', { id: shift.start_upload_id }) : '';
+      const endSelfieUrl = shift.end_upload_id ? Api.url('upload/serve', { id: shift.end_upload_id }) : '';
+
+      const meterHtml = parseInt(shift.has_vehicle) ? `
+        <p><strong>Vehicle:</strong> ${shift.start_meter_reading} → ${shift.end_meter_reading} km
+           (${(parseFloat(shift.end_meter_reading) - parseFloat(shift.start_meter_reading)).toFixed(1)} km traveled)</p>
+      ` : '';
+
+      // Activities
+      const acts = _shiftAttendanceState.activities;
+      let actHtml = '';
+      if (acts.length) {
+        const grouped = {};
+        acts.forEach(a => {
+          const bKey = a.belt_code ? `${a.belt_code} — ${a.belt_name}` : 'General';
+          if (!grouped[bKey]) grouped[bKey] = [];
+          grouped[bKey].push(a.activity_label || a.activity_key);
+        });
+        actHtml = Object.entries(grouped).map(([belt, labels]) =>
+          `<p><strong>${UI.escape(belt)}:</strong> ${labels.map(l => UI.escape(l)).join(', ')}</p>`
+        ).join('');
+      }
+
+      return UI.page('My Shift', 'Completed')
+        + opsNav
+        + `<div class="card" style="max-width:560px;margin:0 auto;padding:1.5rem;">
+            <div style="display:flex;justify-content:center;gap:1rem;margin-bottom:1rem;">
+              ${startSelfieUrl ? `<div style="text-align:center;"><img src="${startSelfieUrl}" style="width:120px;height:120px;object-fit:cover;border-radius:12px;"><p style="font-size:0.8rem;color:var(--ink-500);">Start</p></div>` : ''}
+              ${endSelfieUrl ? `<div style="text-align:center;"><img src="${endSelfieUrl}" style="width:120px;height:120px;object-fit:cover;border-radius:12px;"><p style="font-size:0.8rem;color:var(--ink-500);">End</p></div>` : ''}
+            </div>
+            <p><strong>Shift:</strong> ${startTime} — ${endTime}</p>
+            <p><strong>Belt:</strong> ${beltInfo}</p>
+            ${flagHtml}
+            ${meterHtml}
+            <hr style="margin:1rem 0;">
+            <h4 style="margin:0 0 0.5rem;">Activities</h4>
+            ${actHtml || '<p style="color:var(--ink-500);">None recorded</p>'}
+            ${shift.shift_notes ? `<p style="margin-top:0.5rem;"><strong>Notes:</strong> ${UI.escape(shift.shift_notes)}</p>` : ''}
+          </div>`;
+    }
+
+    return UI.page('My Shift', '') + '<p>Unexpected state.</p>';
   },
-  async afterRender({ params = {} }) {
-    attachRefresh();
-    
-    // Load supervisors dropdown
-    const sups = await loadSupervisors();
-    if (sups) {
-      const select = document.querySelector('.js-filter-form [name="supervisor_user_id"]');
-      if (select) {
-        select.innerHTML = '<option value="">All Supervisors</option>' + sups.map(s => `<option value="${s.value}" ${String(s.value) === String(params.supervisor_user_id) ? 'selected' : ''}>${UI.escape(s.label)}</option>`).join('');
+
+  async afterRender() {
+    const shift = _shiftAttendanceState.shift;
+    const settings = _shiftAttendanceState.settings;
+
+    // OPS navigation buttons
+    document.getElementById('sa-goto-review')?.addEventListener('click', () => App.navigate('attendance.shift_review'));
+    document.getElementById('sa-goto-activity-types')?.addEventListener('click', () => App.navigate('attendance.activity_types'));
+
+    // ── Start shift handlers ──
+    if (!shift) {
+      // Vehicle toggle
+      const vehicleToggle = document.getElementById('sa-vehicle-toggle');
+      const meterSection = document.getElementById('sa-meter-start-section');
+      if (vehicleToggle && meterSection) {
+        vehicleToggle.addEventListener('change', () => {
+          meterSection.hidden = !vehicleToggle.checked;
+        });
+      }
+
+      // Selfie preview
+      const selfieInput = document.getElementById('sa-selfie-start');
+      const selfiePreview = document.getElementById('sa-selfie-preview');
+      if (selfieInput && selfiePreview) {
+        selfieInput.addEventListener('change', () => {
+          selfiePreview.innerHTML = '';
+          if (selfieInput.files && selfieInput.files[0]) {
+            const img = document.createElement('img');
+            img.src = URL.createObjectURL(selfieInput.files[0]);
+            img.style.cssText = 'width:80px;height:80px;object-fit:cover;border-radius:8px;';
+            selfiePreview.appendChild(img);
+          }
+        });
+      }
+
+      // Meter photo preview
+      const meterInput = document.getElementById('sa-meter-photo');
+      const meterPreview = document.getElementById('sa-meter-preview');
+      if (meterInput && meterPreview) {
+        meterInput.addEventListener('change', () => {
+          meterPreview.innerHTML = '';
+          if (meterInput.files && meterInput.files[0]) {
+            const img = document.createElement('img');
+            img.src = URL.createObjectURL(meterInput.files[0]);
+            img.style.cssText = 'width:80px;height:80px;object-fit:cover;border-radius:8px;';
+            meterPreview.appendChild(img);
+          }
+        });
+      }
+
+      // Late warning
+      if (settings.shift_start_time) {
+        const [h, m] = settings.shift_start_time.split(':').map(Number);
+        const startDeadline = new Date(); startDeadline.setHours(h, m, 0, 0);
+        const now = new Date();
+        if (now > startDeadline) {
+          const warnEl = document.getElementById('sa-start-warning');
+          if (warnEl) {
+            warnEl.hidden = false;
+            const graceEnd = new Date(startDeadline.getTime() + settings.late_grace_minutes * 60000);
+            warnEl.textContent = now > graceEnd
+              ? 'You are late — this will be flagged in your attendance record.'
+              : 'You are checking in a bit late.';
+          }
+        }
+      }
+
+      // Start button
+      const startBtn = document.getElementById('sa-start-btn');
+      if (startBtn) {
+        startBtn.addEventListener('click', async () => {
+          const selfieFile = document.getElementById('sa-selfie-start')?.files[0];
+          if (!selfieFile) { UI.toast('Please take a selfie first.', 'bad'); return; }
+
+          const beltSelect = document.getElementById('sa-belt-select');
+          if (beltSelect && !beltSelect.value) { UI.toast('Please select a belt.', 'bad'); return; }
+
+          const vehicleOn = document.getElementById('sa-vehicle-toggle')?.checked;
+          if (vehicleOn) {
+            const meterVal = document.getElementById('sa-start-meter')?.value;
+            const meterFile = document.getElementById('sa-meter-photo')?.files[0];
+            if (!meterVal) { UI.toast('Enter start meter reading.', 'bad'); return; }
+            if (!meterFile) { UI.toast('Take a photo of the meter.', 'bad'); return; }
+          }
+
+          startBtn.disabled = true;
+          const progressEl = document.getElementById('sa-progress');
+          const progressBar = document.getElementById('sa-progress-bar');
+          if (progressEl) progressEl.hidden = false;
+
+          try {
+            // Get GPS
+            let lat = null, lng = null;
+            try {
+              const pos = await new Promise((res, rej) =>
+                navigator.geolocation.getCurrentPosition(res, rej, { timeout: 5000, enableHighAccuracy: true })
+              );
+              lat = pos.coords.latitude;
+              lng = pos.coords.longitude;
+            } catch (_) { /* GPS optional */ }
+
+            const fd = new FormData();
+            fd.append('files', selfieFile);
+            if (beltSelect) fd.append('belt_id', beltSelect.value);
+            if (lat !== null) fd.append('latitude', lat);
+            if (lng !== null) fd.append('longitude', lng);
+            fd.append('has_vehicle', vehicleOn ? '1' : '0');
+
+            if (vehicleOn) {
+              fd.append('start_meter_reading', document.getElementById('sa-start-meter').value);
+              const mFile = document.getElementById('sa-meter-photo')?.files[0];
+              if (mFile) fd.append('meter_photo', mFile);
+            }
+
+            await uploadWithProgress(fd, (pct) => {
+              if (progressBar) progressBar.style.width = pct + '%';
+            }, 'attendance/start-shift');
+
+            UI.toast('Shift started!', 'good');
+            App.refresh();
+          } catch (err) {
+            UI.toast(err.message, 'bad');
+            startBtn.disabled = false;
+            if (progressEl) progressEl.hidden = true;
+          }
+        });
       }
     }
 
-    wireFilters((payload) => App.navigate('green_belt.supervisor_attendance', payload));
-    document.querySelector('[data-mark-attendance]')?.addEventListener('click', () => {
-      openSimpleForm('Mark Attendance', [
-        { name: 'supervisor_user_id', label: 'Supervisor ID', type: 'number', required: true },
-        { name: 'attendance_date', label: 'Date', type: 'date', required: true, value: UI.currentDate() },
-        { name: 'status', label: 'Status', type: 'select', value: 'PRESENT', options: ['PRESENT', 'ABSENT', 'LEAVE'] },
-        { name: 'reason_text', label: 'Reason (Ops Override)', type: 'textarea' }
-      ], 'Save', (payload) => simpleAction('attendance/mark', payload, 'Attendance marked'));
-    });
+    // ── Complete shift handlers ──
+    if (shift && !shift.completed_at) {
+      // Activity chip toggle
+      document.querySelectorAll('.sa-act-chip').forEach(chip => {
+        chip.addEventListener('click', () => chip.classList.toggle('chip-active'));
+      });
+
+      // End selfie preview
+      const endSelfieInput = document.getElementById('sa-selfie-end');
+      const endSelfiePreview = document.getElementById('sa-selfie-end-preview');
+      if (endSelfieInput && endSelfiePreview) {
+        endSelfieInput.addEventListener('change', () => {
+          endSelfiePreview.innerHTML = '';
+          if (endSelfieInput.files && endSelfieInput.files[0]) {
+            const img = document.createElement('img');
+            img.src = URL.createObjectURL(endSelfieInput.files[0]);
+            img.style.cssText = 'width:80px;height:80px;object-fit:cover;border-radius:8px;';
+            endSelfiePreview.appendChild(img);
+          }
+        });
+      }
+
+      // End meter preview
+      const endMeterInput = document.getElementById('sa-meter-photo-end');
+      const endMeterPreview = document.getElementById('sa-meter-end-preview');
+      if (endMeterInput && endMeterPreview) {
+        endMeterInput.addEventListener('change', () => {
+          endMeterPreview.innerHTML = '';
+          if (endMeterInput.files && endMeterInput.files[0]) {
+            const img = document.createElement('img');
+            img.src = URL.createObjectURL(endMeterInput.files[0]);
+            img.style.cssText = 'width:80px;height:80px;object-fit:cover;border-radius:8px;';
+            endMeterPreview.appendChild(img);
+          }
+        });
+      }
+
+      // Early end warning
+      if (settings.shift_end_time) {
+        const [h, m] = settings.shift_end_time.split(':').map(Number);
+        const endTime = new Date(); endTime.setHours(h, m, 0, 0);
+        const graceCutoff = new Date(endTime.getTime() - settings.early_grace_minutes * 60000);
+        const now = new Date();
+        if (now < graceCutoff) {
+          const warnEl = document.getElementById('sa-end-warning');
+          if (warnEl) {
+            warnEl.hidden = false;
+            warnEl.textContent = 'You are ending early — this will be flagged in your attendance record.';
+          }
+        }
+      }
+
+      // Complete button
+      const completeBtn = document.getElementById('sa-complete-btn');
+      if (completeBtn) {
+        completeBtn.addEventListener('click', async () => {
+          const endSelfie = document.getElementById('sa-selfie-end')?.files[0];
+          if (!endSelfie) { UI.toast('Please take your end selfie.', 'bad'); return; }
+
+          // Collect selected activities
+          const selectedChips = document.querySelectorAll('.sa-act-chip.chip-active');
+          if (selectedChips.length === 0) { UI.toast('Select at least one activity.', 'bad'); return; }
+
+          const activities = [];
+          selectedChips.forEach(chip => {
+            activities.push({
+              belt_id: chip.dataset.belt || null,
+              activity_key: chip.dataset.key,
+            });
+          });
+
+          // Meter validation
+          if (parseInt(shift.has_vehicle)) {
+            const endMeterVal = document.getElementById('sa-end-meter')?.value;
+            const endMeterFile = document.getElementById('sa-meter-photo-end')?.files[0];
+            if (!endMeterVal) { UI.toast('Enter end meter reading.', 'bad'); return; }
+            if (parseFloat(endMeterVal) < parseFloat(shift.start_meter_reading)) {
+              UI.toast('End reading must be >= start reading.', 'bad'); return;
+            }
+            if (!endMeterFile) { UI.toast('Take a photo of the end meter.', 'bad'); return; }
+          }
+
+          completeBtn.disabled = true;
+          const progressEl = document.getElementById('sa-complete-progress');
+          const progressBar = document.getElementById('sa-complete-progress-bar');
+          if (progressEl) progressEl.hidden = false;
+
+          try {
+            let lat = null, lng = null;
+            try {
+              const pos = await new Promise((res, rej) =>
+                navigator.geolocation.getCurrentPosition(res, rej, { timeout: 5000, enableHighAccuracy: true })
+              );
+              lat = pos.coords.latitude;
+              lng = pos.coords.longitude;
+            } catch (_) { /* GPS optional */ }
+
+            const fd = new FormData();
+            fd.append('files', endSelfie);
+            fd.append('activities', JSON.stringify(activities));
+            fd.append('shift_notes', document.getElementById('sa-shift-notes')?.value || '');
+            if (lat !== null) fd.append('latitude', lat);
+            if (lng !== null) fd.append('longitude', lng);
+
+            if (parseInt(shift.has_vehicle)) {
+              fd.append('end_meter_reading', document.getElementById('sa-end-meter').value);
+              const meterEndFile = document.getElementById('sa-meter-photo-end')?.files[0];
+              if (meterEndFile) fd.append('meter_photo_end', meterEndFile);
+            }
+
+            await uploadWithProgress(fd, (pct) => {
+              if (progressBar) progressBar.style.width = pct + '%';
+            }, 'attendance/complete-shift');
+
+            UI.toast('Shift completed!', 'good');
+            App.refresh();
+          } catch (err) {
+            UI.toast(err.message, 'bad');
+            completeBtn.disabled = false;
+            if (progressEl) progressEl.hidden = true;
+          }
+        });
+      }
+    }
   }
 });
 
