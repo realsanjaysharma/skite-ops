@@ -670,7 +670,7 @@ Views.register('attendance.shift', {
     const shift = _shiftAttendanceState.shift;
     const belts = _shiftAttendanceState.belts;
     const settings = _shiftAttendanceState.settings;
-    const roleKey = Auth.getRole();
+    const roleKey = Auth.getUser()?.role_key || '';
     const isGBS = roleKey === 'GREEN_BELT_SUPERVISOR';
     const isOPS = roleKey === 'OPS_MANAGER';
 

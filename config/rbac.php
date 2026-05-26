@@ -15,6 +15,8 @@ return [
         'green_belt.watering_oversight',
         'green_belt.maintenance_cycles',
         'attendance.shift',
+        'attendance.shift_review',
+        'attendance.activity_types',
         'green_belt.labour_entries',
         'green_belt.upload_review',
         'green_belt.issue_management',

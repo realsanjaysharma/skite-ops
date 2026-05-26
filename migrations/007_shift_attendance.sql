@@ -117,6 +117,19 @@ FROM roles r
 WHERE r.role_key IN ('GREEN_BELT_SUPERVISOR', 'HEAD_SUPERVISOR', 'OPS_MANAGER')
 ON DUPLICATE KEY UPDATE updated_at = CURRENT_TIMESTAMP;
 
+-- 7b. RBAC: Add shift_review + activity_types module scopes for OPS_MANAGER
+INSERT INTO role_module_scopes (role_id, module_key)
+SELECT r.id, 'attendance.shift_review'
+FROM roles r
+WHERE r.role_key = 'OPS_MANAGER'
+ON DUPLICATE KEY UPDATE updated_at = CURRENT_TIMESTAMP;
+
+INSERT INTO role_module_scopes (role_id, module_key)
+SELECT r.id, 'attendance.activity_types'
+FROM roles r
+WHERE r.role_key = 'OPS_MANAGER'
+ON DUPLICATE KEY UPDATE updated_at = CURRENT_TIMESTAMP;
+
 -- 8. Remove old supervisor_attendance module scope
 DELETE rms FROM role_module_scopes rms
 WHERE rms.module_key = 'green_belt.supervisor_attendance';
