@@ -266,17 +266,17 @@ class DashboardService
             LIMIT 20
         ")->fetchAll(PDO::FETCH_ASSOC);
 
-        // 4. Attendance missing today — supervisors with no attendance row for today
+        // 4. Attendance missing today — supervisors/HS with no shift_attendance row for today
         $attendanceMissingToday = $this->db->query("
             SELECT u.id, u.full_name AS name
             FROM users u
             INNER JOIN roles r ON r.id = u.role_id
-            WHERE r.role_key = 'GREEN_BELT_SUPERVISOR'
+            WHERE r.role_key IN ('GREEN_BELT_SUPERVISOR','HEAD_SUPERVISOR')
               AND u.is_active = 1
               AND NOT EXISTS (
-                SELECT 1 FROM supervisor_attendance sa
-                WHERE sa.supervisor_user_id = u.id
-                  AND sa.attendance_date = CURDATE()
+                SELECT 1 FROM shift_attendance sa
+                WHERE sa.user_id = u.id
+                  AND sa.shift_date = CURDATE()
               )
             ORDER BY u.full_name ASC
             LIMIT 20
