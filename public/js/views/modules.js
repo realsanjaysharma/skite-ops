@@ -1767,6 +1767,196 @@ Views.register('green_belt.board_monitoring_history', {
   }
 });
 
+/* ═══════════════════════════════════════════════════════
+   BOARD ISSUES (Electrician)
+   ═══════════════════════════════════════════════════════ */
+Views.register('green_belt.board_issues', {
+  async render() {
+    const data = await Api.get('boardissue/list');
+    const items = normalizeItems(data);
+    const roleKey = Auth.getUser()?.role_key || '';
+
+    if (items.length === 0) {
+      return UI.page('Board Issues', 'No open issues')
+        + UI.panel('', '<p style="text-align:center;color:var(--muted);">No board issues assigned to you.</p>');
+    }
+
+    const cards = items.map(i => `
+      <div class="bi-issue-card priority-${i.priority}" data-issue-id="${i.id}">
+        <h3>${UI.escape(i.title)}</h3>
+        <div class="bi-meta">
+          <span>${UI.escape(i.belt_code)} — ${UI.escape(i.belt_name)}</span>
+          <span class="status-pill status-${i.status === 'OPEN' ? 'warn' : 'info'}">${i.status}</span>
+          ${i.off_count ? `<span class="bi-off-badge">${i.off_count} of ${i.total_boards} off</span>` : ''}
+        </div>
+        <div class="bm-meta" style="margin-top:.25rem;">
+          Reported ${i.created_at?.slice(0,10) || ''} by ${UI.escape(i.raised_by_name || '')}
+        </div>
+      </div>
+    `).join('');
+
+    return UI.page('Board Issues', 'Tap an issue to view details and fix')
+      + `<div class="bi-issue-list" id="bi-list">${cards}</div>`
+      + `<div id="bi-detail-section" hidden></div>`;
+  },
+
+  afterRender() {
+    document.querySelectorAll('.bi-issue-card').forEach(card => {
+      card.addEventListener('click', () => _openBoardIssueDetail(parseInt(card.dataset.issueId)));
+    });
+  }
+});
+
+async function _openBoardIssueDetail(issueId) {
+  try {
+    const data = await Api.get('boardissue/detail', { issue_id: issueId });
+    const issue = data.issue;
+    const originalPhotos = data.original_photos || [];
+    const fixPhotos = data.fix_photos || [];
+    const expectedFixCount = data.expected_fix_count || 1;
+    const hasReport = data.has_linked_report;
+    const roleKey = Auth.getUser()?.role_key || '';
+    const isElectrician = roleKey === 'ELECTRICIAN';
+
+    document.getElementById('bi-list').hidden = true;
+    const section = document.getElementById('bi-detail-section');
+    section.hidden = false;
+
+    const origPhotosHtml = originalPhotos.length > 0
+      ? `<div class="bi-detail-section"><h4>Monitoring Photos</h4>
+          <div class="bi-photo-grid">${originalPhotos.map((p, i) =>
+            `<img src="api.php?route=upload/serve&upload_id=${p.id}" alt="Board ${i+1}" data-photo-idx="${i}" />`
+          ).join('')}</div></div>`
+      : '';
+
+    const fixPhotosHtml = fixPhotos.length > 0
+      ? `<div class="bi-detail-section"><h4>Fix Photos</h4>
+          <div class="bi-photo-grid">${fixPhotos.map((p, i) =>
+            `<img src="api.php?route=upload/serve&upload_id=${p.id}" alt="Fix ${i+1}" />`
+          ).join('')}</div></div>`
+      : '';
+
+    let actionsHtml = '';
+    if (issue.status === 'OPEN' && isElectrician) {
+      actionsHtml = `<button class="btn btn-primary" id="bi-start-fix" style="width:100%;">Start Fix</button>`;
+    } else if (issue.status === 'IN_PROGRESS' && isElectrician) {
+      actionsHtml = `
+        <div class="bi-detail-section">
+          <h4>Upload Fix Photos (${expectedFixCount} required)</h4>
+          <div class="sa-photo-field">
+            <label><i class="ph ph-camera"></i><span>Take fix photos</span></label>
+            <input type="file" id="bi-fix-camera" accept="image/*" capture="environment" multiple />
+          </div>
+          <div class="bm-photo-counter" id="bi-fix-counter">0 of ${expectedFixCount}</div>
+          <div class="bm-thumb-strip" id="bi-fix-thumbs"></div>
+          <label class="field" style="margin-top:.5rem;"><span>Describe what was fixed (required)</span>
+            <textarea id="bi-fix-comment" class="form-control" rows="3" required></textarea>
+          </label>
+          <div id="bi-progress" hidden style="margin:.5rem 0;">
+            <div class="progress-bar"><div class="progress-bar-fill" id="bi-progress-fill"></div></div>
+          </div>
+          <button class="btn btn-primary" id="bi-resolve" disabled style="width:100%;margin-top:.75rem;">Mark Resolved</button>
+        </div>`;
+    } else if (issue.status === 'RESOLVED') {
+      actionsHtml = `<div class="bm-success-card"><h3>Resolved — awaiting OPS verification</h3></div>`;
+    }
+
+    section.innerHTML = `
+      <div style="max-width:500px;margin:0 auto;">
+        <button class="btn btn-ghost" id="bi-back"><i class="ph ph-arrow-left"></i> Back</button>
+        <h2 style="margin:.5rem 0;">${UI.escape(issue.title)}</h2>
+        <div class="bm-meta">
+          ${UI.escape(issue.belt_code)} — ${UI.escape(issue.belt_name)} &middot;
+          <span class="status-pill status-${issue.priority === 'HIGH' || issue.priority === 'CRITICAL' ? 'bad' : 'warn'}">${issue.priority}</span>
+          <span class="status-pill status-info">${issue.status}</span>
+        </div>
+        <div class="bm-meta" style="margin-top:.25rem;">
+          Reported ${issue.created_at?.slice(0,10) || ''} by ${UI.escape(issue.raised_by_name || '')}
+          ${issue.off_count ? ` &middot; ${issue.off_count} of ${issue.total_boards} boards off` : ''}
+        </div>
+        ${origPhotosHtml}
+        ${fixPhotosHtml}
+        ${actionsHtml}
+      </div>`;
+
+    // Wire back button
+    document.getElementById('bi-back').addEventListener('click', () => {
+      section.hidden = true;
+      document.getElementById('bi-list').hidden = false;
+    });
+
+    // Wire Start Fix
+    document.getElementById('bi-start-fix')?.addEventListener('click', async () => {
+      try {
+        await Api.post('boardissue/start', { issue_id: issueId });
+        UI.toast('Fix started', 'good');
+        _openBoardIssueDetail(issueId); // reload
+      } catch (err) { UI.toast(err.message || 'Failed', 'bad'); }
+    });
+
+    // Wire fix photo upload
+    let fixPhotosLocal = [];
+    document.getElementById('bi-fix-camera')?.addEventListener('change', (e) => {
+      const files = Array.from(e.target.files || []);
+      const remaining = expectedFixCount - fixPhotosLocal.length;
+      fixPhotosLocal.push(...files.slice(0, hasReport ? remaining : files.length));
+      const strip = document.getElementById('bi-fix-thumbs');
+      if (strip) {
+        strip.innerHTML = fixPhotosLocal.map((f, i) =>
+          `<span class="bm-thumb-num" data-num="${i+1}"><img src="${URL.createObjectURL(f)}" alt="Fix ${i+1}"></span>`
+        ).join('');
+      }
+      const counterEl = document.getElementById('bi-fix-counter');
+      if (counterEl) counterEl.textContent = `${fixPhotosLocal.length} of ${expectedFixCount}`;
+      _updateBiResolveState(fixPhotosLocal, expectedFixCount, hasReport);
+      e.target.value = '';
+    });
+
+    document.getElementById('bi-fix-comment')?.addEventListener('input', () => {
+      _updateBiResolveState(fixPhotosLocal, expectedFixCount, hasReport);
+    });
+
+    // Wire resolve
+    document.getElementById('bi-resolve')?.addEventListener('click', async () => {
+      const btn = document.getElementById('bi-resolve');
+      if (!btn) return;
+      btn.disabled = true;
+      btn.textContent = 'Uploading…';
+      const progressDiv = document.getElementById('bi-progress');
+      const progressFill = document.getElementById('bi-progress-fill');
+      if (progressDiv) progressDiv.hidden = false;
+
+      const fd = new FormData();
+      fd.append('issue_id', issueId);
+      fd.append('comment', document.getElementById('bi-fix-comment').value);
+      fixPhotosLocal.forEach(f => fd.append('files[]', f));
+
+      try {
+        await uploadWithProgress(fd, (pct) => {
+          if (progressFill) progressFill.style.width = pct + '%';
+        }, 'boardissue/resolve');
+        UI.toast('Issue resolved!', 'good');
+        App.navigate('green_belt.board_issues');
+      } catch (err) {
+        UI.toast(err.message || 'Failed', 'bad');
+        btn.disabled = false;
+        btn.textContent = 'Mark Resolved';
+        if (progressDiv) progressDiv.hidden = true;
+      }
+    });
+  } catch (err) {
+    UI.toast(err.message || 'Failed to load issue', 'bad');
+  }
+}
+
+function _updateBiResolveState(photos, expected, hasReport) {
+  const btn = document.getElementById('bi-resolve');
+  if (!btn) return;
+  const comment = (document.getElementById('bi-fix-comment')?.value || '').trim();
+  const photosReady = hasReport ? photos.length === expected : photos.length >= 1;
+  btn.disabled = !(photosReady && comment.length > 0);
+}
+
 Views.register('green_belt.labour_entries', {
   async render({ params = {} }) {
     const data = await Api.get('labour/list', params);
