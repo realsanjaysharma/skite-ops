@@ -236,4 +236,16 @@ class TaskRepository extends BaseRepository
             $params
         );
     }
+
+    /**
+     * Find tasks linked to a specific issue.
+     */
+    public function findByLinkedIssueId(int $issueId): array
+    {
+        return $this->fetchAll(
+            "SELECT * FROM tasks WHERE linked_issue_id = ?",
+            [$issueId]
+        );
+    }
 }
+
