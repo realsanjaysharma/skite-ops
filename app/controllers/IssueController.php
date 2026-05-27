@@ -186,4 +186,62 @@ class IssueController extends BaseController
             Response::error($e->getMessage(), 400);
         }
     }
+
+    /**
+     * POST issue/resolve
+     */
+    public function resolveIssue(): void
+    {
+        if (!$this->requireMethod('POST')) return;
+
+        $input = $this->getInput();
+
+        if (empty($input['issue_id'])) {
+            Response::error('Missing issue_id param', 400);
+            return;
+        }
+
+        try {
+            $actor = $this->getActor();
+            $result = $this->issueService->resolveIssue(
+                (int) $input['issue_id'],
+                $actor['user_id'],
+                $actor['role_key']
+            );
+            Response::success($result);
+        } catch (DomainException $e) {
+            Response::error($e->getMessage(), 403);
+        } catch (Throwable $e) {
+            Response::error($e->getMessage(), 400);
+        }
+    }
+
+    /**
+     * POST issue/reopen
+     */
+    public function reopenIssue(): void
+    {
+        if (!$this->requireMethod('POST')) return;
+
+        $input = $this->getInput();
+
+        if (empty($input['issue_id'])) {
+            Response::error('Missing issue_id param', 400);
+            return;
+        }
+
+        try {
+            $actor = $this->getActor();
+            $result = $this->issueService->reopenIssue(
+                (int) $input['issue_id'],
+                $actor['user_id'],
+                $actor['role_key']
+            );
+            Response::success($result);
+        } catch (DomainException $e) {
+            Response::error($e->getMessage(), 403);
+        } catch (Throwable $e) {
+            Response::error($e->getMessage(), 400);
+        }
+    }
 }

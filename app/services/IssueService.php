@@ -79,6 +79,11 @@ class IssueService
             if (empty($issue['belt_id'])) {
                 throw new DomainException("Head Supervisor can only operate on green-belt issues.");
             }
+        } elseif (in_array($actorRoleKey, ['ELECTRICIAN', 'BOARD_MONITOR'], true)) {
+            // Field roles can start fix on belt issues only
+            if (empty($issue['belt_id'])) {
+                throw new DomainException("This role can only operate on green-belt issues.");
+            }
         } elseif ($actorRoleKey !== 'OPS_MANAGER') {
             throw new DomainException("Role not authorized to transition issue.");
         }
@@ -102,6 +107,7 @@ class IssueService
 
     /**
      * Transition issue to CLOSED. Only Ops can close.
+     * Accepts OPEN, IN_PROGRESS, or RESOLVED statuses.
      */
     public function closeIssue(int $issueId, int $actorUserId, string $actorRoleKey): array
     {
@@ -114,15 +120,18 @@ class IssueService
             throw new InvalidArgumentException("Issue not found.");
         }
 
-        if ($issue['status'] !== 'IN_PROGRESS') {
-            throw new DomainException("Issue can only be closed from IN_PROGRESS status. Current status: " . $issue['status']);
+        $closable = ['OPEN', 'IN_PROGRESS', 'RESOLVED'];
+        if (!in_array($issue['status'], $closable, true)) {
+            throw new DomainException("Issue cannot be closed from status: " . $issue['status']);
         }
+
+        $now = date('Y-m-d H:i:s');
 
         $this->issueRepo->update([
             'id' => $issueId,
             'status' => 'CLOSED',
             'closed_by_user_id' => $actorUserId,
-            'closed_at' => date('Y-m-d H:i:s'),
+            'closed_at' => $now,
         ]);
 
         $this->auditService->logAction(
@@ -130,16 +139,81 @@ class IssueService
             'ISSUE_CLOSED',
             'issue',
             $issueId,
-            [
-                'status' => $issue['status'],
-                'closed_by_user_id' => $issue['closed_by_user_id'],
-                'closed_at' => $issue['closed_at']
-            ],
-            [
-                'status' => 'CLOSED',
-                'closed_by_user_id' => $actorUserId,
-                'closed_at' => date('Y-m-d H:i:s')
-            ]
+            ['status' => $issue['status'], 'closed_by_user_id' => $issue['closed_by_user_id'], 'closed_at' => $issue['closed_at']],
+            ['status' => 'CLOSED', 'closed_by_user_id' => $actorUserId, 'closed_at' => $now]
+        );
+
+        return $this->issueRepo->findById($issueId);
+    }
+
+    /**
+     * Transition issue IN_PROGRESS → RESOLVED.
+     * Typically called by electricians or field users.
+     */
+    public function resolveIssue(int $issueId, int $actorUserId, string $actorRoleKey): array
+    {
+        $issue = $this->issueRepo->findById($issueId);
+        if (!$issue) {
+            throw new InvalidArgumentException("Issue not found.");
+        }
+
+        if ($issue['status'] !== 'IN_PROGRESS') {
+            throw new DomainException("Issue must be IN_PROGRESS to resolve. Current: " . $issue['status']);
+        }
+
+        $now = date('Y-m-d H:i:s');
+
+        $this->issueRepo->update([
+            'id' => $issueId,
+            'status' => 'RESOLVED',
+            'resolved_by_user_id' => $actorUserId,
+            'resolved_at' => $now,
+        ]);
+
+        $this->auditService->logAction(
+            $actorUserId,
+            'ISSUE_RESOLVED',
+            'issue',
+            $issueId,
+            ['status' => 'IN_PROGRESS', 'resolved_by_user_id' => null, 'resolved_at' => null],
+            ['status' => 'RESOLVED', 'resolved_by_user_id' => $actorUserId, 'resolved_at' => $now]
+        );
+
+        return $this->issueRepo->findById($issueId);
+    }
+
+    /**
+     * Transition issue RESOLVED → OPEN (OPS reopen).
+     */
+    public function reopenIssue(int $issueId, int $actorUserId, string $actorRoleKey): array
+    {
+        if ($actorRoleKey !== 'OPS_MANAGER') {
+            throw new DomainException("Only Ops can reopen an issue.");
+        }
+
+        $issue = $this->issueRepo->findById($issueId);
+        if (!$issue) {
+            throw new InvalidArgumentException("Issue not found.");
+        }
+
+        if ($issue['status'] !== 'RESOLVED') {
+            throw new DomainException("Only RESOLVED issues can be reopened. Current: " . $issue['status']);
+        }
+
+        $this->issueRepo->update([
+            'id' => $issueId,
+            'status' => 'OPEN',
+            'resolved_by_user_id' => null,
+            'resolved_at' => null,
+        ]);
+
+        $this->auditService->logAction(
+            $actorUserId,
+            'ISSUE_REOPENED',
+            'issue',
+            $issueId,
+            ['status' => 'RESOLVED', 'resolved_by_user_id' => $issue['resolved_by_user_id']],
+            ['status' => 'OPEN', 'resolved_by_user_id' => null]
         );
 
         return $this->issueRepo->findById($issueId);

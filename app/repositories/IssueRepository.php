@@ -94,8 +94,9 @@ class IssueRepository extends BaseRepository
              ORDER BY CASE i.status
                 WHEN 'OPEN' THEN 1
                 WHEN 'IN_PROGRESS' THEN 2
-                WHEN 'CLOSED' THEN 3
-                ELSE 4
+                WHEN 'RESOLVED' THEN 3
+                WHEN 'CLOSED' THEN 4
+                ELSE 5
              END ASC, i.created_at DESC",
             $params
         );
@@ -144,7 +145,7 @@ class IssueRepository extends BaseRepository
         $fields = [];
         $params = [];
 
-        $allowed = ['status', 'priority', 'title', 'description', 'closed_by_user_id', 'closed_at'];
+        $allowed = ['status', 'priority', 'title', 'description', 'closed_by_user_id', 'closed_at', 'resolved_by_user_id', 'resolved_at'];
 
         foreach ($allowed as $field) {
             if (array_key_exists($field, $data)) {
