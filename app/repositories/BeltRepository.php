@@ -409,4 +409,15 @@ class BeltRepository extends BaseRepository
             [$beltId]
         );
     }
+
+    /**
+     * Update the board_count for a belt.
+     */
+    public function updateBoardCount(int $beltId, ?int $boardCount): bool
+    {
+        return $this->execute(
+            "UPDATE green_belts SET board_count = ? WHERE id = ?",
+            [$boardCount, $beltId]
+        );
+    }
 }

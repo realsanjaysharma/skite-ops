@@ -135,4 +135,34 @@ class BeltController extends BaseController
         }
     }
 
+    /**
+     * POST belt/update-board-count
+     *
+     * JSON body: { belt_id, board_count }
+     */
+    public function updateBoardCount(): void
+    {
+        if (!$this->requireMethod('POST')) return;
+
+        $actorUserId = $this->getActor()['user_id'];
+
+        try {
+            $data = $this->getInput();
+
+            if (empty($data['belt_id']) || !is_numeric($data['belt_id'])) {
+                Response::error('Valid belt_id is required.', 400);
+                return;
+            }
+
+            $result = $this->beltService->updateBoardCount(
+                (int) $data['belt_id'],
+                $data['board_count'] ?? null,
+                $actorUserId
+            );
+
+            Response::success($result);
+        } catch (Throwable $e) {
+            Response::error($e->getMessage(), 400);
+        }
+    }
 }

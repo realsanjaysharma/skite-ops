@@ -421,4 +421,41 @@ class BeltService
             $closeReason
         );
     }
+
+    /**
+     * Update the board_count on a green belt.
+     * Only OPS_MANAGER can do this.
+     * board_count must be NULL (to clear) or a positive integer.
+     */
+    public function updateBoardCount(int $beltId, $boardCount, int $actorUserId): array
+    {
+        $belt = $this->beltRepo->findById($beltId);
+        if (!$belt) {
+            throw new InvalidArgumentException('Belt not found.');
+        }
+
+        // Validate: NULL or positive integer
+        if ($boardCount !== null && $boardCount !== '') {
+            $boardCount = (int) $boardCount;
+            if ($boardCount <= 0) {
+                throw new InvalidArgumentException('Board count must be a positive integer or empty to clear.');
+            }
+        } else {
+            $boardCount = null;
+        }
+
+        $oldValue = $belt['board_count'];
+        $this->beltRepo->updateBoardCount($beltId, $boardCount);
+
+        $this->auditService->logAction(
+            $actorUserId,
+            'BELT_BOARD_COUNT_UPDATED',
+            'green_belts',
+            $beltId,
+            ['board_count' => $oldValue],
+            ['board_count' => $boardCount]
+        );
+
+        return $this->beltRepo->findById($beltId);
+    }
 }
