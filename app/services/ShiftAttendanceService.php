@@ -50,8 +50,10 @@ class ShiftAttendanceService
         $activityTypes = $this->activityRepo->getActivityTypes(true);
 
         $activities = [];
+        $labourPhotos = [];
         if ($shift) {
             $activities = $this->activityRepo->getActivitiesByShift((int) $shift['id']);
+            $labourPhotos = $this->shiftRepo->getLabourPhotos((int) $shift['id']);
         }
 
         return [
@@ -59,6 +61,7 @@ class ShiftAttendanceService
             'belts' => $belts,
             'activity_types' => $activityTypes,
             'activities' => $activities,
+            'labour_photos' => $labourPhotos,
             'settings' => [
                 'shift_start_time' => $this->getSetting('attendance_shift_start_time', '09:00'),
                 'shift_end_time' => $this->getSetting('attendance_shift_end_time', '17:00'),
@@ -393,6 +396,133 @@ class ShiftAttendanceService
             'group_by' => 'user',
             'month' => $month,
             'items' => $this->shiftRepo->getMonthlySummaryByUser($month, $roleFilter),
+        ];
+    }
+
+    /**
+     * Save labour count + male/female + photos on an active shift.
+     */
+    public function saveLabourCount(array $data, array $rawFiles, int $userId, string $roleKey): array
+    {
+        $today = date('Y-m-d');
+        $shift = $this->shiftRepo->findByUserAndDate($userId, $today);
+
+        if (!$shift) {
+            throw new DomainException('No active shift found for today.');
+        }
+        if ($shift['completed_at'] !== null) {
+            throw new DomainException('Shift is already completed.');
+        }
+
+        $shiftId = (int) $shift['id'];
+        $labourCount = (int) ($data['labour_count'] ?? 0);
+        $maleCount = isset($data['male_count']) ? (int) $data['male_count'] : null;
+        $femaleCount = isset($data['female_count']) ? (int) $data['female_count'] : null;
+        $varianceNotes = trim($data['labour_variance_notes'] ?? '');
+
+        // Validate labour count is non-negative
+        if ($labourCount < 0) {
+            throw new InvalidArgumentException('Labour count must be non-negative.');
+        }
+
+        // Validate male/female sum
+        if ($labourCount > 0) {
+            if ($maleCount === null || $femaleCount === null) {
+                throw new InvalidArgumentException('Male and female counts are required when labour count > 0.');
+            }
+            if ($maleCount < 0 || $femaleCount < 0) {
+                throw new InvalidArgumentException('Male and female counts must be non-negative.');
+            }
+            if (($maleCount + $femaleCount) !== $labourCount) {
+                throw new InvalidArgumentException('Male + Female must equal total labour count.');
+            }
+        } else {
+            $maleCount = 0;
+            $femaleCount = 0;
+        }
+
+        // For HS: check variance
+        if ($roleKey === 'HEAD_SUPERVISOR') {
+            $gbsSummary = $this->shiftRepo->getGbsLabourSummary($today);
+            $gbsTotal = 0;
+            foreach ($gbsSummary as $row) {
+                $gbsTotal += (int) ($row['labour_count'] ?? 0);
+            }
+
+            $variance = $labourCount - $gbsTotal;
+            if ($variance !== 0 && $varianceNotes === '') {
+                throw new InvalidArgumentException(
+                    "Labour count differs from supervisor total by {$variance}. Explanation is required."
+                );
+            }
+        }
+
+        // Save to shift row
+        $this->shiftRepo->updateLabourCount($shiftId, [
+            'labour_count' => $labourCount,
+            'male_count' => $maleCount,
+            'female_count' => $femaleCount,
+            'labour_variance_notes' => $varianceNotes ?: null,
+        ]);
+
+        // Store labour proof photos
+        if (!empty($rawFiles['files']) && !empty($rawFiles['files']['tmp_name'])) {
+            $normalized = $this->storageService->normalizeFiles($rawFiles['files']);
+            $validated = $this->storageService->validateFiles($normalized);
+
+            foreach ($validated as $file) {
+                $stored = $this->storageService->storeValidatedFile($file, 'SHIFT_ATTENDANCE', $shiftId);
+
+                $this->uploadRepo->create([
+                    'parent_type' => 'SHIFT_ATTENDANCE',
+                    'parent_id' => $shiftId,
+                    'upload_type' => 'WORK',
+                    'work_type' => 'LABOUR_PROOF',
+                    'is_discovery_mode' => 0,
+                    'file_path' => $stored['file_path'],
+                    'original_file_name' => $stored['original_file_name'],
+                    'mime_type' => $stored['mime_type'],
+                    'file_size_bytes' => $stored['file_size_bytes'],
+                    'photo_label' => 'GENERAL',
+                    'site_condition' => null,
+                    'comment_text' => null,
+                    'gps_latitude' => null,
+                    'gps_longitude' => null,
+                    'authority_visibility' => 'NOT_ELIGIBLE',
+                    'created_by_user_id' => $userId,
+                ]);
+            }
+        }
+
+        return $this->shiftRepo->findByUserAndDate($userId, $today);
+    }
+
+    /**
+     * Get labour summary for HS view: today's GBS labour counts.
+     */
+    public function getLabourSummary(int $userId, string $roleKey): array
+    {
+        $today = date('Y-m-d');
+        $rows = $this->shiftRepo->getGbsLabourSummary($today);
+
+        $sumLabour = 0;
+        $sumMale = 0;
+        $sumFemale = 0;
+
+        foreach ($rows as &$row) {
+            $sumLabour += (int) ($row['labour_count'] ?? 0);
+            $sumMale += (int) ($row['male_count'] ?? 0);
+            $sumFemale += (int) ($row['female_count'] ?? 0);
+        }
+        unset($row);
+
+        return [
+            'items' => $rows,
+            'totals' => [
+                'sum_labour' => $sumLabour,
+                'sum_male' => $sumMale,
+                'sum_female' => $sumFemale,
+            ],
         ];
     }
 

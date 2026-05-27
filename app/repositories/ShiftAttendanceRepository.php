@@ -243,4 +243,61 @@ class ShiftAttendanceRepository extends BaseRepository
             ["$month-01", "$month-01"]
         );
     }
+
+    /**
+     * Save labour count and gender breakdown on an active shift.
+     */
+    public function updateLabourCount(int $shiftId, array $data): bool
+    {
+        return $this->execute(
+            "UPDATE shift_attendance
+             SET labour_count = ?, male_count = ?, female_count = ?, labour_variance_notes = ?
+             WHERE id = ? AND completed_at IS NULL",
+            [
+                $data['labour_count'],
+                $data['male_count'],
+                $data['female_count'],
+                $data['labour_variance_notes'],
+                $shiftId,
+            ]
+        );
+    }
+
+    /**
+     * Get today's GBS labour summary for HS view.
+     * Returns labour counts from all GBS shifts on maintained belts.
+     */
+    public function getGbsLabourSummary(string $date): array
+    {
+        return $this->fetchAll(
+            "SELECT sa.id AS shift_id, sa.labour_count, sa.male_count, sa.female_count,
+                    sa.completed_at IS NOT NULL AS is_completed,
+                    u.full_name AS supervisor_name,
+                    gb.belt_code, gb.common_name AS belt_name, gb.id AS belt_id
+             FROM shift_attendance sa
+             INNER JOIN users u ON u.id = sa.user_id
+             LEFT JOIN green_belts gb ON gb.id = sa.belt_id
+             WHERE sa.role_key = 'GREEN_BELT_SUPERVISOR'
+               AND sa.shift_date = ?
+               AND (gb.maintenance_mode = 'MAINTAINED' OR gb.id IS NULL)
+             ORDER BY gb.belt_code ASC",
+            [$date]
+        );
+    }
+
+    /**
+     * Get labour photos for a shift.
+     */
+    public function getLabourPhotos(int $shiftId): array
+    {
+        require_once __DIR__ . '/UploadRepository.php';
+        $uploadRepo = new UploadRepository();
+
+        return $uploadRepo->findAll([
+            'parent_type' => 'SHIFT_ATTENDANCE',
+            'parent_id' => $shiftId,
+            'work_type' => 'LABOUR_PROOF',
+            'is_deleted' => 0,
+        ]);
+    }
 }

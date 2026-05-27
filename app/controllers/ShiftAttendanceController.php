@@ -74,6 +74,45 @@ class ShiftAttendanceController extends BaseController
     }
 
     /**
+     * POST attendance/save-labour
+     * Save labour count + male/female + optional variance notes + photos.
+     */
+    public function saveLabour(): void
+    {
+        if (!$this->requireMethod('POST')) return;
+        $actor = $this->getActor();
+        $input = $this->getInput();
+
+        try {
+            $result = $this->service->saveLabourCount($input, $_FILES, $actor['user_id'], $actor['role_key']);
+            Response::success($result);
+        } catch (DomainException $e) {
+            Response::error($e->getMessage(), 403);
+        } catch (InvalidArgumentException $e) {
+            Response::error($e->getMessage(), 400);
+        } catch (\Throwable $e) {
+            Response::error($e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * GET attendance/labour-summary
+     * HS: today's GBS labour counts on maintained belts.
+     */
+    public function labourSummary(): void
+    {
+        if (!$this->requireMethod('GET')) return;
+        $actor = $this->getActor();
+
+        try {
+            $result = $this->service->getLabourSummary($actor['user_id'], $actor['role_key']);
+            Response::success($result);
+        } catch (\Throwable $e) {
+            Response::error($e->getMessage(), 400);
+        }
+    }
+
+    /**
      * GET attendance/review-list
      * OPS: list shifts for a month.
      */
