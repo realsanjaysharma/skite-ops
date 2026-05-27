@@ -367,6 +367,9 @@ class UploadController extends BaseController
             case 'CLIENT_SERVICING':
             case 'MEDIA_PLANNING':
                 return 'COMMERCIAL';
+            case 'BOARD_MONITOR':
+            case 'ELECTRICIAN':
+                return 'BOARD_MONITORING';
             default:
                 return null;
         }

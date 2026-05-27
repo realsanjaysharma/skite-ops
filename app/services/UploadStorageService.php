@@ -149,6 +149,7 @@ class UploadStorageService
             'SITE' => 'site',
             'TASK' => 'task',
             'SHIFT_ATTENDANCE' => 'sa',
+            'BOARD_MONITORING' => 'bm',
         ];
 
         $fileName = sprintf(
