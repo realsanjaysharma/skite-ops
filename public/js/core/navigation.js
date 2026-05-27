@@ -12,7 +12,7 @@ const NavMap = {
   'green_belt.master': { label: 'Green Belts', icon: 'ph-map-pin', route: 'belt/list', section: 'Green Belt' },
   'green_belt.detail': { label: 'Belt Detail', icon: 'ph-info', route: 'belt/get', section: 'Green Belt', hidden: true },
   'green_belt.supervisor_upload': { label: 'Supervisor Upload', icon: 'ph-upload-simple', route: 'upload/supervisor', section: 'Green Belt', roles: ['GREEN_BELT_SUPERVISOR'] },
-  'green_belt.my_uploads': { label: 'My Uploads', icon: 'ph-images', route: 'upload/my-list', section: 'Green Belt', roles: ['GREEN_BELT_SUPERVISOR', 'OUTSOURCED_MAINTAINER', 'MONITORING_TEAM', 'FABRICATION_LEAD'] },
+  'green_belt.my_uploads': { label: 'My Uploads', icon: 'ph-images', route: 'upload/my-list', section: 'Green Belt', roles: ['GREEN_BELT_SUPERVISOR', 'OUTSOURCED_MAINTAINER', 'MONITORING_TEAM', 'FABRICATION_LEAD', 'BOARD_MONITOR', 'ELECTRICIAN'] },
   'green_belt.outsourced_upload': { label: 'Outsourced Upload', icon: 'ph-camera', route: 'upload/outsourced', section: 'Green Belt', roles: ['OUTSOURCED_MAINTAINER'] },
   'green_belt.watering_oversight': { label: 'Watering Oversight', icon: 'ph-drop', route: 'oversight/watering', section: 'Green Belt' },
   'green_belt.maintenance_cycles': { label: 'Maintenance Cycles', icon: 'ph-recycle', route: 'cycle/list', section: 'Green Belt' },
@@ -22,6 +22,9 @@ const NavMap = {
   'green_belt.labour_entries': { label: 'Labour Entries', icon: 'ph-users', route: 'labour/list', section: 'Green Belt' },
   'green_belt.upload_review': { label: 'Upload Review', icon: 'ph-checks', route: 'upload/list', section: 'Green Belt' },
   'green_belt.issue_management': { label: 'Issues', icon: 'ph-warning-circle', route: 'issue/list', section: 'Green Belt' },
+  'green_belt.board_monitoring': { label: 'Board Monitoring', icon: 'ph-flashlight', route: 'boardmonitoring/my-belts', section: 'Green Belt' },
+  'green_belt.board_monitoring_history': { label: 'Board Reports', icon: 'ph-clock-counter-clockwise', route: 'boardmonitoring/history', section: 'Green Belt' },
+  'green_belt.board_issues': { label: 'Board Issues', icon: 'ph-wrench', route: 'boardissue/list', section: 'Green Belt' },
   'green_belt.authority_view': { label: 'Authority View', icon: 'ph-bank', route: 'authority/view', section: 'Green Belt', roles: ['AUTHORITY_REPRESENTATIVE'] },
 
   'advertisement.site_master': { label: 'Site Master', icon: 'ph-storefront', route: 'site/list', section: 'Advertisement' },

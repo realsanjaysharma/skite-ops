@@ -315,6 +315,18 @@ return [
         'module_key' => 'attendance.shift_review',
         'capability' => 'read',
     ],
+    'attendance/save-labour' => [
+        'controller' => 'ShiftAttendanceController',
+        'method'     => 'saveLabour',
+        'module_key' => 'attendance.shift',
+        'capability' => 'upload',
+    ],
+    'attendance/labour-summary' => [
+        'controller' => 'ShiftAttendanceController',
+        'method'     => 'labourSummary',
+        'module_key' => 'attendance.shift',
+        'capability' => 'read',
+    ],
 
     // ==========================================
     // LABOUR ENTRIES
@@ -373,6 +385,18 @@ return [
     'issue/link-task' => [
         'controller' => 'IssueController',
         'method'     => 'linkTask',
+        'module_key' => 'green_belt.issue_management',
+        'capability' => 'manage',
+    ],
+    'issue/resolve' => [
+        'controller' => 'IssueController',
+        'method'     => 'resolveIssue',
+        'module_key' => 'green_belt.issue_management',
+        'capability' => 'manage',
+    ],
+    'issue/reopen' => [
+        'controller' => 'IssueController',
+        'method'     => 'reopenIssue',
         'module_key' => 'green_belt.issue_management',
         'capability' => 'manage',
     ],
@@ -559,6 +583,81 @@ return [
         'method'     => 'markEntry',
         'module_key' => 'task.worker_allocation',
         'capability' => 'upload',
+    ],
+
+    // ==========================================
+    // BOARD MONITORING
+    // ==========================================
+
+    'boardmonitoring/my-belts' => [
+        'controller' => 'BoardMonitoringController',
+        'method'     => 'myBelts',
+        'module_key' => 'green_belt.board_monitoring',
+        'capability' => 'read',
+    ],
+    'boardmonitoring/submit' => [
+        'controller' => 'BoardMonitoringController',
+        'method'     => 'submit',
+        'module_key' => 'green_belt.board_monitoring',
+        'capability' => 'upload',
+    ],
+    'boardmonitoring/history' => [
+        'controller' => 'BoardMonitoringController',
+        'method'     => 'history',
+        'module_key' => 'green_belt.board_monitoring_history',
+        'capability' => 'read',
+    ],
+
+    // ==========================================
+    // BOARD ISSUES (Electrician)
+    // ==========================================
+
+    'boardissue/list' => [
+        'controller' => 'BoardIssueController',
+        'method'     => 'listIssues',
+        'module_key' => 'green_belt.board_issues',
+        'capability' => 'read',
+    ],
+    'boardissue/detail' => [
+        'controller' => 'BoardIssueController',
+        'method'     => 'getDetail',
+        'module_key' => 'green_belt.board_issues',
+        'capability' => 'read',
+    ],
+    'boardissue/start' => [
+        'controller' => 'BoardIssueController',
+        'method'     => 'startFix',
+        'module_key' => 'green_belt.board_issues',
+        'capability' => 'upload',
+    ],
+    'boardissue/resolve' => [
+        'controller' => 'BoardIssueController',
+        'method'     => 'resolve',
+        'module_key' => 'green_belt.board_issues',
+        'capability' => 'upload',
+    ],
+
+    // ==========================================
+    // BELT USER ASSIGNMENTS
+    // ==========================================
+
+    'beltassignment/list' => [
+        'controller' => 'BeltUserAssignmentController',
+        'method'     => 'listAssignments',
+        'module_key' => 'governance.access_mappings',
+        'capability' => 'read',
+    ],
+    'beltassignment/create' => [
+        'controller' => 'BeltUserAssignmentController',
+        'method'     => 'createAssignment',
+        'module_key' => 'governance.access_mappings',
+        'capability' => 'manage',
+    ],
+    'beltassignment/close' => [
+        'controller' => 'BeltUserAssignmentController',
+        'method'     => 'closeAssignment',
+        'module_key' => 'governance.access_mappings',
+        'capability' => 'manage',
     ],
 
     // ==========================================
