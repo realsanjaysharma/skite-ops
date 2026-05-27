@@ -5827,9 +5827,9 @@ Views.register('green_belt.issue_management', {
     ];
 
     const filterUI = UI.panel('Filters', UI.filters([
-      { name: 'status', label: 'Status', type: 'select', value: params.status || '', options: ['', 'OPEN', 'IN_PROGRESS', 'CLOSED'] },
+      { name: 'status', label: 'Status', type: 'select', value: params.status || '', options: ['', 'OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'] },
       { name: 'priority', label: 'Priority', type: 'select', value: params.priority || '', options: ['', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] },
-      { name: 'source_type', label: 'Source Type', type: 'select', value: params.source_type || '', options: ['', 'UPLOAD', 'DIRECT'] },
+      { name: 'source_type', label: 'Source Type', type: 'select', value: params.source_type || '', options: ['', 'UPLOAD', 'DIRECT', 'BOARD_MONITORING'] },
       { name: 'belt_id', label: 'Belt ID', type: 'number', value: params.belt_id || '' },
       { name: 'site_id', label: 'Site ID', type: 'number', value: params.site_id || '' }
     ], 'Apply'));
@@ -5859,6 +5859,10 @@ Views.register('green_belt.issue_management', {
         let actionsHtml = '';
         if (issue.status === 'OPEN' && (isOps || isHeadSuper)) {
             actionsHtml += `<button type="button" class="btn btn-primary" data-in-progress="${issue.id}">Mark In Progress</button> `;
+        }
+        if (issue.status === 'RESOLVED' && isOps) {
+            actionsHtml += `<button type="button" class="btn btn-primary" data-verify-close="${issue.id}">Verify & Close</button> `;
+            actionsHtml += `<button type="button" class="btn btn-ghost" data-reopen="${issue.id}">Reopen</button> `;
         }
         if (issue.status !== 'CLOSED' && isOps) {
             actionsHtml += `<button type="button" class="btn btn-danger" data-close="${issue.id}">Close Issue</button> `;
@@ -5892,6 +5896,14 @@ Views.register('green_belt.issue_management', {
 
         modal.querySelector('[data-in-progress]')?.addEventListener('click', async () => {
             await simpleAction('issue/in-progress', { issue_id: issue.id }, 'Issue marked in progress');
+        });
+
+        modal.querySelector('[data-verify-close]')?.addEventListener('click', async () => {
+            await simpleAction('issue/close', { issue_id: issue.id }, 'Issue verified and closed');
+        });
+
+        modal.querySelector('[data-reopen]')?.addEventListener('click', async () => {
+            await simpleAction('issue/reopen', { issue_id: issue.id }, 'Issue reopened');
         });
 
         modal.querySelector('[data-close]')?.addEventListener('click', () => {
