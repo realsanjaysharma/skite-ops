@@ -665,6 +665,7 @@ Views.register('attendance.shift', {
       belts: data.belts || [],
       activityTypes: data.activity_types || [],
       activities: data.activities || [],
+      labourPhotos: data.labour_photos || [],
       settings: data.settings || {},
     };
     const shift = _shiftAttendanceState.shift;
@@ -798,6 +799,26 @@ Views.register('attendance.shift', {
         <div id="sa-meter-end-preview" class="sa-photo-preview"></div>
       ` : '';
 
+      const showLabour = roleKey === 'GREEN_BELT_SUPERVISOR' || roleKey === 'HEAD_SUPERVISOR';
+      let labourHtml = '';
+      if (showLabour && shift && !shift.completed_at) {
+        const hasLabour = shift.labour_count !== null && shift.labour_count !== undefined;
+        
+        if (hasLabour) {
+          labourHtml = `
+            <div class="sa-labour-section">
+              <h3><i class="ph ph-users"></i> Labour Count</h3>
+              <div class="sa-labour-saved">
+                <span class="sa-labour-count">${shift.labour_count} workers</span>
+                <span style="color:var(--muted);font-size:.85rem;">${shift.male_count || 0}M / ${shift.female_count || 0}F</span>
+              </div>
+              <button class="btn btn-ghost" id="sa-edit-labour" style="margin-top:.5rem;">Edit</button>
+            </div>`;
+        } else {
+          labourHtml = _renderLabourForm(roleKey);
+        }
+      }
+
       return UI.page('My Shift', dateLabel)
         + opsNav
         + `<div class="sa-active-banner">
@@ -840,7 +861,8 @@ Views.register('attendance.shift', {
                 <div class="sa-progress-wrap"><div id="sa-complete-progress-bar" class="sa-progress-bar"></div></div>
               </div>
             </div>
-          </div>`;
+          </div>
+          ${labourHtml}`;
     }
 
     // ── Shift completed ──
@@ -883,6 +905,27 @@ Views.register('attendance.shift', {
         ).join('');
       }
 
+      let completedLabourHtml = '';
+      if (shift.labour_count !== null && shift.labour_count !== undefined) {
+        completedLabourHtml = `
+          <div class="sa-info-item">
+            <i class="ph ph-users"></i>
+            <div><div class="sa-info-label">Labour Count</div><div class="sa-info-value">${shift.labour_count} (${shift.male_count || 0}M / ${shift.female_count || 0}F)</div></div>
+          </div>`;
+      }
+
+      const labourPhotos = _shiftAttendanceState.labourPhotos || [];
+      let labourPhotosHtml = '';
+      if (labourPhotos.length > 0) {
+        labourPhotosHtml = `
+          <div style="margin-top:0.75rem;">
+            <div style="font-size:0.75rem;font-weight:700;color:var(--ink-500);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;">Labour Proof Photos</div>
+            <div class="bi-photo-grid">
+              ${labourPhotos.map(p => `<img src="api.php?route=upload/serve&upload_id=${p.id}" alt="Labour proof" />`).join('')}
+            </div>
+          </div>`;
+      }
+
       return UI.page('My Shift', dateLabel)
         + opsNav
         + `<div class="sa-summary-card">
@@ -908,6 +951,7 @@ Views.register('attendance.shift', {
                   <i class="ph ph-tree-evergreen"></i>
                   <div><div class="sa-info-label">Belt</div><div class="sa-info-value">${beltInfo}</div></div>
                 </div>
+                ${completedLabourHtml}
               </div>
               ${meterHtml}
               <hr class="sa-divider">
@@ -915,6 +959,7 @@ Views.register('attendance.shift', {
                 <h4><i class="ph ph-list-checks"></i> Activities</h4>
                 ${actHtml || '<p style="color:var(--ink-500);font-size:0.88rem;">No activities recorded</p>'}
               </div>
+              ${labourPhotosHtml}
               ${shift.shift_notes ? `<div class="sa-notes"><i class="ph ph-note-pencil" style="margin-right:6px;"></i>${UI.escape(shift.shift_notes)}</div>` : ''}
             </div>
           </div>`;
@@ -1156,8 +1201,165 @@ Views.register('attendance.shift', {
         });
       }
     }
+
+    // Labour form wiring
+    const labourCountInput = document.getElementById('sa-labour-count');
+    const maleInput = document.getElementById('sa-male-count');
+    const femaleInput = document.getElementById('sa-female-count');
+    const genderError = document.getElementById('sa-gender-error');
+    const roleKey = Auth.getUser()?.role_key || '';
+    const isHS = roleKey === 'HEAD_SUPERVISOR';
+
+    // Load HS summary
+    if (isHS && document.getElementById('sa-hs-summary-body')) {
+      Api.get('attendance/labour-summary').then(data => {
+        const items = data.items || [];
+        const totals = data.totals || {};
+        if (items.length === 0) {
+          document.getElementById('sa-hs-summary-body').innerHTML = '<p style="color:var(--muted);">No supervisor shifts yet today.</p>';
+          return;
+        }
+        let rows = items.map(r => `<tr>
+          <td>${UI.escape(r.supervisor_name)}</td>
+          <td>${UI.escape(r.belt_code || '-')}</td>
+          <td>${r.labour_count ?? '-'}</td>
+          <td>${r.male_count ?? '-'}</td>
+          <td>${r.female_count ?? '-'}</td>
+        </tr>`).join('');
+        rows += `<tr class="total-row"><td colspan="2">Total</td><td>${totals.sum_labour}</td><td>${totals.sum_male}</td><td>${totals.sum_female}</td></tr>`;
+        document.getElementById('sa-hs-summary-body').innerHTML = `
+          <table class="sa-hs-summary-table"><thead><tr><th>Supervisor</th><th>Belt</th><th>Count</th><th>M</th><th>F</th></tr></thead><tbody>${rows}</tbody></table>`;
+      }).catch(() => {});
+    }
+
+    // Gender validation
+    function validateGender() {
+      if (!labourCountInput) return;
+      const total = parseInt(labourCountInput.value) || 0;
+      const male = parseInt(maleInput?.value) || 0;
+      const female = parseInt(femaleInput?.value) || 0;
+      if (total > 0 && (male + female) !== total) {
+        genderError.textContent = `Male (${male}) + Female (${female}) must equal total (${total})`;
+        genderError.style.display = 'block';
+      } else {
+        genderError.style.display = 'none';
+      }
+    }
+    labourCountInput?.addEventListener('input', validateGender);
+    maleInput?.addEventListener('input', validateGender);
+    femaleInput?.addEventListener('input', validateGender);
+
+    // HS variance check
+    if (isHS) {
+      labourCountInput?.addEventListener('input', async () => {
+        const hsTotal = parseInt(labourCountInput.value) || 0;
+        try {
+          const summary = await Api.get('attendance/labour-summary');
+          const gbsTotal = summary.totals?.sum_labour || 0;
+          const variance = hsTotal - gbsTotal;
+          const varSection = document.getElementById('sa-variance-section');
+          const notesField = document.getElementById('sa-variance-notes-field');
+          if (varSection) {
+            if (variance === 0) {
+              varSection.innerHTML = `<div class="sa-variance-bar match">Counts match ✓</div>`;
+              varSection.hidden = false;
+              if (notesField) notesField.hidden = true;
+            } else {
+              varSection.innerHTML = `<div class="sa-variance-bar diff">Difference of ${variance} workers</div>`;
+              varSection.hidden = false;
+              if (notesField) notesField.hidden = false;
+            }
+          }
+        } catch (_) {}
+      });
+    }
+
+    // Labour photos
+    let labourPhotos = [];
+    document.getElementById('sa-labour-photo')?.addEventListener('change', (e) => {
+      labourPhotos.push(...Array.from(e.target.files || []));
+      const strip = document.getElementById('sa-labour-thumbs');
+      if (strip) {
+        strip.innerHTML = labourPhotos.map((f, i) =>
+          `<span class="bm-thumb-num" data-num="${i+1}"><img src="${URL.createObjectURL(f)}" alt="Worker ${i+1}"></span>`
+        ).join('');
+      }
+      e.target.value = '';
+    });
+
+    // Save labour
+    document.getElementById('sa-save-labour')?.addEventListener('click', async () => {
+      const total = parseInt(labourCountInput?.value) || 0;
+      const male = parseInt(maleInput?.value) || 0;
+      const female = parseInt(femaleInput?.value) || 0;
+
+      if (total > 0 && (male + female) !== total) {
+        UI.toast('Male + Female must equal total', 'bad');
+        return;
+      }
+
+      const fd = new FormData();
+      fd.append('labour_count', total);
+      fd.append('male_count', male);
+      fd.append('female_count', female);
+      if (isHS) {
+        fd.append('labour_variance_notes', document.getElementById('sa-variance-notes')?.value || '');
+      }
+      labourPhotos.forEach(f => fd.append('files[]', f));
+
+      try {
+        await uploadWithProgress(fd, () => {}, 'attendance/save-labour');
+        UI.toast('Labour count saved', 'good');
+        App.navigate('attendance.shift');
+      } catch (err) {
+        UI.toast(err.message || 'Failed', 'bad');
+      }
+    });
+
+    // Edit labour button
+    document.getElementById('sa-edit-labour')?.addEventListener('click', () => {
+      const section = document.querySelector('.sa-labour-section');
+      if (section) section.outerHTML = _renderLabourForm(Auth.getUser()?.role_key || '');
+      // Re-wire would need afterRender to re-run — simplest is to re-navigate
+      App.navigate('attendance.shift');
+    });
   }
 });
+
+function _renderLabourForm(roleKey) {
+  const isHS = roleKey === 'HEAD_SUPERVISOR';
+  
+  let hsSummaryHtml = '';
+  if (isHS) {
+    hsSummaryHtml = `
+      <div id="sa-hs-summary" style="margin-bottom:1rem;">
+        <h4 style="margin:0 0 .5rem;font-size:.9rem;color:var(--muted);">Supervisor Labour Summary</h4>
+        <div id="sa-hs-summary-body"><p style="color:var(--muted);">Loading…</p></div>
+      </div>`;
+  }
+
+  return `
+    <div class="sa-labour-section" id="sa-labour-form-section">
+      <h3><i class="ph ph-users"></i> Labour Count</h3>
+      ${hsSummaryHtml}
+      <label class="field"><span>${isHS ? 'Total observed workers across all belts' : 'Workers on site today'}</span>
+        <input type="number" id="sa-labour-count" class="form-control" min="0" placeholder="0" />
+      </label>
+      <div class="sa-gender-row">
+        <label class="field"><span>Male</span><input type="number" id="sa-male-count" class="form-control" min="0" placeholder="0" /></label>
+        <label class="field"><span>Female</span><input type="number" id="sa-female-count" class="form-control" min="0" placeholder="0" /></label>
+      </div>
+      <div id="sa-gender-error" style="color:var(--bad);font-size:.85rem;display:none;margin-top:.25rem;"></div>
+      <div class="sa-photo-field" style="margin-top:.75rem;">
+        <label><i class="ph ph-camera"></i><span>Photo of workers</span></label>
+        <input type="file" id="sa-labour-photo" accept="image/*" capture="environment" multiple />
+      </div>
+      <div class="bm-thumb-strip" id="sa-labour-thumbs"></div>
+      <div id="sa-variance-section" hidden></div>
+      ${isHS ? '<label class="field" id="sa-variance-notes-field" hidden><span>Explain the difference</span><textarea id="sa-variance-notes" class="form-control" rows="2" required></textarea></label>' : ''}
+      <button class="btn btn-primary" id="sa-save-labour" style="width:100%;margin-top:.75rem;">Save Labour Count</button>
+    </div>`;
+}
 
 Views.register('attendance.shift_review', {
   async render({ params = {} }) {
