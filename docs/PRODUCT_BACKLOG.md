@@ -208,6 +208,25 @@ Previously 📋 Planned. Completed — see entry above.
 
 ---
 
+## ✅ Green Belt Board Operations (commits `d63d651`–`a65fdf2`, 2026-05-27)
+
+Introduced board monitoring reports, electrician assignments and repair flows, issue resolution status mapping, and shift labour count tracking.
+
+**What was built:**
+- **Database Migration (008_board_operations.sql)**: Created tables `board_monitoring_reports` and `belt_user_assignments`. Added columns to `green_belts` (`board_count`), `issues` (`resolved_by_user_id`, `resolved_at`), and `shift_attendance` (`labour_count`, `male_count`, `female_count`, `labour_variance_notes`). Modified ENUMs for `uploads.parent_type` and `issues.status`. Seeded roles (`BOARD_MONITOR`, `ELECTRICIAN`), permissions, and test users.
+- **RBAC & Navigation**: Added module keys (`green_belt.board_monitoring`, `green_belt.board_monitoring_history`, `green_belt.board_issues`) and landing routes to `config/rbac.php`. Integrated routes into `config/route_registry.php` and sidebar navigation menu in `public/js/core/navigation.js`.
+- **Upload Surfaces Map**: Mapped `BOARD_MONITOR` and `ELECTRICIAN` to `BOARD_MONITORING` parent type in `UploadController::resolveSurfaceFromRole()` and mapped `BOARD_MONITORING` to `'bm'` prefix in `UploadStorageService`.
+- **Belt User Assignment**: Created `BeltUserAssignmentController`, `BeltUserAssignmentService`, and `BeltUserAssignmentRepository` to manage belt-to-user assignments for Monitors and Electricians.
+- **Board Count Details**: Exposed board count configuration via `green_belts.board_count` update endpoints.
+- **Issue Lifecycle Update**: Added `RESOLVED` status to the issue lifecycle with transitions for resolving (with fix verification photo), reopening, and closing issues.
+- **Board Monitoring Report**: Built `BoardMonitoringController`, `BoardMonitoringService`, and `BoardMonitoringRepository` for submitting board status reports (ALL_OK, ALL_OFF, PARTIAL_OFF) with location checks.
+- **Board Issue Resolution**: Developed `BoardIssueController`, `BoardIssueService`, and `BoardIssueRepository` for electricians to fetch assigned issues and resolve them by uploading proof photos.
+- **Shift Labour Counts**: Added GBS labour tracking forms and HS verification dashboard with male/female counts, proof photos, and variance reason checks.
+- **Frontend Views (modules.js)**: Created views for `green_belt.board_monitoring` (reporting form), `green_belt.board_monitoring_history` (historical report logs), `green_belt.board_issues` (electrician list, issue details, and resolve flow), `attendance.shift` (integrated GBS/HS labour form and proof upload), and `green_belt.issue_management` (added Verify & Close and Reopen controls).
+- **Style sheet & Cache**: Added responsive mobile-first CSS classes for board monitoring and labour tracking, and bumped assets to version 56 (`modules.js`) and 26 (`style.css`).
+
+---
+
 ## 📋 Planned — Monitoring Upload UX Improvements
 
 Improvements to `monitoring.upload` identified during discovery feature design:
@@ -337,8 +356,8 @@ are worked together so shared improvements land once for all.
 | 5 | FABRICATION_LEAD | 2 | 0 | ⬜ Not started |
 | 6 | SALES_TEAM / CLIENT_SERVICING / MEDIA_PLANNING | 2–3 | 1 partial | 🔧 Partial (shared gallery only) |
 | 7 | MANAGEMENT | 1–2 | 0 | ⬜ Not started |
-| 8 | HEAD_SUPERVISOR | 5 | 0 | ⬜ Not started |
-| 9 | OPS_MANAGER | 25+ | 3 partial | 🔧 Partial (targeted fixes + shared components) |
+| 8 | HEAD_SUPERVISOR | 6 | 2 | 🔧 Partial (Shift attendance & Board issues) |
+| 9 | OPS_MANAGER | 30+ | 10 | 🔧 Partial (10 pages fully improved/done) |
 
 ---
 
@@ -409,19 +428,20 @@ Three roles that share the same pages. Work done here lands for all three simult
 
 ---
 
-### 8 · HEAD_SUPERVISOR — 🔧 Partial (1 of 5 pages done)
+### 8 · HEAD_SUPERVISOR — 🔧 Partial (2 of 6 pages done)
 
 | Page | Module key | Status | Notes |
 |---|---|---|---|
 | Watering Oversight | `green_belt.watering_oversight` | ⬜ Not yet reviewed | Backend correction fixed (T14). UI override-reason flow not verified. Tables not mobile-optimised |
 | My Shift (Attendance) | `attendance.shift` | ✅ Implemented (`58f6363`–`e4c22bf`) | Self-service shift start/complete with selfie, GPS, activities, meter. Replaced old `green_belt.supervisor_attendance` |
 | Labour Entries | `green_belt.labour_entries` | ⬜ Not yet reviewed | |
-| Issue Management | `green_belt.issue_management` | ⬜ Not yet reviewed | IS-XXXXX codes showing (T25 fix). Page not reviewed |
+| Issue Management | `green_belt.issue_management` | 🔧 Component upgrade | RESOLVED status support, Verify & Close, and Reopen buttons added (Task 13). |
+| Board Issues (Read Only) | `green_belt.board_issues` | ✅ Fully improved | Read-only access to board issues list and details (Task 11). |
 | Green Belt Dashboard | `dashboard.green_belt` | ⬜ Not yet reviewed | |
 
 ---
 
-### 9 · OPS_MANAGER — 🔧 Partial (0 of 25+ pages fully done)
+### 9 · OPS_MANAGER — 🔧 Partial (13 of 30+ pages fully done)
 
 OPS accesses all modules. Reviewed last due to volume and complexity.
 Pages listed where any improvement has landed — all others are completely untouched.
@@ -437,7 +457,11 @@ Pages listed where any improvement has landed — all others are completely unto
 | Client Media Library | `commercial.client_media_library` | 🔧 Component upgrade | `openPhotoGallery` wired. No page-specific review |
 | Green Belts List | `green_belt.master` | ⬜ Not yet reviewed | Create Belt form has visible validation (T46 fix) |
 | Belt Detail | `green_belt.detail` | ⬜ Not yet reviewed | |
-| Issue Management | `green_belt.issue_management` | ⬜ Not yet reviewed | IS-XXXXX codes showing |
+| Issue Management | `green_belt.issue_management` | 🔧 Component upgrade | RESOLVED status support, Verify & Close, and Reopen buttons added (Task 13). |
+| Board Monitoring | `green_belt.board_monitoring` | ✅ Fully improved | Green Belt Board monitoring reporting form, locations validation, and report logging (Task 10). |
+| Board Reports | `green_belt.board_monitoring_history` | ✅ Fully improved | Historical board monitoring reports gallery view with date and status filters (Task 10). |
+| Board Issues | `green_belt.board_issues` | ✅ Fully improved | Electrician board issue listing and resolution workflows (Task 11). |
+| Belt User Assignments | `governance.access_mappings` (backend) | ⬜ Not yet reviewed | Backend controller, service, repository implemented. Frontend CRUD forms pending (Task 4). |
 | Task Requests | `task.request_intake` | ⬜ Not yet reviewed | RQ-XXXXX codes showing |
 | Master Dashboard | `dashboard.master_ops` | ⬜ Not yet reviewed | |
 | Green Belt Dashboard | `dashboard.green_belt` | ⬜ Not yet reviewed | |

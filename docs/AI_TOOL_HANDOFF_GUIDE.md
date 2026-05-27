@@ -336,7 +336,13 @@ This section is the single place for all recurring traps, enum facts, field name
 - **`site_monitoring_due_dates.completed_at` marks individual due dates as done.** Set by the post-upload hook when a monitoring upload matches a planned due date. Used by monitoring.plan completion filter. NULL = not yet completed. Once set, not cleared (idempotent — re-uploading for the same date doesn't reset it).
 - **Post-upload side effects are non-transactional.** `handlePostUploadSideEffects()` runs AFTER the upload transaction commits. If a side effect (last_monitored_at, due date completion, shift count increment) fails, the upload is still saved. Each side effect is independently idempotent. Do not wrap these in a transaction with the upload.
 - **`render()` and `afterRender()` in `Views.register()` do NOT share scope.** They are separate methods on the config object. To share state between them (e.g., API data fetched in render()), use a module-scoped variable declared ABOVE the `Views.register()` call. Pattern: `let _moduleState = {};` → set in `render()` → read in `afterRender()`. See `_monUploadState` in monitoring.upload for the reference implementation.
-- **Last migration filename is `007_shift_attendance.sql`.** Next agent should use `008_*`. Always grep `migrations/` before picking a number.
+- **Last migration filename is `008_board_operations.sql`.** Next agent should use `009_*`. Always grep `migrations/` before picking a number.
+- **`board_monitoring_reports` has UNIQUE on `(belt_id, report_date, user_id)`.** One report per user per belt per day. Submitting duplicate reports for the same belt, user, and date will trigger constraint errors.
+- **`belt_user_assignments` uniqueness is enforced at the service layer.** It checks active overlap on `(belt_id, user_id, assignment_type)`.
+- **`uploads.parent_type` ENUM includes `'BOARD_MONITORING'`.** Mapped in `UploadController::resolveSurfaceFromRole()` for `BOARD_MONITOR` and `ELECTRICIAN` roles, resolving to the `'BOARD_MONITORING'` surface. Mapped to `'bm'` prefix in `UploadStorageService`.
+- **`issues` table has `resolved_by_user_id` and `resolved_at` columns.** These must be defined in the `IssueRepository::$allowed` attributes array for writes/updates.
+- **`IssueRepository::findAll()` sorts `RESOLVED` status appropriately.** The sorting query maps `RESOLVED` between `IN_PROGRESS` and `CLOSED`.
+- **`shift_attendance` has labour tracking columns.** These are `labour_count`, `male_count`, `female_count`, and `labour_variance_notes`.
 - **`shift_attendance` table has UNIQUE on `(user_id, shift_date)`.** One shift per user per day. `startShift` must handle duplicate key gracefully (catch exception, return existing row). Never create a second shift row for the same user+date.
 - **`shift_activities` table has NO UNIQUE constraint.** MySQL UNIQUE constraints don't work reliably with nullable columns (`belt_id` is NULL for HEAD_SUPERVISOR flat activities). Deduplication is enforced in `ShiftAttendanceService` via a `$seen` hashmap keyed on `activity_type_id . '-' . ($beltId ?? 'null')`. Do not add a UNIQUE constraint — it will silently fail for NULL belt_id.
 - **`SHIFT_ATTENDANCE` is a valid `uploads.parent_type` ENUM value.** Added in migration 007. Attendance selfies use `parent_id = 0` initially (shift row doesn't exist yet), then `UploadRepository::updateParentId()` sets the real FK after the shift row is created. Do not assume parent_id is always non-zero for SHIFT_ATTENDANCE uploads during the brief window between photo upload and shift creation.
@@ -388,6 +394,8 @@ Local test credentials commonly used:
 | Governance + architecture rules (all agents) | `docs/GOVERNANCE.md` |
 | Schema — exact column names, types, ENUMs | `docs/06_schema/schema_v1_full.sql` |
 | Product intent and role definitions | `docs/10_recovered_product/01_ROLE_AND_ACCESS_MODEL.md` |
+| Green Belt Board Operations design spec | `docs/superpowers/specs/2026-05-27-green-belt-board-operations-design.md` |
+| Green Belt Board Operations plan | `docs/superpowers/plans/2026-05-27-green-belt-board-operations.md` |
 | Media Discovery design spec | `docs/superpowers/specs/2026-05-24-media-discovery-design.md` |
 | Media Discovery implementation plan | `docs/superpowers/plans/2026-05-24-media-discovery.md` |
 | Monitoring Upload Overhaul design spec | `docs/superpowers/specs/2026-05-25-monitoring-upload-overhaul-design.md` |

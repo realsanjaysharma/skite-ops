@@ -137,6 +137,7 @@ CREATE TABLE green_belts (
     maintenance_mode ENUM('MAINTAINED','OUTSOURCED') NOT NULL,
     watering_frequency ENUM('DAILY','ALTERNATE_DAY','WEEKLY','NOT_REQUIRED') NOT NULL,
     is_hidden TINYINT(1) NOT NULL DEFAULT 0,
+    board_count SMALLINT UNSIGNED NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uq_green_belts_belt_code (belt_code),
@@ -187,6 +188,22 @@ CREATE TABLE belt_outsourced_assignments (
     KEY idx_boa_outsourced_dates (outsourced_user_id, start_date, end_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE belt_user_assignments (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    belt_id BIGINT UNSIGNED NOT NULL,
+    user_id BIGINT UNSIGNED NOT NULL,
+    assignment_type VARCHAR(50) NOT NULL,
+    start_date DATE NOT NULL,
+    end_date DATE NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_bua_belt_id FOREIGN KEY (belt_id) REFERENCES green_belts(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_bua_user_id FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT,
+    KEY idx_bua_belt_type (belt_id, assignment_type),
+    KEY idx_bua_user_type (user_id, assignment_type),
+    KEY idx_bua_dates (start_date, end_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE maintenance_cycles (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     belt_id BIGINT UNSIGNED NOT NULL,
@@ -202,6 +219,28 @@ CREATE TABLE maintenance_cycles (
     CONSTRAINT fk_maintenance_cycles_closed_by_user_id FOREIGN KEY (closed_by_user_id) REFERENCES users(id) ON DELETE SET NULL,
     KEY idx_cycles_belt_start (belt_id, start_date),
     KEY idx_cycles_belt_end (belt_id, end_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE board_monitoring_reports (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    belt_id BIGINT UNSIGNED NOT NULL,
+    user_id BIGINT UNSIGNED NOT NULL,
+    report_date DATE NOT NULL,
+    status ENUM('ALL_OK','ALL_OFF','PARTIAL_OFF') NOT NULL,
+    off_count SMALLINT UNSIGNED NULL,
+    total_boards SMALLINT UNSIGNED NOT NULL,
+    gps_latitude DECIMAL(10,7) NULL,
+    gps_longitude DECIMAL(10,7) NULL,
+    issue_id BIGINT UNSIGNED NULL,
+    notes TEXT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_bmr_belt_id FOREIGN KEY (belt_id) REFERENCES green_belts(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_bmr_user_id FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_bmr_issue_id FOREIGN KEY (issue_id) REFERENCES issues(id) ON DELETE SET NULL,
+    UNIQUE KEY uq_bmr_belt_date_user (belt_id, report_date, user_id),
+    KEY idx_bmr_report_date (report_date),
+    KEY idx_bmr_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE watering_records (
@@ -254,6 +293,10 @@ CREATE TABLE shift_attendance (
     is_early_end TINYINT(1) NOT NULL DEFAULT 0,
 
     shift_notes TEXT NULL,
+    labour_count SMALLINT UNSIGNED NULL,
+    male_count SMALLINT UNSIGNED NULL,
+    female_count SMALLINT UNSIGNED NULL,
+    labour_variance_notes TEXT NULL,
 
     override_by_user_id BIGINT UNSIGNED NULL,
     override_reason TEXT NULL,
@@ -490,16 +533,19 @@ CREATE TABLE issues (
     title VARCHAR(255) NOT NULL,
     description TEXT NULL,
     priority ENUM('LOW','MEDIUM','HIGH','CRITICAL') NOT NULL DEFAULT 'MEDIUM',
-    status ENUM('OPEN','IN_PROGRESS','CLOSED') NOT NULL DEFAULT 'OPEN',
+    status ENUM('OPEN','IN_PROGRESS','RESOLVED','CLOSED') NOT NULL DEFAULT 'OPEN',
     raised_by_user_id BIGINT UNSIGNED NOT NULL,
     closed_by_user_id BIGINT UNSIGNED NULL,
     closed_at DATETIME NULL,
+    resolved_by_user_id BIGINT UNSIGNED NULL,
+    resolved_at DATETIME NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_issues_belt_id FOREIGN KEY (belt_id) REFERENCES green_belts(id) ON DELETE SET NULL,
     CONSTRAINT fk_issues_site_id FOREIGN KEY (site_id) REFERENCES sites(id) ON DELETE SET NULL,
     CONSTRAINT fk_issues_raised_by_user_id FOREIGN KEY (raised_by_user_id) REFERENCES users(id) ON DELETE RESTRICT,
     CONSTRAINT fk_issues_closed_by_user_id FOREIGN KEY (closed_by_user_id) REFERENCES users(id) ON DELETE SET NULL,
+    CONSTRAINT fk_issues_resolved_by FOREIGN KEY (resolved_by_user_id) REFERENCES users(id) ON DELETE SET NULL,
     KEY idx_issues_status (status),
     KEY idx_issues_priority (priority),
     KEY idx_issues_belt_id (belt_id),
@@ -586,7 +632,7 @@ CREATE TABLE task_worker_assignments (
 
 CREATE TABLE uploads (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    parent_type ENUM('GREEN_BELT','SITE','TASK','SHIFT_ATTENDANCE') NOT NULL,
+    parent_type ENUM('GREEN_BELT','SITE','TASK','SHIFT_ATTENDANCE','BOARD_MONITORING') NOT NULL,
     parent_id BIGINT UNSIGNED NOT NULL,
     upload_type ENUM('WORK','ISSUE') NOT NULL,
     work_type VARCHAR(100) NULL,

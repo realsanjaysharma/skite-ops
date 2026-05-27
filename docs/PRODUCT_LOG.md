@@ -296,3 +296,17 @@ Attendance selfies don't fit the existing upload surface model (no `upload_surfa
 **DashboardService updated:** Alert panel query for "attendance missing today" changed from `supervisor_attendance` to `shift_attendance`, and added HEAD_SUPERVISOR to the role filter (previously only GREEN_BELT_SUPERVISOR was checked).
 
 **Old files removed:** `AttendanceController.php`, `AttendanceService.php`, `AttendanceRepository.php` all deleted. Route registry cleaned of old `attendance/list` and `attendance/record` routes. RBAC `module_catalog` entry changed from `green_belt.supervisor_attendance` to `attendance.shift`.
+
+---
+
+## 2026-05-27 — Green Belt Board Operations: Design Decisions
+
+**Design decisions and architecture choices for Green Belt Board Operations (Tasks 1-14):**
+- **Role-Agnostic Assignments**: Designed `belt_user_assignments` with a `VARCHAR` assignment_type for future-proofing and role extensibility (e.g., `BOARD_MONITOR`, `ELECTRICIAN`, or other future roles). Rather than hardcoding roles to specific tables, this unified assignments table can capture any role-to-belt mapping.
+- **Extended Issue Lifecycle**: Expanded the issue status workflow from `OPEN` → `IN_PROGRESS` → `CLOSED` to support a new `RESOLVED` status: `OPEN` → `IN_PROGRESS` → `RESOLVED` → `CLOSED`. Electricians mark issues as `RESOLVED` and submit a resolution proof photo, while supervisors/OPS verify the fix to transition them to `CLOSED`. If the fix is unsatisfactory, they can reopen the issue back to `OPEN`.
+- **Electrician Fix Photos Parent-Mapping**: Resolution uploads use different `parent_type` based on the issue source. Board monitoring issues map to `BOARD_MONITORING` parent type, whereas task-assigned issues map to the `TASK` parent type. This allows the system to organize photos cleanly by operational domain.
+- **Labour Tracking Breakdown**: Shift attendance now supports detailed labour counts with `male_count` and `female_count` columns. This allows GBS to report the exact breakdown of workers on site. 
+- **Head Supervisor Variance Checks**: For wage reconciliation, when a Head Supervisor logs labor counts for a belt, the system checks their entered count against the sum of supervisor-reported labor counts for that day. If there is a variance, a justification note (`labour_variance_notes`) is strictly required before saving.
+- **Upload Parent Extension**: Added `BOARD_MONITORING` to the `uploads.parent_type` ENUM to support photos taken during monitoring and electrical repair tasks, and mapped it to the `bm` prefix in `UploadStorageService`.
+- **Denormalized Board Counts**: Added `board_count` column to the `green_belts` table. This stores the total number of advertisement boards on a belt, allowing fast retrieval and local calculations on the board monitoring page.
+

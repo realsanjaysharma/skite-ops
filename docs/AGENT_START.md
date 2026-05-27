@@ -5,8 +5,8 @@
 
 ---
 
-Last updated by: Claude Opus 4.6 — 2026-05-26
-Last commit: `e4c22bf feat: update DashboardService attendance query for shift_attendance`
+Last updated by: Antigravity — 2026-05-27
+Last commit: `a65fdf2 feat: bump cache versions for board operations release`
 
 ---
 
@@ -37,6 +37,7 @@ Agent testing (T01–T70 QA pass) is **complete**. That phase is archived in
 
 | Commit | What |
 |---|---|
+| `a65fdf2` | Green Belt Board Operations: all 14 tasks complete (migration 008, board monitoring, board issues, belt user assignments, RESOLVED issue lifecycle, shift labour count). |
 | *(uncommitted)* | Initialized Antigravity Superpowers profile at `.agent` using portable Node.js v20.15.0 and ran validation test checks successfully (82/82 PASS). |
 | `65112ac` | QA batch: 8 targeted fixes (upload/serve scope, IS/RQ codes, settings, cycle auto-close, SPA refresh, form validation, belt dropdown, HTML badges) |
 | `4ff3080` | Authority View v1: gallery, belt-name filters, date range, group-by, JSZip bulk download, mobile swipe, photo preview modal |
@@ -60,21 +61,14 @@ Agent testing (T01–T70 QA pass) is **complete**. That phase is archived in
 
 ## Current focus
 
-**Shift Attendance — COMPLETE** (Tasks 1–12 all committed)
+**Green Belt Board Operations — COMPLETE. Next up: Spec 2 (UI/UX Sweep + Client Logo) brainstorming**
 
-- `attendance.shift` ✅ Self-service shift start/complete (selfie + GPS + activities + vehicle meter)
-- `attendance.shift_review` ✅ OPS calendar grid + list + detail modal + override
-- `attendance.activity_types` ✅ OPS management view for activity types
-- Old `supervisor_attendance` table and files **DROPPED** — replaced entirely
-- DashboardService attendance query updated for `shift_attendance`
+- Green Belt Board Operations: all 14 tasks implemented and verified (migration 008, RBAC config, navigation, controllers, services, repositories, frontend views, issue lifecycle, shift labour tracking counts).
 
 **Previously completed:**
-- Monitoring Upload Overhaul ✅ (15 tasks)
+- Shift Attendance ✅
+- Monitoring Upload Overhaul ✅
 - Media Discovery ✅
-
-**Next up:**
-- Head Supervisor pages (`green_belt.watering_oversight` and related)
-- Phase 2 of Media Discovery (planner confirm/merge/dismiss flows)
 
 GREEN_BELT_SUPERVISOR ✅ complete. OUTSOURCED_MAINTAINER ✅ complete. AUTHORITY_REPRESENTATIVE ✅ complete.
 
@@ -82,6 +76,15 @@ GREEN_BELT_SUPERVISOR ✅ complete. OUTSOURCED_MAINTAINER ✅ complete. AUTHORIT
 
 ## What NOT to touch right now
 
+- **board_monitoring_reports table** — new, stable
+- **belt_user_assignments table** — new, stable
+- **BoardMonitoringController/Service/Repository** — new triad, do not refactor
+- **BoardIssueController/Service/Repository** — new triad, do not refactor
+- **BeltUserAssignmentController/Service/Repository** — new triad, do not refactor
+- **Issue lifecycle now supports RESOLVED status** — IssueService::resolveIssue(), reopenIssue(), updated closeIssue()
+- **shift_attendance labour columns (male_count, female_count, labour_photo_upload_id, hs_variance_comment)** — new, stable
+- **UploadController::resolveSurfaceFromRole()** — BOARD_MONITOR + ELECTRICIAN cases added
+- **UploadStorageService prefix map** — 'BOARD_MONITORING' => 'bm' added
 - **Authority View** — stable after multiple polish passes. Do not refactor.
 - **`uploadView` shared function** — just redesigned. Do not change without instruction.
 - **`openPhotoGallery()`** — shared function, used by 5+ pages. Changes affect all.

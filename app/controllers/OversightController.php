@@ -1,19 +1,19 @@
 <?php
 
 require_once __DIR__ . '/../helpers/Response.php';
-require_once __DIR__ . '/../services/AttendanceService.php';
+require_once __DIR__ . '/../services/ShiftAttendanceService.php';
 require_once __DIR__ . '/../services/WateringService.php';
 require_once __DIR__ . '/../services/LabourService.php';
 
 class OversightController extends BaseController
 {
-    private AttendanceService $attendanceService;
+    private ShiftAttendanceService $attendanceService;
     private WateringService $wateringService;
     private LabourService $labourService;
 
     public function __construct()
     {
-        $this->attendanceService = new AttendanceService();
+        $this->attendanceService = new ShiftAttendanceService();
         $this->wateringService = new WateringService();
         $this->labourService = new LabourService();
     }
@@ -50,11 +50,14 @@ class OversightController extends BaseController
             $actorId = (int)$_SESSION['user_id'];
 
             // 1. Attendance Records
-            $attendanceFilters = ['date' => $date];
-            if ($supervisorUserId) {
-                $attendanceFilters['supervisor_user_id'] = $supervisorUserId;
-            }
-            $attendance = $this->attendanceService->listAttendanceRecords($attendanceFilters);
+            $attendanceData = $this->attendanceService->getReviewList(['month' => substr($date, 0, 7)]);
+            $shifts = $attendanceData['shifts'] ?? [];
+            $attendance = array_filter($shifts, function($s) use ($date, $supervisorUserId) {
+                if ($s['shift_date'] !== $date) return false;
+                if ($supervisorUserId && (int)$s['user_id'] !== $supervisorUserId) return false;
+                return true;
+            });
+            $attendance = array_values($attendance);
 
             // 2. Watering Status per Belt
             $wateringFilters = ['date' => $date, 'maintenance_mode' => $maintenanceMode];
